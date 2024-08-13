@@ -17,13 +17,27 @@ allprojects {
     }
 }
 
-tasks.register<io.gitlab.arturbosch.detekt.Detekt>("detektAll") {
-  description = "Runs detekt for all modules."
-  debug = true
-  config.setFrom(files("${rootProject.rootDir}/detekt.yml"))
-  setSource(files(rootProject.rootDir))
-  include("**/*.kt")
-  include("**/*.kts")
-  exclude("resources/")
-  exclude("build/")
+detekt {
+    description = "Runs detekt for all modules"
+    autoCorrect = true
+    config.setFrom(files("${rootProject.rootDir}/detekt.yml"))
+    source.setFrom(files(rootProject.rootDir))
+}
+
+tasks.detekt.configure {
+    include("**/*.kt")
+    include("**/*.kts")
+    exclude("**/resources/**")
+    exclude("**/build/**")
+    reports {
+        xml.required.set(false)
+        html.required.set(false)
+        txt.required.set(false)
+        sarif.required.set(false)
+        md.required.set(true)
+    }
+}
+
+tasks.register("check") {
+    // register check task for the root project so our detekt task will run on `gradlew check`
 }
