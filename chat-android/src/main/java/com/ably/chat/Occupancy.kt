@@ -20,7 +20,6 @@ interface Occupancy : EmitsDiscontinuities {
      * Subscribe a given listener to occupancy updates of the chat room.
      *
      * @param listener A listener to be called when the occupancy of the room changes.
-     * @returns A promise resolves to the channel attachment state change event from the implicit channel attach operation.
      */
     fun subscribe(listener: Listener)
 
@@ -34,7 +33,7 @@ interface Occupancy : EmitsDiscontinuities {
     /**
      * Get the current occupancy of the chat room.
      *
-     * @returns A promise that resolves to the current occupancy of the chat room.
+     * @returns the current occupancy of the chat room.
      */
     suspend fun get(): OccupancyEvent
 

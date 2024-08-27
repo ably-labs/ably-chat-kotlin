@@ -44,15 +44,17 @@ interface Messages : EmitsDiscontinuities {
      *
      * This method uses the Ably Chat API endpoint for sending messages.
      *
-     * Note that the Promise may resolve before OR after the message is received
+     * Note: that the suspending function may resolve before OR after the message is received
      * from the realtime channel. This means you may see the message that was just
-     * sent in a callback to `subscribe` before the returned promise resolves.
+     * sent in a callback to `subscribe` before the function resolves.
+     *
+     * TODO: Revisit this resolution policy during implementation (it will be much better for DX if this behavior is deterministic).
      *
      * @param params an object containing {text, headers, metadata} for the message
      * to be sent. Text is required, metadata and headers are optional.
-     * @returns A promise that resolves when the message was published.
+     * @returns The message was published.
      */
-    fun send(params: SendMessageParams): Message
+    suspend fun send(params: SendMessageParams): Message
 
     /**
      * An interface for listening to new messaging event
@@ -92,23 +94,23 @@ data class QueryOptions(
     val limit: Int = 100,
 
     /**
-     * The direction to query messages in.
+     * The order of messages in the query result.
      */
-    val direction: Direction = Direction.FORWARDS,
+    val orderBy: MessageOrder = MessageOrder.NewestFirst,
 ) {
     /**
      * Represents direction to query messages in.
      */
-    enum class Direction {
+    enum class MessageOrder {
         /**
          * The response will include messages from the start of the time window to the end.
          */
-        FORWARDS,
+        NewestFirst,
 
         /**
          * the response will include messages from the end of the time window to the start.
          */
-        BACKWARDS,
+        OldestFirst,
     }
 }
 
