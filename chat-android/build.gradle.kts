@@ -1,7 +1,10 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.android.kotlin)
+    alias(libs.plugins.build.config)
 }
+
+val version = libs.versions.ably.chat.get()
 
 android {
     namespace = "com.ably.chat"
@@ -31,6 +34,12 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+}
+
+buildConfig {
+    packageName("com.ably.chat")
+    useKotlinOutput { internalVisibility = true }
+    buildConfigField("APP_VERSION", provider { "\"${version}\"" })
 }
 
 dependencies {

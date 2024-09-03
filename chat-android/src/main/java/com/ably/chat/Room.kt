@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication", "NotImplementedDeclaration")
+
 package com.ably.chat
 
 /**
@@ -79,4 +81,53 @@ interface Room {
      * Detaches from the room to stop receiving events in realtime.
      */
     suspend fun detach()
+}
+
+internal class DefaultRoom(
+    override val roomId: String,
+    override val options: RoomOptions,
+    realtimeClient: RealtimeClient,
+    chatApi: ChatApi,
+) : Room {
+
+    override val messages: Messages = DefaultMessages(
+        roomId = roomId,
+        realtimeClient = realtimeClient,
+        chatApi = chatApi,
+    )
+
+    override val presence: Presence = DefaultPresence(
+        messages = messages,
+    )
+
+    override val reactions: RoomReactions = DefaultRoomReactions(
+        roomId = roomId,
+        realtimeClient = realtimeClient,
+    )
+
+    override val typing: Typing = DefaultTyping(
+        roomId = roomId,
+        realtimeClient = realtimeClient,
+    )
+
+    override val occupancy: Occupancy = DefaultOccupancy(
+        messages = messages,
+    )
+
+    override val status: RoomStatus
+        get() {
+            TODO("Not yet implemented")
+        }
+
+    override suspend fun attach() {
+        messages.channel.attachCoroutine()
+        typing.channel.attachCoroutine()
+        reactions.channel.attachCoroutine()
+    }
+
+    override suspend fun detach() {
+        messages.channel.detachCoroutine()
+        typing.channel.detachCoroutine()
+        reactions.channel.detachCoroutine()
+    }
 }
