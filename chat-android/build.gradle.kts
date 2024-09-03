@@ -34,7 +34,8 @@ android {
 }
 
 dependencies {
-    implementation(libs.ably.android)
+    api(libs.ably.android)
+    implementation(libs.gson)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.core)
