@@ -12,7 +12,7 @@ interface ChatClient {
     /**
      * The rooms object, which provides access to chat rooms.
      */
-    val room: Room
+    val rooms: Rooms
 
     /**
      * The underlying connection to Ably, which can be used to monitor the clients
