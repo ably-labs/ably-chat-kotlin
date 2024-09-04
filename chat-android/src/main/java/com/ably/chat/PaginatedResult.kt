@@ -47,8 +47,7 @@ private class AsyncPaginatedResultWrapper<T>(
     val asyncPaginatedResult: AsyncHttpPaginatedResponse,
     val transform: (JsonElement) -> T,
 ) : PaginatedResult<T> {
-    override val items: List<T>
-        get() = asyncPaginatedResult.items()?.map(transform) ?: emptyList()
+    override val items: List<T> = asyncPaginatedResult.items()?.map(transform) ?: emptyList()
 
     override suspend fun next(): PaginatedResult<T> = suspendCoroutine { continuation ->
         asyncPaginatedResult.next(object : AsyncHttpPaginatedResponse.Callback {

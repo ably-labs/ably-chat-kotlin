@@ -2,6 +2,7 @@ package com.ably.chat
 
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
 import io.ably.lib.http.HttpCore
 import io.ably.lib.http.HttpUtils
 import io.ably.lib.types.AblyException
@@ -17,8 +18,13 @@ private const val PROTOCOL_VERSION_PARAM_NAME = "v"
 private val apiProtocolParam = Param(PROTOCOL_VERSION_PARAM_NAME, API_PROTOCOL_VERSION.toString())
 
 // TODO make this class internal
-class ChatApi(private val realtimeClient: RealtimeClient) {
+class ChatApi(private val realtimeClient: RealtimeClient, private val clientId: String) {
 
+    /**
+     * Get messages from the Chat Backend
+     *
+     * @return paginated result with messages
+     */
     suspend fun getMessages(roomId: String, params: QueryOptions): PaginatedResult<Message> {
         return makeAuthorizedPaginatedRequest(
             url = "/chat/v1/rooms/$roomId/messages",
@@ -26,18 +32,23 @@ class ChatApi(private val realtimeClient: RealtimeClient) {
             params = params.toParams(),
         ) {
             Message(
-                timeserial = it.asJsonObject.get("timeserial").asString,
-                clientId = it.asJsonObject.get("clientId").asString,
-                roomId = it.asJsonObject.get("roomId").asString,
-                text = it.asJsonObject.get("text").asString,
-                createdAt = it.asJsonObject.get("createdAt").asLong,
-                metadata = it.asJsonObject.get("metadata")?.asJsonObject?.toMap() ?: mapOf(),
-                headers = it.asJsonObject.get("headers")?.asJsonObject?.toMap() ?: mapOf(),
+                timeserial = it.requireString("timeserial"),
+                clientId = it.requireString("clientId"),
+                roomId = it.requireString("roomId"),
+                text = it.requireString("text"),
+                createdAt = it.requireLong("createdAt"),
+                metadata = it.asJsonObject.get("metadata")?.toMap() ?: mapOf(),
+                headers = it.asJsonObject.get("headers")?.toMap() ?: mapOf(),
             )
         }
     }
 
-    suspend fun sendMessage(roomId: String, params: SendMessageParams): CreateMessageResponse {
+    /**
+     * Send message to the Chat Backend
+     *
+     * @return sent message instance
+     */
+    suspend fun sendMessage(roomId: String, params: SendMessageParams): Message {
         val body = JsonObject().apply {
             addProperty("text", params.text)
             params.headers?.let {
@@ -53,18 +64,26 @@ class ChatApi(private val realtimeClient: RealtimeClient) {
             "POST",
             body,
         )?.let {
-            CreateMessageResponse(
-                timeserial = it.asJsonObject.get("timeserial").asString,
-                createdAt = it.asJsonObject.get("createdAt").asLong,
+            Message(
+                timeserial = it.requireString("timeserial"),
+                clientId = clientId,
+                roomId = roomId,
+                text = params.text,
+                createdAt = it.requireLong("createdAt"),
+                metadata = params.metadata ?: mapOf(),
+                headers = params.headers ?: mapOf(),
             )
         } ?: throw AblyException.fromErrorInfo(ErrorInfo("Send message endpoint returned empty value", HttpStatusCodes.InternalServerError))
     }
 
+    /**
+     * return occupancy for specified room
+     */
     suspend fun getOccupancy(roomId: String): OccupancyEvent {
         return this.makeAuthorizedRequest("/chat/v1/rooms/$roomId/occupancy", "GET")?.let {
             OccupancyEvent(
-                connections = it.asJsonObject.get("connections").asInt,
-                presenceMembers = it.asJsonObject.get("presenceMembers").asInt,
+                connections = it.requireInt("connections"),
+                presenceMembers = it.requireInt("presenceMembers"),
             )
         } ?: throw AblyException.fromErrorInfo(ErrorInfo("Occupancy endpoint returned empty value", HttpStatusCodes.InternalServerError))
     }
@@ -81,8 +100,7 @@ class ChatApi(private val realtimeClient: RealtimeClient) {
             arrayOf(apiProtocolParam),
             requestBody,
             arrayOf(),
-            object :
-                AsyncHttpPaginatedResponse.Callback {
+            object : AsyncHttpPaginatedResponse.Callback {
                 override fun onResponse(response: AsyncHttpPaginatedResponse?) {
                     continuation.resume(response?.items()?.firstOrNull())
                 }
@@ -106,8 +124,7 @@ class ChatApi(private val realtimeClient: RealtimeClient) {
             (params + apiProtocolParam).toTypedArray(),
             null,
             arrayOf(),
-            object :
-                AsyncHttpPaginatedResponse.Callback {
+            object : AsyncHttpPaginatedResponse.Callback {
                 override fun onResponse(response: AsyncHttpPaginatedResponse?) {
                     continuation.resume(response.toPaginatedResult(transform))
                 }
@@ -120,8 +137,6 @@ class ChatApi(private val realtimeClient: RealtimeClient) {
     }
 }
 
-data class CreateMessageResponse(val timeserial: String, val createdAt: Long)
-
 private fun JsonElement?.toRequestBody(useBinaryProtocol: Boolean = false): HttpCore.RequestBody =
     HttpUtils.requestBodyFromGson(this, useBinaryProtocol)
 
@@ -129,8 +144,8 @@ private fun Map<String, String>.toJson() = JsonObject().apply {
     forEach { (key, value) -> addProperty(key, value) }
 }
 
-private fun JsonObject.toMap() = buildMap<String, String> {
-    entrySet().filter { (_, value) -> value.isJsonPrimitive }.forEach { (key, value) -> put(key, value.asString) }
+private fun JsonElement.toMap() = buildMap<String, String> {
+    requireJsonObject().entrySet().filter { (_, value) -> value.isJsonPrimitive }.forEach { (key, value) -> put(key, value.asString) }
 }
 
 private fun QueryOptions.toParams() = buildList {
@@ -147,3 +162,67 @@ private fun QueryOptions.toParams() = buildList {
         ),
     )
 }
+
+private fun JsonElement.requireJsonObject(): JsonObject {
+    if (!isJsonObject) {
+        throw AblyException.fromErrorInfo(
+            ErrorInfo("Response value expected to be JsonObject, got primitive instead", HttpStatusCodes.InternalServerError),
+        )
+    }
+    return asJsonObject
+}
+
+private fun JsonElement.requireString(memberName: String): String {
+    val memberElement = requireField(memberName)
+    if (!memberElement.isJsonPrimitive) {
+        throw AblyException.fromErrorInfo(
+            ErrorInfo(
+                "Value for \"$memberName\" field expected to be JsonPrimitive, got object instead",
+                HttpStatusCodes.InternalServerError,
+            ),
+        )
+    }
+    return memberElement.asString
+}
+
+private fun JsonElement.requireLong(memberName: String): Long {
+    val memberElement = requireJsonPrimitive(memberName)
+    try {
+        return memberElement.asLong
+    } catch (formatException: NumberFormatException) {
+        throw AblyException.fromErrorInfo(
+            formatException,
+            ErrorInfo("Required numeric field \"$memberName\" is not a valid long", HttpStatusCodes.InternalServerError),
+        )
+    }
+}
+
+private fun JsonElement.requireInt(memberName: String): Int {
+    val memberElement = requireJsonPrimitive(memberName)
+    try {
+        return memberElement.asInt
+    } catch (formatException: NumberFormatException) {
+        throw AblyException.fromErrorInfo(
+            formatException,
+            ErrorInfo("Required numeric field \"$memberName\" is not a valid int", HttpStatusCodes.InternalServerError),
+        )
+    }
+}
+
+private fun JsonElement.requireJsonPrimitive(memberName: String): JsonPrimitive {
+    val memberElement = requireField(memberName)
+    if (!memberElement.isJsonPrimitive) {
+        throw AblyException.fromErrorInfo(
+            ErrorInfo(
+                "Value for \"$memberName\" field expected to be JsonPrimitive, got object instead",
+                HttpStatusCodes.InternalServerError,
+            ),
+        )
+    }
+    return memberElement.asJsonPrimitive
+}
+
+private fun JsonElement.requireField(memberName: String): JsonElement = requireJsonObject().get(memberName)
+    ?: throw AblyException.fromErrorInfo(
+        ErrorInfo("Required field \"$memberName\" is missing", HttpStatusCodes.InternalServerError),
+    )
