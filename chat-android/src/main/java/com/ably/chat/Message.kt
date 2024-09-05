@@ -32,7 +32,7 @@ data class Message(
     /**
      * The text of the message.
      */
-    val textval: String,
+    val text: String,
 
     /**
      * The timestamp at which the message was created.
@@ -66,5 +66,5 @@ data class Message(
      * Do not use the headers for authoritative information. There is no server-side
      * validation. When reading the headers treat them like user input.
      */
-    val headersval: MessageHeaders,
+    val headers: MessageHeaders,
 )

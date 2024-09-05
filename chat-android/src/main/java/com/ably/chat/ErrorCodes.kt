@@ -87,4 +87,29 @@ object ErrorCodes {
      * An unknown error has happened in the room lifecycle.
      */
     const val RoomLifecycleError = 102_105
+
+    /**
+     * The request cannot be understood
+     */
+    const val BadRequest = 40_000
+}
+
+/**
+ * Http Status Codes
+ */
+object HttpStatusCodes {
+
+    const val BadRequest = 400
+
+    const val Unauthorized = 401
+
+    const val InternalServerError = 500
+
+    const val NotImplemented = 501
+
+    const val ServiceUnavailable = 502
+
+    const val GatewayTimeout = 503
+
+    const val Timeout = 504
 }

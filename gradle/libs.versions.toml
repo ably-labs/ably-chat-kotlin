@@ -14,6 +14,9 @@ espresso-core = "3.6.1"
 lifecycle-runtime-ktx = "2.8.4"
 activity-compose = "1.9.1"
 compose-bom = "2024.06.00"
+gson = "2.11.0"
+mockk = "1.13.12"
+coroutine = "1.8.1"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -35,6 +38,13 @@ androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+
+gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+
+coroutine-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutine" }
+coroutine-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutine" }
 
 [plugins]
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt"}
