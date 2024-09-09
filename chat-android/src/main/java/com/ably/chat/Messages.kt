@@ -3,7 +3,6 @@
 package com.ably.chat
 
 import io.ably.lib.realtime.Channel
-import io.ably.lib.types.PaginatedResult
 
 /**
  * This interface is used to interact with messages in a chat room: subscribing
@@ -24,13 +23,7 @@ interface Messages : EmitsDiscontinuities {
      * @param listener callback that will be called
      * @returns A response object that allows you to control the subscription.
      */
-    fun subscribe(listener: Listener)
-
-    /**
-     * Unsubscribe listener
-     * @param listener callback that will be unsubscribed
-     */
-    fun unsubscribe(listener: Listener)
+    fun subscribe(listener: Listener): MessagesSubscription
 
     /**
      * Get messages that have been previously sent to the chat room, based on the provided options.
@@ -176,6 +169,10 @@ data class SendMessageParams(
     val headers: MessageHeaders? = null,
 )
 
+interface MessagesSubscription: Cancellation {
+    suspend fun getPreviousMessages(queryOptions: QueryOptions): PaginatedResult<Message>
+}
+
 class DefaultMessages(
     private val roomId: String,
     private val realtimeClient: RealtimeClient,
@@ -190,25 +187,15 @@ class DefaultMessages(
     override val channel: Channel
         get() = realtimeClient.channels.get(messagesChannelName, ChatChannelOptions())
 
-    override fun subscribe(listener: Messages.Listener) {
+    override fun subscribe(listener: Messages.Listener): MessagesSubscription {
         TODO("Not yet implemented")
     }
 
-    override fun unsubscribe(listener: Messages.Listener) {
-        TODO("Not yet implemented")
-    }
-
-    override suspend fun get(options: QueryOptions): PaginatedResult<Message> {
-        TODO("Not yet implemented")
-    }
+    override suspend fun get(options: QueryOptions): PaginatedResult<Message> = chatApi.getMessages(roomId, options)
 
     override suspend fun send(params: SendMessageParams): Message = chatApi.sendMessage(roomId, params)
 
-    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener) {
-        TODO("Not yet implemented")
-    }
-
-    override fun offDiscontinuity(listener: EmitsDiscontinuities.Listener) {
+    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Cancellation {
         TODO("Not yet implemented")
     }
 }
