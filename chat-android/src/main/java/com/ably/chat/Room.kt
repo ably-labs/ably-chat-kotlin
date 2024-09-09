@@ -90,11 +90,13 @@ internal class DefaultRoom(
     chatApi: ChatApi,
 ) : Room {
 
-    override val messages: Messages = DefaultMessages(
+    private val _messages = DefaultMessages(
         roomId = roomId,
-        realtimeClient = realtimeClient,
+        realtimeChannels = realtimeClient.channels,
         chatApi = chatApi,
     )
+
+    override val messages: Messages = _messages
 
     override val presence: Presence = DefaultPresence(
         messages = messages,
@@ -129,5 +131,9 @@ internal class DefaultRoom(
         messages.channel.detachCoroutine()
         typing.channel.detachCoroutine()
         reactions.channel.detachCoroutine()
+    }
+
+    fun release() {
+        _messages.release()
     }
 }
