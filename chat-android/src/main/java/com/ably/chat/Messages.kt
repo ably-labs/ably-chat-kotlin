@@ -2,7 +2,13 @@
 
 package com.ably.chat
 
+import com.ably.chat.QueryOptions.MessageOrder.NewestFirst
+import com.google.gson.JsonObject
 import io.ably.lib.realtime.Channel
+import io.ably.lib.realtime.Channel.MessageListener
+import io.ably.lib.realtime.ChannelState
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 /**
  * This interface is used to interact with messages in a chat room: subscribing
@@ -91,7 +97,7 @@ data class QueryOptions(
     /**
      * The order of messages in the query result.
      */
-    val orderBy: MessageOrder = MessageOrder.NewestFirst,
+    val orderBy: MessageOrder = NewestFirst,
 ) {
     /**
      * Represents direction to query messages in.
@@ -169,26 +175,73 @@ data class SendMessageParams(
     val headers: MessageHeaders? = null,
 )
 
-interface MessagesSubscription: Cancellation {
+interface MessagesSubscription : Cancellation {
     suspend fun getPreviousMessages(queryOptions: QueryOptions): PaginatedResult<Message>
 }
 
-class DefaultMessages(
+internal class DefaultMessagesSubscription(
+    private val chatApi: ChatApi,
     private val roomId: String,
-    private val realtimeClient: RealtimeClient,
+    private val cancellation: Cancellation,
+    private val timeserialProvider: suspend () -> String,
+) : MessagesSubscription {
+    override fun cancel() {
+        cancellation.cancel()
+    }
+
+    override suspend fun getPreviousMessages(queryOptions: QueryOptions): PaginatedResult<Message> {
+        val fromSerial = timeserialProvider()
+        return chatApi.getMessages(
+            roomId = roomId,
+            options = queryOptions.copy(orderBy = NewestFirst),
+            fromSerial = fromSerial,
+        )
+    }
+}
+
+internal class DefaultMessages(
+    private val roomId: String,
+    realtimeClient: RealtimeClient,
     private val chatApi: ChatApi,
 ) : Messages {
+
+    private var observers: Set<Messages.Listener> = emptySet()
+
+    private var channelSerial: String? = null
 
     /**
      * the channel name for the chat messages channel.
      */
     private val messagesChannelName = "$roomId::\$chat::\$chatMessages"
 
-    override val channel: Channel
-        get() = realtimeClient.channels.get(messagesChannelName, ChatChannelOptions())
+    override val channel: Channel = realtimeClient.channels.get(messagesChannelName, ChatChannelOptions())
 
     override fun subscribe(listener: Messages.Listener): MessagesSubscription {
-        TODO("Not yet implemented")
+        observers += listener
+        val messageListener = MessageListener {
+            val pubSubMessage = it!!
+            val chatMessage = Message(
+                roomId = roomId,
+                createdAt = pubSubMessage.timestamp,
+                clientId = pubSubMessage.clientId,
+                timeserial = pubSubMessage.extras.asJsonObject().get("timeserial").asString,
+                text = (pubSubMessage.data as JsonObject).get("text").asString,
+                metadata = mapOf(), // rawPubSubMessage.data.metadata
+                headers = mapOf(), // rawPubSubMessage.extras.headers
+            )
+            observers.forEach { listener -> listener.onEvent(MessageEvent(type = MessageEventType.Created, message = chatMessage)) }
+        }
+        channel.subscribe(messageListener)
+
+        return DefaultMessagesSubscription(
+            chatApi = chatApi,
+            roomId = roomId,
+            cancellation = {
+                observers -= listener
+                channel.unsubscribe(messageListener)
+            },
+            timeserialProvider = { getChannelSerial() },
+        )
     }
 
     override suspend fun get(options: QueryOptions): PaginatedResult<Message> = chatApi.getMessages(roomId, options)
@@ -197,5 +250,17 @@ class DefaultMessages(
 
     override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Cancellation {
         TODO("Not yet implemented")
+    }
+
+    private suspend fun readAttachmentProperties() = suspendCoroutine { continuation ->
+        channel.once(ChannelState.attached) {
+            continuation.resume(channel.properties)
+        }
+    }
+
+    private suspend fun getChannelSerial(): String {
+        if (channelSerial != null) return channelSerial!!
+        channelSerial = readAttachmentProperties().channelSerial
+        return channelSerial!!
     }
 }

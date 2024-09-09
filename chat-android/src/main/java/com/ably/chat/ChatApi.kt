@@ -17,19 +17,20 @@ private const val API_PROTOCOL_VERSION = 3
 private const val PROTOCOL_VERSION_PARAM_NAME = "v"
 private val apiProtocolParam = Param(PROTOCOL_VERSION_PARAM_NAME, API_PROTOCOL_VERSION.toString())
 
-// TODO make this class internal
-class ChatApi(private val realtimeClient: RealtimeClient, private val clientId: String) {
+internal class ChatApi(private val realtimeClient: RealtimeClient, private val clientId: String) {
 
     /**
      * Get messages from the Chat Backend
      *
      * @return paginated result with messages
      */
-    suspend fun getMessages(roomId: String, params: QueryOptions): PaginatedResult<Message> {
+    suspend fun getMessages(roomId: String, options: QueryOptions, fromSerial: String? = null): PaginatedResult<Message> {
+        val baseParams = options.toParams()
+        val params = fromSerial?.let { baseParams + Param("fromSerial", it) } ?: baseParams
         return makeAuthorizedPaginatedRequest(
             url = "/chat/v1/rooms/$roomId/messages",
             method = "GET",
-            params = params.toParams(),
+            params = params,
         ) {
             Message(
                 timeserial = it.requireString("timeserial"),

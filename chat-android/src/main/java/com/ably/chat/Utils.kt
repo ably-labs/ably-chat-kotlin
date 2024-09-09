@@ -39,7 +39,7 @@ suspend fun Channel.detachCoroutine() = suspendCoroutine { continuation ->
 fun ChatChannelOptions(init: (ChannelOptions.() -> Unit)? = null): ChannelOptions {
     val options = ChannelOptions()
     init?.let { options.it() }
-    options.params = options.params + mapOf(
+    options.params = (options.params ?: mapOf()) + mapOf(
         AGENT_PARAMETER_NAME to "chat-kotlin/${BuildConfig.APP_VERSION}",
     )
     return options

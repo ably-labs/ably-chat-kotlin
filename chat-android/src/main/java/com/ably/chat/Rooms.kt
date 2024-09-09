@@ -1,8 +1,5 @@
 package com.ably.chat
 
-import io.ably.lib.types.AblyException
-import io.ably.lib.types.ErrorInfo
-
 /**
  * Manages the lifecycle of chat rooms.
  */
@@ -24,7 +21,7 @@ interface Rooms {
      * @throws {@link ErrorInfo} if a room with the same ID but different options already exists.
      * @returns Room A new or existing Room object.
      */
-    fun get(roomId: String, options: RoomOptions): Room
+    fun get(roomId: String, options: RoomOptions = RoomOptions()): Room
 
     /**
      * Release the Room object if it exists. This method only releases the reference
@@ -60,11 +57,11 @@ internal class DefaultRooms(
                 )
             }
 
-            if (room.options != options) {
-                throw AblyException.fromErrorInfo(
-                    ErrorInfo("Room already exists with different options", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest),
-                )
-            }
+//            if (room.options != options) {
+//                throw AblyException.fromErrorInfo(
+//                    ErrorInfo("Room already exists with different options", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest),
+//                )
+//            }
 
             room
         }
