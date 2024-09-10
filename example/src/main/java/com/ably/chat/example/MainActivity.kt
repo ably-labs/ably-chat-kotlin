@@ -80,7 +80,7 @@ fun Chat(chatClient: ChatClient, modifier: Modifier = Modifier) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
-    val roomId = "my-room"
+    val roomId = "my-room2"
     val room = chatClient.rooms.get(roomId)
 
     DisposableEffect(Unit) {
@@ -93,7 +93,7 @@ fun Chat(chatClient: ChatClient, modifier: Modifier = Modifier) {
 
         coroutineScope.launch {
             messages = subscription.getPreviousMessages(QueryOptions()).items.reversed()
-            listState.animateScrollToItem(messages.size - 1)
+            if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
         }
 
         onDispose {
