@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication", "NotImplementedDeclaration")
+
 package com.ably.chat
 
 import android.text.PrecomputedText.Params
@@ -132,3 +134,47 @@ data class PresenceEvent(
      */
     val data: PresenceData,
 )
+
+internal class DefaultPresence(
+    private val messages: Messages,
+) : Presence {
+
+    override val channel: Channel
+        get() = messages.channel
+
+    override suspend fun get(params: List<Params>): List<PresenceMember> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun isUserPresent(clientId: String): Boolean {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun enter(data: PresenceData?) {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun update(data: PresenceData?) {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun leave(data: PresenceData?) {
+        TODO("Not yet implemented")
+    }
+
+    override fun subscribe(listener: Presence.Listener) {
+        TODO("Not yet implemented")
+    }
+
+    override fun unsubscribe(listener: Presence.Listener) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener) {
+        TODO("Not yet implemented")
+    }
+
+    override fun offDiscontinuity(listener: EmitsDiscontinuities.Listener) {
+        TODO("Not yet implemented")
+    }
+}

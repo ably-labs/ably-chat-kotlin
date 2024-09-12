@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication", "NotImplementedDeclaration")
+
 package com.ably.chat
 
 import io.ably.lib.realtime.Channel
@@ -100,3 +102,33 @@ data class SendReactionParams(
      */
     val headers: ReactionHeaders? = null,
 )
+
+internal class DefaultRoomReactions(
+    roomId: String,
+    private val realtimeClient: RealtimeClient,
+) : RoomReactions {
+    private val roomReactionsChannelName = "$roomId::\$chat::\$reactions"
+
+    override val channel: Channel
+        get() = realtimeClient.channels.get(roomReactionsChannelName, ChatChannelOptions())
+
+    override suspend fun send(params: SendReactionParams) {
+        TODO("Not yet implemented")
+    }
+
+    override fun subscribe(listener: RoomReactions.Listener) {
+        TODO("Not yet implemented")
+    }
+
+    override fun unsubscribe(listener: RoomReactions.Listener) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener) {
+        TODO("Not yet implemented")
+    }
+
+    override fun offDiscontinuity(listener: EmitsDiscontinuities.Listener) {
+        TODO("Not yet implemented")
+    }
+}

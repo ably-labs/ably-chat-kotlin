@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication", "NotImplementedDeclaration")
+
 package com.ably.chat
 
 import io.ably.lib.realtime.Channel
@@ -63,3 +65,30 @@ data class OccupancyEvent(
      */
     val presenceMembers: Int,
 )
+
+internal class DefaultOccupancy(
+    private val messages: Messages,
+) : Occupancy {
+    override val channel: Channel
+        get() = messages.channel
+
+    override fun subscribe(listener: Occupancy.Listener) {
+        TODO("Not yet implemented")
+    }
+
+    override fun unsubscribe(listener: Occupancy.Listener) {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun get(): OccupancyEvent {
+        TODO("Not yet implemented")
+    }
+
+    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener) {
+        TODO("Not yet implemented")
+    }
+
+    override fun offDiscontinuity(listener: EmitsDiscontinuities.Listener) {
+        TODO("Not yet implemented")
+    }
+}

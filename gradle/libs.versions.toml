@@ -2,11 +2,12 @@
 # https://docs.gradle.org/current/userguide/platforms.html#sub::toml-dependencies-format
 
 [versions]
+ably-chat = "0.0.1"
+ably = "1.2.41"
 junit = "4.13.2"
 agp = "8.5.2"
 detekt = "1.23.6"
 kotlin = "2.0.10"
-ably = "1.2.41"
 androidx-test = "1.6.1"
 androidx-junit = "1.2.1"
 core-ktx = "1.13.1"
@@ -17,6 +18,7 @@ compose-bom = "2024.06.00"
 gson = "2.11.0"
 mockk = "1.13.12"
 coroutine = "1.8.1"
+build-config = "5.4.0"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -52,3 +54,4 @@ android-kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+build-config = { id = "com.github.gmazzo.buildconfig", version.ref = "build-config" }

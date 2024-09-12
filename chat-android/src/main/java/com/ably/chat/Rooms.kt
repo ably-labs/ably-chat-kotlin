@@ -1,5 +1,8 @@
 package com.ably.chat
 
+import io.ably.lib.types.AblyException
+import io.ably.lib.types.ErrorInfo
+
 /**
  * Manages the lifecycle of chat rooms.
  */
@@ -34,4 +37,42 @@ interface Rooms {
      * @param roomId The ID of the room.
      */
     suspend fun release(roomId: String)
+}
+
+/**
+ * Manages the chat rooms.
+ */
+internal class DefaultRooms(
+    private val realtimeClient: RealtimeClient,
+    private val chatApi: ChatApi,
+    override val clientOptions: ClientOptions,
+) : Rooms {
+    private val roomIdToRoom: MutableMap<String, Room> = mutableMapOf()
+
+    override fun get(roomId: String, options: RoomOptions): Room {
+        return synchronized(this) {
+            val room = roomIdToRoom.getOrPut(roomId) {
+                DefaultRoom(
+                    roomId = roomId,
+                    options = options,
+                    realtimeClient = realtimeClient,
+                    chatApi = chatApi,
+                )
+            }
+
+            if (room.options != options) {
+                throw AblyException.fromErrorInfo(
+                    ErrorInfo("Room already exists with different options", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest),
+                )
+            }
+
+            room
+        }
+    }
+
+    override suspend fun release(roomId: String) {
+        synchronized(this) {
+            roomIdToRoom.remove(roomId)
+        }
+    }
 }

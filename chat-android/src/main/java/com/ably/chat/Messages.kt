@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication", "NotImplementedDeclaration")
+
 package com.ably.chat
 
 import io.ably.lib.realtime.Channel
@@ -173,3 +175,40 @@ data class SendMessageParams(
      */
     val headers: MessageHeaders? = null,
 )
+
+class DefaultMessages(
+    private val roomId: String,
+    private val realtimeClient: RealtimeClient,
+    private val chatApi: ChatApi,
+) : Messages {
+
+    /**
+     * the channel name for the chat messages channel.
+     */
+    private val messagesChannelName = "$roomId::\$chat::\$chatMessages"
+
+    override val channel: Channel
+        get() = realtimeClient.channels.get(messagesChannelName, ChatChannelOptions())
+
+    override fun subscribe(listener: Messages.Listener) {
+        TODO("Not yet implemented")
+    }
+
+    override fun unsubscribe(listener: Messages.Listener) {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun get(options: QueryOptions): PaginatedResult<Message> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun send(params: SendMessageParams): Message = chatApi.sendMessage(roomId, params)
+
+    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener) {
+        TODO("Not yet implemented")
+    }
+
+    override fun offDiscontinuity(listener: EmitsDiscontinuities.Listener) {
+        TODO("Not yet implemented")
+    }
+}

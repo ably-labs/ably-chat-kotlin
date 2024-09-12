@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication", "NotImplementedDeclaration")
+
 package com.ably.chat
 
 import io.ably.lib.realtime.Channel
@@ -77,3 +79,41 @@ interface Typing : EmitsDiscontinuities {
  * Represents a typing event.
  */
 data class TypingEvent(val currentlyTyping: Set<String>)
+
+internal class DefaultTyping(
+    roomId: String,
+    private val realtimeClient: RealtimeClient,
+) : Typing {
+    private val typingIndicatorsChannelName = "$roomId::\$chat::\$typingIndicators"
+
+    override val channel: Channel
+        get() = realtimeClient.channels.get(typingIndicatorsChannelName, ChatChannelOptions())
+
+    override fun subscribe(listener: Typing.Listener) {
+        TODO("Not yet implemented")
+    }
+
+    override fun unsubscribe(listener: Typing.Listener) {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun get(): Set<String> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun start() {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun stop() {
+        TODO("Not yet implemented")
+    }
+
+    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener) {
+        TODO("Not yet implemented")
+    }
+
+    override fun offDiscontinuity(listener: EmitsDiscontinuities.Listener) {
+        TODO("Not yet implemented")
+    }
+}

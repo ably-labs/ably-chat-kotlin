@@ -1,3 +1,7 @@
+import java.io.FileInputStream
+import java.io.InputStreamReader
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.android.kotlin)
@@ -19,6 +23,8 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        buildConfigField("String", "ABLY_KEY", "\"${getLocalProperty("ABLY_KEY") ?: ""}\"")
     }
 
     buildTypes {
@@ -38,6 +44,7 @@ android {
         jvmTarget = "1.8"
     }
     buildFeatures {
+        buildConfig = true
         compose = true
     }
     composeOptions {
@@ -67,4 +74,14 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+}
+
+fun getLocalProperty(key: String, file: String = "local.properties"): String? {
+    val properties = Properties()
+    val localProperties = File(file)
+    if (!localProperties.isFile) return null
+    InputStreamReader(FileInputStream(localProperties), Charsets.UTF_8).use { reader ->
+        properties.load(reader)
+    }
+    return properties.getProperty(key)
 }

@@ -7,4 +7,4 @@ trim_trailing_whitespace = true
 charset = utf-8
 
 [*.{kt,kts}]
-ij_kotlin_imports_layout = android.**,androidx.**,*,java.**,javax.**,kotlin.**,kotlinx.**,io.ably.**,com.ably.**,^
+ij_kotlin_imports_layout = *,^
