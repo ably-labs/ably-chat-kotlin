@@ -60,7 +60,7 @@ interface Presence : EmitsDiscontinuities {
      * Subscribe the given listener to all presence events.
      * @param listener listener to subscribe
      */
-    fun subscribe(listener: Listener): Cancellation
+    fun subscribe(listener: Listener): Subscription
 
     /**
      * An interface for listening to new presence event
@@ -156,11 +156,11 @@ internal class DefaultPresence(
         TODO("Not yet implemented")
     }
 
-    override fun subscribe(listener: Presence.Listener): Cancellation {
+    override fun subscribe(listener: Presence.Listener): Subscription {
         TODO("Not yet implemented")
     }
 
-    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Cancellation {
+    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
         TODO("Not yet implemented")
     }
 }

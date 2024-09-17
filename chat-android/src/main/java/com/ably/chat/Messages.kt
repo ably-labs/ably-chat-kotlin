@@ -169,7 +169,7 @@ data class SendMessageParams(
     val headers: MessageHeaders? = null,
 )
 
-interface MessagesSubscription : Cancellation {
+interface MessagesSubscription : Subscription {
     suspend fun getPreviousMessages(queryOptions: QueryOptions): PaginatedResult<Message>
 }
 
@@ -195,7 +195,7 @@ class DefaultMessages(
 
     override suspend fun send(params: SendMessageParams): Message = chatApi.sendMessage(roomId, params)
 
-    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Cancellation {
+    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
         TODO("Not yet implemented")
     }
 }

@@ -23,7 +23,7 @@ interface Occupancy : EmitsDiscontinuities {
      *
      * @param listener A listener to be called when the occupancy of the room changes.
      */
-    fun subscribe(listener: Listener): Cancellation
+    fun subscribe(listener: Listener): Subscription
 
     /**
      * Get the current occupancy of the chat room.
@@ -65,7 +65,7 @@ internal class DefaultOccupancy(
     override val channel: Channel
         get() = messages.channel
 
-    override fun subscribe(listener: Occupancy.Listener): Cancellation {
+    override fun subscribe(listener: Occupancy.Listener): Subscription {
         TODO("Not yet implemented")
     }
 
@@ -73,7 +73,7 @@ internal class DefaultOccupancy(
         TODO("Not yet implemented")
     }
 
-    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Cancellation {
+    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
         TODO("Not yet implemented")
     }
 }

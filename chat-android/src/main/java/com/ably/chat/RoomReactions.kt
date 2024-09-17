@@ -38,7 +38,7 @@ interface RoomReactions : EmitsDiscontinuities {
      * @param listener The listener function to be called when a reaction is received.
      * @returns A response object that allows you to control the subscription.
      */
-    fun subscribe(listener: Listener): Cancellation
+    fun subscribe(listener: Listener): Subscription
 
     /**
      * An interface for listening to new reaction events
@@ -111,11 +111,11 @@ internal class DefaultRoomReactions(
         TODO("Not yet implemented")
     }
 
-    override fun subscribe(listener: RoomReactions.Listener): Cancellation {
+    override fun subscribe(listener: RoomReactions.Listener): Subscription {
         TODO("Not yet implemented")
     }
 
-    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Cancellation {
+    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
         TODO("Not yet implemented")
     }
 }

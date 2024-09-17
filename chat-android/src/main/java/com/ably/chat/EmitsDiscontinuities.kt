@@ -10,7 +10,7 @@ interface EmitsDiscontinuities {
      * Register a listener to be called when a discontinuity is detected.
      * @param listener The listener to be called when a discontinuity is detected.
      */
-    fun onDiscontinuity(listener: Listener): Cancellation
+    fun onDiscontinuity(listener: Listener): Subscription
 
     /**
      * An interface for listening when discontinuity happens

@@ -37,7 +37,7 @@ interface Typing : EmitsDiscontinuities {
      *
      * @param listener A listener to be called when the typing state of a user in the room changes.
      */
-    fun subscribe(listener: Listener): Cancellation
+    fun subscribe(listener: Listener): Subscription
 
     /**
      * Get the current typers, a set of clientIds.
@@ -84,7 +84,7 @@ internal class DefaultTyping(
     override val channel: Channel
         get() = realtimeClient.channels.get(typingIndicatorsChannelName, ChatChannelOptions())
 
-    override fun subscribe(listener: Typing.Listener): Cancellation {
+    override fun subscribe(listener: Typing.Listener): Subscription {
         TODO("Not yet implemented")
     }
 
@@ -100,7 +100,7 @@ internal class DefaultTyping(
         TODO("Not yet implemented")
     }
 
-    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Cancellation {
+    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
         TODO("Not yet implemented")
     }
 }
