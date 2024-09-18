@@ -24,7 +24,7 @@ interface Rooms {
      * @throws {@link ErrorInfo} if a room with the same ID but different options already exists.
      * @returns Room A new or existing Room object.
      */
-    fun get(roomId: String, options: RoomOptions): Room
+    fun get(roomId: String, options: RoomOptions = RoomOptions()): Room
 
     /**
      * Release the Room object if it exists. This method only releases the reference
@@ -47,7 +47,7 @@ internal class DefaultRooms(
     private val chatApi: ChatApi,
     override val clientOptions: ClientOptions,
 ) : Rooms {
-    private val roomIdToRoom: MutableMap<String, Room> = mutableMapOf()
+    private val roomIdToRoom: MutableMap<String, DefaultRoom> = mutableMapOf()
 
     override fun get(roomId: String, options: RoomOptions): Room {
         return synchronized(this) {
@@ -72,7 +72,8 @@ internal class DefaultRooms(
 
     override suspend fun release(roomId: String) {
         synchronized(this) {
-            roomIdToRoom.remove(roomId)
+            val room = roomIdToRoom.remove(roomId)
+            room?.release()
         }
     }
 }

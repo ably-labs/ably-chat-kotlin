@@ -21,13 +21,13 @@ data class RoomOptions(
      * The reactions options for the room. To enable reactions in the room, set this property. You may use
      * {@link RoomOptionsDefaults.reactions} to enable reactions with default options.
      */
-    val reactions: RoomReactionsOptions = RoomReactionsOptions(),
+    val reactions: RoomReactionsOptions = RoomReactionsOptions,
 
     /**
      * The occupancy options for the room. To enable occupancy in the room, set this property. You may use
      * {@link RoomOptionsDefaults.occupancy} to enable occupancy with default options.
      */
-    val occupancy: OccupancyOptions = OccupancyOptions(),
+    val occupancy: OccupancyOptions = OccupancyOptions,
 )
 
 /**
@@ -66,9 +66,9 @@ data class TypingOptions(
 /**
  * Represents the reactions options for a chat room.
  */
-class RoomReactionsOptions
+object RoomReactionsOptions
 
 /**
  * Represents the occupancy options for a chat room.
  */
-class OccupancyOptions
+object OccupancyOptions

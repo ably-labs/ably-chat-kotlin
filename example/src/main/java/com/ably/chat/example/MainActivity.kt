@@ -14,12 +14,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,11 +31,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.ably.chat.ChatApi
+import com.ably.chat.ChatClient
 import com.ably.chat.Message
-import com.ably.chat.QueryOptions
-import com.ably.chat.QueryOptions.MessageOrder.OldestFirst
 import com.ably.chat.RealtimeClient
 import com.ably.chat.SendMessageParams
 import com.ably.chat.example.ui.theme.AblyChatExampleTheme
@@ -46,6 +47,7 @@ val randomClientId = UUID.randomUUID().toString()
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         val realtimeClient = RealtimeClient(
             ClientOptions().apply {
                 key = BuildConfig.ABLY_KEY
@@ -53,13 +55,15 @@ class MainActivity : ComponentActivity() {
                 logLevel = 2
             },
         )
-        val chatApi = ChatApi(realtimeClient, randomClientId)
+
+        val chatClient = ChatClient(realtimeClient)
+
         enableEdgeToEdge()
         setContent {
             AblyChatExampleTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Chat(
-                        chatApi,
+                        chatClient,
                         modifier = Modifier.padding(innerPadding),
                     )
                 }
@@ -69,29 +73,42 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Chat(chatApi: ChatApi, modifier: Modifier = Modifier) {
+fun Chat(chatClient: ChatClient, modifier: Modifier = Modifier) {
     var messageText by remember { mutableStateOf(TextFieldValue("")) }
     var sending by remember { mutableStateOf(false) }
     var messages by remember { mutableStateOf(listOf<Message>()) }
+    val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
     val roomId = "my-room"
+    val room = chatClient.rooms.get(roomId)
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Button(modifier = modifier.align(Alignment.CenterHorizontally), onClick = {
+    DisposableEffect(Unit) {
+        val subscription = room.messages.subscribe {
+            messages += it.message
             coroutineScope.launch {
-                messages = chatApi.getMessages(roomId, QueryOptions(orderBy = OldestFirst)).items
+                listState.animateScrollToItem(messages.size - 1)
             }
-        }) {
-            Text("Load")
         }
 
+        coroutineScope.launch {
+            messages = subscription.getPreviousMessages().items.reversed()
+            if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+        }
+
+        onDispose {
+            subscription.unsubscribe()
+        }
+    }
+
+    Column(
+        modifier = modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
         LazyColumn(
             modifier = Modifier.weight(1f).padding(16.dp),
             userScrollEnabled = true,
+            state = listState,
         ) {
             items(messages.size) { index ->
                 MessageBubble(messages[index])
@@ -105,8 +122,7 @@ fun Chat(chatApi: ChatApi, modifier: Modifier = Modifier) {
         ) {
             sending = true
             coroutineScope.launch {
-                chatApi.sendMessage(
-                    roomId,
+                room.messages.send(
                     SendMessageParams(
                         text = messageText.text,
                     ),
@@ -160,7 +176,6 @@ fun ChatInputField(
         TextField(
             value = messageInput,
             onValueChange = onMessageChange,
-            readOnly = sending,
             modifier = Modifier
                 .weight(1f)
                 .background(Color.White),
@@ -169,5 +184,36 @@ fun ChatInputField(
         Button(enabled = !sending, onClick = onSendClick) {
             Text("Send")
         }
+    }
+}
+
+@Preview
+@Composable
+fun MessageBubblePreview() {
+    AblyChatExampleTheme {
+        MessageBubble(
+            message = Message(
+                text = "Hello World!",
+                timeserial = "fake",
+                roomId = "roomId",
+                clientId = "clientId",
+                createdAt = System.currentTimeMillis(),
+                metadata = mapOf(),
+                headers = mapOf(),
+            ),
+        )
+    }
+}
+
+@Preview
+@Composable
+fun ChatInputPreview() {
+    AblyChatExampleTheme {
+        ChatInputField(
+            sending = false,
+            messageInput = TextFieldValue(""),
+            onMessageChange = {},
+            onSendClick = {},
+        )
     }
 }

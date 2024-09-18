@@ -37,7 +37,8 @@ interface ChatClient {
     val clientOptions: ClientOptions
 }
 
-fun ChatClient(realtimeClient: RealtimeClient, clientOptions: ClientOptions): ChatClient = DefaultChatClient(realtimeClient, clientOptions)
+fun ChatClient(realtimeClient: RealtimeClient, clientOptions: ClientOptions = ClientOptions()): ChatClient =
+    DefaultChatClient(realtimeClient, clientOptions)
 
 internal class DefaultChatClient(
     override val realtime: RealtimeClient,

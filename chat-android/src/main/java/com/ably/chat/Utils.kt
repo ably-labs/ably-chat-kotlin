@@ -39,8 +39,65 @@ suspend fun Channel.detachCoroutine() = suspendCoroutine { continuation ->
 fun ChatChannelOptions(init: (ChannelOptions.() -> Unit)? = null): ChannelOptions {
     val options = ChannelOptions()
     init?.let { options.it() }
-    options.params = options.params + mapOf(
+    options.params = (options.params ?: mapOf()) + mapOf(
         AGENT_PARAMETER_NAME to "chat-kotlin/${BuildConfig.APP_VERSION}",
     )
     return options
+}
+
+/**
+ * A value that can be evaluated at a later time, similar to `kotlinx.coroutines.Deferred` or a JavaScript Promise.
+ *
+ * This class provides a thread-safe, simple blocking implementation. It is not designed for use in scenarios with
+ * heavy concurrency.
+ *
+ * @param T the type of the value that will be evaluated.
+ */
+internal class DeferredValue<T> {
+
+    private var value: T? = null
+
+    private val lock = Any()
+
+    private var observers: Set<(T) -> Unit> = setOf()
+
+    private var _completed = false
+
+    /**
+     * `true` if value has been set, `false` otherwise
+     */
+    val completed get() = _completed
+
+    /**
+     * Set value and mark DeferredValue completed, should be invoked only once
+     *
+     * @throws IllegalStateException if it's already `completed`
+     */
+    fun completeWith(completionValue: T) {
+        synchronized(lock) {
+            check(!_completed) { "DeferredValue has already been completed" }
+            value = completionValue
+            _completed = true
+            observers.forEach { it(completionValue) }
+            observers = setOf()
+        }
+    }
+
+    /**
+     * Wait until value is completed
+     *
+     * @return completed value
+     */
+    suspend fun await(): T {
+        val result = suspendCoroutine { continuation ->
+            synchronized(lock) {
+                if (_completed) continuation.resume(value!!)
+                val observer: (T) -> Unit = {
+                    continuation.resume(it)
+                }
+                observers += observer
+            }
+        }
+        return result
+    }
 }
