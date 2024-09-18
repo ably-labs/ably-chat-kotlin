@@ -21,12 +21,7 @@ interface RoomStatus {
      * @param listener The function to call when the status changes.
      * @returns An object that can be used to unregister the listener.
      */
-    fun on(listener: Listener)
-
-    /**
-     * Removes all listeners that were added by the `onChange` method.
-     */
-    fun off(listener: Listener)
+    fun on(listener: Listener): Subscription
 
     /**
      * An interface for listening to changes for the room status

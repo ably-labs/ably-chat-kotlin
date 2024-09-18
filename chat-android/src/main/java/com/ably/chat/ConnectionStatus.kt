@@ -25,13 +25,7 @@ interface ConnectionStatus {
      * Registers a listener that will be called whenever the connection status changes.
      * @param listener The function to call when the status changes.
      */
-    fun on(listener: Listener)
-
-    /**
-     * Unregisters a listener
-     * @param listener The function to call when the status changes.
-     */
-    fun off(listener: Listener)
+    fun on(listener: Listener): Subscription
 
     /**
      * An interface for listening to changes for the connection status
