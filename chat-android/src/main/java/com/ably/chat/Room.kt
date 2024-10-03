@@ -2,6 +2,9 @@
 
 package com.ably.chat
 
+import io.ably.lib.types.AblyException
+import io.ably.lib.types.ErrorInfo
+
 /**
  * Represents a chat room.
  */
@@ -115,13 +118,22 @@ internal class DefaultRoom(
     override val occupancy: Occupancy = DefaultOccupancy(
         messages = messages,
     )
-
     override val status: RoomStatus
-        get() {
-            TODO("Not yet implemented")
-        }
+        get() = TODO("Not yet implemented")
 
     override suspend fun attach() {
+        when(status.current) {
+            RoomLifecycle.Attached -> {
+                return
+            }
+            RoomLifecycle.Releasing -> {
+                throw AblyException.fromErrorInfo(ErrorInfo("Can't ATTACH since room is in RELEASING state", ErrorCodes.RoomIsReleasing))
+            }
+            RoomLifecycle.Released -> {
+                throw AblyException.fromErrorInfo(ErrorInfo("Can't ATTACH since room is in RELEASED state", ErrorCodes.RoomIsReleased))
+            }
+            else -> {}
+        }
         messages.channel.attachCoroutine()
         typing.channel.attachCoroutine()
         reactions.channel.attachCoroutine()
