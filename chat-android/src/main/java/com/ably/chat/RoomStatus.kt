@@ -5,7 +5,7 @@ import io.ably.lib.types.ErrorInfo
 /**
  * Represents the status of a Room.
  */
-interface RoomStatus {
+interface IRoomStatus {
     /**
      * The current status of the room.
      */
@@ -32,6 +32,18 @@ interface RoomStatus {
          * @param change The change in status.
          */
         fun roomStatusChanged(change: RoomStatusChange)
+    }
+}
+
+class RoomStatus(override val current: RoomLifecycle, override val error: ErrorInfo?) : IRoomStatus {
+
+    private var listeners = mutableListOf<IRoomStatus.Listener>()
+
+    override fun on(listener: IRoomStatus.Listener): Subscription {
+        listeners.add(listener)
+        return Subscription {
+            listeners.remove(listener)
+        }
     }
 }
 

@@ -2,6 +2,11 @@
 
 package com.ably.chat
 
+import io.ably.lib.types.AblyException
+import io.ably.lib.types.ErrorInfo
+import io.ably.lib.util.Log
+import io.ably.lib.util.Log.LogHandler
+
 /**
  * Represents a chat room.
  */
@@ -56,7 +61,7 @@ interface Room {
      *
      * @returns The status observable.
      */
-    val status: RoomStatus
+    val status: IRoomStatus
 
     /**
      * Returns the room options.
@@ -88,6 +93,8 @@ internal class DefaultRoom(
     override val options: RoomOptions,
     realtimeClient: RealtimeClient,
     chatApi: ChatApi,
+    override val status: IRoomStatus = RoomStatus(RoomLifecycle.Initialized, null),
+    val logger: LogHandler?,
 ) : Room {
 
     private val _messages = DefaultMessages(
@@ -116,15 +123,27 @@ internal class DefaultRoom(
         messages = messages,
     )
 
-    override val status: RoomStatus
-        get() {
-            TODO("Not yet implemented")
-        }
-
     override suspend fun attach() {
-        messages.channel.attachCoroutine()
-        typing.channel.attachCoroutine()
-        reactions.channel.attachCoroutine()
+        when(status.current) {
+            RoomLifecycle.Attached -> {
+                return
+            }
+            RoomLifecycle.Releasing -> {
+                throw AblyException.fromErrorInfo(ErrorInfo("Can't ATTACH since room is in RELEASING state", ErrorCodes.RoomIsReleasing))
+            }
+            RoomLifecycle.Released -> {
+                throw AblyException.fromErrorInfo(ErrorInfo("Can't ATTACH since room is in RELEASED state", ErrorCodes.RoomIsReleased))
+            }
+            else -> {}
+        }
+        try {
+            messages.channel.attachCoroutine()
+            typing.channel.attachCoroutine()
+            reactions.channel.attachCoroutine()
+        } catch (e: Exception) {
+            logger?.println(3, "", "", e)
+            // TODO - revert channel attach
+        }
     }
 
     override suspend fun detach() {
