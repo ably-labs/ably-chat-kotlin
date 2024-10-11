@@ -52,6 +52,7 @@ interface Room {
     val occupancy: Occupancy
 
     /**
+     * (CHA-RS2)
      * Returns an object that can be used to observe the status of the room.
      *
      * @returns The status observable.

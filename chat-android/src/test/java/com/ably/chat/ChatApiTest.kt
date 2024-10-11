@@ -15,6 +15,9 @@ class ChatApiTest {
     private val realtime = mockk<RealtimeClient>(relaxed = true)
     private val chatApi = ChatApi(realtime, "clientId")
 
+    /**
+     * @nospec
+     */
     @Test
     fun `getMessages should ignore unknown fields for Chat Backend`() = runTest {
         mockMessagesApiResponse(
@@ -49,6 +52,9 @@ class ChatApiTest {
         )
     }
 
+    /**
+     * @nospec
+     */
     @Test
     fun `getMessages should throws AblyException if some required fields are missing`() = runTest {
         mockMessagesApiResponse(
@@ -67,6 +73,9 @@ class ChatApiTest {
         assertTrue(exception.message!!.matches(""".*Required field "\w+" is missing""".toRegex()))
     }
 
+    /**
+     * @nospec
+     */
     @Test
     fun `sendMessage should ignore unknown fields for Chat Backend`() = runTest {
         mockSendMessageApiResponse(
@@ -94,6 +103,9 @@ class ChatApiTest {
         )
     }
 
+    /**
+     * @nospec
+     */
     @Test
     fun `sendMessage should throw exception if 'timeserial' field is not presented`() = runTest {
         mockSendMessageApiResponse(
@@ -109,6 +121,9 @@ class ChatApiTest {
         }
     }
 
+    /**
+     * @nospec
+     */
     @Test
     fun `getOccupancy should throw exception if 'connections' field is not presented`() = runTest {
         mockOccupancyApiResponse(

@@ -16,7 +16,6 @@ import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.verify
 import java.lang.reflect.Field
-import java.util.HashMap
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -49,6 +48,9 @@ class MessagesTest {
         )
     }
 
+    /**
+     * @spec CHA-M3a
+     */
     @Test
     fun `should be able to send message and get it back from response`() = runTest {
         mockSendMessageApiResponse(
@@ -82,6 +84,9 @@ class MessagesTest {
         )
     }
 
+    /**
+     * @spec CHA-M4a
+     */
     @Test
     fun `should be able to subscribe to incoming messages`() = runTest {
         val pubSubMessageListenerSlot = slot<PubSubMessageListener>()
@@ -136,6 +141,9 @@ class MessagesTest {
         )
     }
 
+    /**
+     * @nospec
+     */
     @Test
     fun `should throw an exception for listener history if not subscribed`() = runTest {
         val subscription = messages.subscribe {}
@@ -149,6 +157,9 @@ class MessagesTest {
         assertEquals(40_000, exception.errorInfo.code)
     }
 
+    /**
+     * @spec CHA-M5a
+     */
     @Test
     fun `every subscription should have own channel serial`() = runTest {
         messages.channel.properties.channelSerial = "channel-serial-1"
@@ -164,6 +175,9 @@ class MessagesTest {
         assertEquals("channel-serial-1", subscription1.fromSerialProvider().await())
     }
 
+    /**
+     * @spec CHA-M5c
+     */
     @Test
     fun `subscription should update channel serial after reattach with resume = false`() = runTest {
         messages.channel.properties.channelSerial = "channel-serial-1"
@@ -173,6 +187,7 @@ class MessagesTest {
         assertEquals("channel-serial-1", subscription1.fromSerialProvider().await())
 
         messages.channel.properties.channelSerial = "channel-serial-2"
+        messages.channel.properties.attachSerial = "attach-serial-2"
         channelStateListenerSlot.captured.onChannelStateChanged(
             buildChannelStateChange(
                 current = ChannelState.attached,
@@ -181,7 +196,7 @@ class MessagesTest {
             ),
         )
 
-        assertEquals("channel-serial-2", subscription1.fromSerialProvider().await())
+        assertEquals("attach-serial-2", subscription1.fromSerialProvider().await())
     }
 
     @Test
@@ -202,14 +217,65 @@ class MessagesTest {
         verify(exactly = 2) { listener1.onEvent(any()) }
         verify(exactly = 1) { listener2.onEvent(any()) }
     }
+
+    /**
+     * @spec CHA-M3d
+     */
+    @Test
+    fun `should throw exception if headers contains ably-chat prefix`() = runTest {
+        val exception = assertThrows(AblyException::class.java) {
+            runBlocking {
+                messages.send(
+                    SendMessageParams(
+                        text = "lala",
+                        headers = mapOf("ably-chat-foo" to "bar"),
+                    ),
+                )
+            }
+        }
+        assertEquals(40_001, exception.errorInfo.code)
+    }
+
+    /**
+     * @spec CHA-M3c
+     */
+    @Test
+    fun `should throw exception if metadata contains ably-chat key`() = runTest {
+        val exception = assertThrows(AblyException::class.java) {
+            runBlocking {
+                messages.send(
+                    SendMessageParams(
+                        text = "lala",
+                        metadata = mapOf("ably-chat" to "data"),
+                    ),
+                )
+            }
+        }
+        assertEquals(40_001, exception.errorInfo.code)
+    }
+
+    /**
+     * @spec CHA-M5j
+     */
+    @Test
+    fun `should throw exception if end is more recent than the subscription point timeserial`() = runTest {
+        messages.channel.properties.channelSerial = "abcdefghij@1672531200000-123"
+        messages.channel.state = ChannelState.attached
+        val subscription = messages.subscribe {}
+        val exception = assertThrows(AblyException::class.java) {
+            runBlocking { subscription.getPreviousMessages(end = 1_672_551_200_000L) }
+        }
+        assertEquals(40_000, exception.errorInfo.code)
+    }
 }
 
-private val Channel.channelMulticaster: ChannelBase.MessageListener get() {
-    val field: Field = (ChannelBase::class.java).getDeclaredField("eventListeners")
-    field.isAccessible = true
-    val eventListeners = field.get(this) as HashMap<*, *>
-    return eventListeners["message.created"] as ChannelBase.MessageListener
-}
+private val Channel.channelMulticaster: ChannelBase.MessageListener
+    get() {
+        val field: Field = (ChannelBase::class.java).getDeclaredField("eventListeners")
+        field.isAccessible = true
+        val eventListeners = field.get(this) as HashMap<*, *>
+        return eventListeners["message.created"] as ChannelBase.MessageListener
+    }
 
 private fun buildDummyPubSubMessage() = PubSubMessage().apply {
     data = JsonObject().apply {
