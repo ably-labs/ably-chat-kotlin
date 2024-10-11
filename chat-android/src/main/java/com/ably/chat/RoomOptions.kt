@@ -9,25 +9,25 @@ data class RoomOptions(
      * use {@link RoomOptionsDefaults.presence} to enable presence with default options.
      * @defaultValue undefined
      */
-    val presence: PresenceOptions = PresenceOptions(),
+    val presence: PresenceOptions? = null,
 
     /**
      * The typing options for the room. To enable typing in the room, set this property. You may use
      * {@link RoomOptionsDefaults.typing} to enable typing with default options.
      */
-    val typing: TypingOptions = TypingOptions(),
+    val typing: TypingOptions? = null,
 
     /**
      * The reactions options for the room. To enable reactions in the room, set this property. You may use
      * {@link RoomOptionsDefaults.reactions} to enable reactions with default options.
      */
-    val reactions: RoomReactionsOptions = RoomReactionsOptions,
+    val reactions: RoomReactionsOptions? = null,
 
     /**
      * The occupancy options for the room. To enable occupancy in the room, set this property. You may use
      * {@link RoomOptionsDefaults.occupancy} to enable occupancy with default options.
      */
-    val occupancy: OccupancyOptions = OccupancyOptions,
+    val occupancy: OccupancyOptions? = null,
 )
 
 /**

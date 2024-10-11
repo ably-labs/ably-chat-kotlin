@@ -12,6 +12,7 @@ import kotlin.coroutines.suspendCoroutine
 
 private const val API_PROTOCOL_VERSION = 3
 private const val PROTOCOL_VERSION_PARAM_NAME = "v"
+private const val RESERVED_ABLY_CHAT_KEY = "ably-chat"
 private val apiProtocolParam = Param(PROTOCOL_VERSION_PARAM_NAME, API_PROTOCOL_VERSION.toString())
 
 internal class ChatApi(private val realtimeClient: RealtimeClient, private val clientId: String) {
@@ -47,11 +48,15 @@ internal class ChatApi(private val realtimeClient: RealtimeClient, private val c
      * @return sent message instance
      */
     suspend fun sendMessage(roomId: String, params: SendMessageParams): Message {
+        validateSendMessageParams(params)
+
         val body = JsonObject().apply {
             addProperty("text", params.text)
+            // (CHA-M3b)
             params.headers?.let {
                 add("headers", it.toJson())
             }
+            // (CHA-M3b)
             params.metadata?.let {
                 add("metadata", it.toJson())
             }
@@ -62,6 +67,7 @@ internal class ChatApi(private val realtimeClient: RealtimeClient, private val c
             "POST",
             body,
         )?.let {
+            // (CHA-M3a)
             Message(
                 timeserial = it.requireString("timeserial"),
                 clientId = clientId,
@@ -72,6 +78,30 @@ internal class ChatApi(private val realtimeClient: RealtimeClient, private val c
                 headers = params.headers ?: mapOf(),
             )
         } ?: throw AblyException.fromErrorInfo(ErrorInfo("Send message endpoint returned empty value", HttpStatusCodes.InternalServerError))
+    }
+
+    private fun validateSendMessageParams(params: SendMessageParams) {
+        // (CHA-M3c)
+        if (params.metadata?.containsKey(RESERVED_ABLY_CHAT_KEY) == true) {
+            throw AblyException.fromErrorInfo(
+                ErrorInfo(
+                    "Metadata contains reserved 'ably-chat' key",
+                    HttpStatusCodes.BadRequest,
+                    ErrorCodes.InvalidRequestBody,
+                ),
+            )
+        }
+
+        // (CHA-M3d)
+        if (params.headers?.keys?.any { it.startsWith(RESERVED_ABLY_CHAT_KEY) } == true) {
+            throw AblyException.fromErrorInfo(
+                ErrorInfo(
+                    "Headers contains reserved key with reserved 'ably-chat' prefix",
+                    HttpStatusCodes.BadRequest,
+                    ErrorCodes.InvalidRequestBody,
+                ),
+            )
+        }
     }
 
     /**
@@ -104,6 +134,7 @@ internal class ChatApi(private val realtimeClient: RealtimeClient, private val c
                 }
 
                 override fun onError(reason: ErrorInfo?) {
+                    // (CHA-M3e)
                     continuation.resumeWithException(AblyException.fromErrorInfo(reason))
                 }
             },
