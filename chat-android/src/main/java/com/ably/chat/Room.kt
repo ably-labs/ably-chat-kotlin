@@ -4,7 +4,6 @@ package com.ably.chat
 
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
-import io.ably.lib.util.Log
 import io.ably.lib.util.Log.LogHandler
 
 /**

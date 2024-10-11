@@ -33,6 +33,11 @@ interface IRoomStatus {
          */
         fun roomStatusChanged(change: RoomStatusChange)
     }
+
+    /**
+     * Removes all listeners that were added by the `onChange` method.
+     */
+    fun offAll();
 }
 
 class RoomStatus(override val current: RoomLifecycle, override val error: ErrorInfo?) : IRoomStatus {
@@ -44,6 +49,10 @@ class RoomStatus(override val current: RoomLifecycle, override val error: ErrorI
         return Subscription {
             listeners.remove(listener)
         }
+    }
+
+    override fun offAll() {
+        listeners.clear();
     }
 }
 
