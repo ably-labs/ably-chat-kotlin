@@ -1,11 +1,12 @@
 package com.ably.chat
 
 import io.ably.lib.types.ErrorInfo
+import io.ably.lib.util.EventEmitter
 
 /**
  * Represents the status of a Room.
  */
-interface IRoomStatus {
+interface RoomStatus {
     /**
      * The current status of the room.
      */
@@ -21,7 +22,7 @@ interface IRoomStatus {
      * @param listener The function to call when the status changes.
      * @returns An object that can be used to unregister the listener.
      */
-    fun on(listener: Listener): Subscription
+    fun onChange(listener: Listener): Subscription
 
     /**
      * An interface for listening to changes for the room status
@@ -40,26 +41,89 @@ interface IRoomStatus {
     fun offAll();
 }
 
-class RoomStatus(override val current: RoomLifecycle, override val error: ErrorInfo?) : IRoomStatus {
+/**
+ * A new room status that can be set.
+ */
+interface NewRoomStatus {
+    /**
+     * The new status of the room.
+     */
+    val status: RoomLifecycle;
 
-    private var listeners = mutableListOf<IRoomStatus.Listener>()
+    /**
+     * An error that provides a reason why the room has
+     * entered the new status, if applicable.
+     */
+    val error: ErrorInfo?
+}
 
-    override fun on(listener: IRoomStatus.Listener): Subscription {
-        listeners.add(listener)
+interface InternalRoomStatus: RoomStatus {
+    /**
+     * Registers a listener that will be called once when the room status changes.
+     * @param listener The function to call when the status changes.
+     */
+    fun onChangeOnce(listener: RoomStatus.Listener)
+
+    /**
+     * Sets the status of the room.
+     *
+     * @param params The new status of the room.
+     */
+    fun setStatus(params: NewRoomStatus)
+}
+
+open class ChatEventEmitter<Event, Listener>: EventEmitter<Event, Listener>() {
+    override fun apply(listener: Listener, event: Event, vararg args: Any?) {
+        TODO("Not yet implemented")
+    }
+}
+
+class DefaultRoomStatus() : InternalRoomStatus,
+    ChatEventEmitter<RoomLifecycle, RoomStatus.Listener>() {
+
+    private var _state = RoomLifecycle.Initializing
+    private var _error: ErrorInfo? = null
+
+    private val internalEmitter = ChatEventEmitter<RoomLifecycle, RoomStatus.Listener>()
+
+    override fun onChange(listener: RoomStatus.Listener): Subscription {
+        this.on(listener);
         return Subscription {
-            listeners.remove(listener)
+            this.off(listener)
         }
     }
 
     override fun offAll() {
-        listeners.clear();
+        this.offAll()
     }
+
+    override fun onChangeOnce(listener: RoomStatus.Listener) {
+        internalEmitter.once(listener)
+    }
+
+    override fun setStatus(params: NewRoomStatus) {
+        val change = RoomStatusChange(params.status, current, params.error);
+        this._state = change.current
+        this._error = change.error
+        this.internalEmitter.emit(change.current, change)
+        this.emit(change.current, change)
+    }
+
+    override val current: RoomLifecycle
+        get() = _state
+    override val error: ErrorInfo?
+        get() = _error
 }
 
 /**
  * The different states that a room can be in throughout its lifecycle.
  */
 enum class RoomLifecycle(val stateName: String) {
+    /**
+     * The library is currently initializing the room.
+     */
+    Initializing("initializing"),
+
     /**
      * A temporary state for when the library is first initialized.
      */

@@ -60,7 +60,7 @@ interface Room {
      *
      * @returns The status observable.
      */
-    val status: IRoomStatus
+    val status: RoomStatus
 
     /**
      * Returns the room options.
@@ -92,7 +92,7 @@ internal class DefaultRoom(
     override val options: RoomOptions,
     realtimeClient: RealtimeClient,
     chatApi: ChatApi,
-    override val status: IRoomStatus = RoomStatus(RoomLifecycle.Initialized, null),
+    override val status: RoomStatus = DefaultRoomStatus(RoomLifecycle.Initialized, null),
     val logger: LogHandler?,
 ) : Room {
 
