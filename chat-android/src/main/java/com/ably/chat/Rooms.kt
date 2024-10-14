@@ -57,6 +57,7 @@ internal class DefaultRooms(
                     options = options,
                     realtimeClient = realtimeClient,
                     chatApi = chatApi,
+                    logger = clientOptions.logHandler,
                 )
             }
 
