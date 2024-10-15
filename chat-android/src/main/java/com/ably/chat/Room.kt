@@ -4,6 +4,7 @@ package com.ably.chat
 
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
+import io.ably.lib.util.Log
 import io.ably.lib.util.Log.LogHandler
 
 /**
@@ -92,9 +93,13 @@ internal class DefaultRoom(
     override val options: RoomOptions,
     realtimeClient: RealtimeClient,
     chatApi: ChatApi,
-    override val status: RoomStatus = DefaultRoomStatus(RoomLifecycle.Initialized, null),
+    override val status: RoomStatus = DefaultRoomStatusStatus(),
     val logger: LogHandler?,
 ) : Room {
+
+    companion object {
+        const val TAG = "DefaultRoom"
+    }
 
     private val _messages = DefaultMessages(
         roomId = roomId,
@@ -140,8 +145,7 @@ internal class DefaultRoom(
             typing.channel.attachCoroutine()
             reactions.channel.attachCoroutine()
         } catch (e: Exception) {
-            logger?.println(3, "", "", e)
-            // TODO - revert channel attach
+            logger?.println(Log.ERROR, TAG, "Error handling room ATTACH ", e)
         }
     }
 
