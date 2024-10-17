@@ -1,7 +1,5 @@
 package com.ably.chat
 
-import io.ably.lib.util.Log.LogHandler
-
 /**
  * Configuration options for the chat client.
  */

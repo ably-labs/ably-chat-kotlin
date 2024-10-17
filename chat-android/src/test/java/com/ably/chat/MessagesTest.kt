@@ -28,7 +28,7 @@ class MessagesTest {
     private val realtimeClient = mockk<RealtimeClient>(relaxed = true)
     private val realtimeChannels = mockk<Channels>(relaxed = true)
     private val realtimeChannel = spyk<Channel>(buildRealtimeChannel())
-    private val chatApi = spyk(ChatApi(realtimeClient, "clientId"))
+    private val chatApi = spyk(ChatApi(realtimeClient, "clientId", EmptyLogger(LogContext(tag = "TEST"))))
     private lateinit var messages: DefaultMessages
 
     private val channelStateListenerSlot = slot<ChannelStateListener>()

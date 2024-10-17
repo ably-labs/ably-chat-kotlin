@@ -49,3 +49,8 @@ fun mockOccupancyApiResponse(realtimeClientMock: RealtimeClient, response: JsonE
         )
     }
 }
+
+internal class EmptyLogger(override val context: LogContext) : Logger {
+    override fun withContext(tag: String?, staticContext: Map<String, String>, dynamicContext: Map<String, () -> String>): Logger = this
+    override fun log(message: String, level: LogLevel, throwable: Throwable?, newTag: String?, newStaticContext: Map<String, String>) = Unit
+}
