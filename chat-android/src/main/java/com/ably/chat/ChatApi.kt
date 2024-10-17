@@ -15,7 +15,11 @@ private const val PROTOCOL_VERSION_PARAM_NAME = "v"
 private const val RESERVED_ABLY_CHAT_KEY = "ably-chat"
 private val apiProtocolParam = Param(PROTOCOL_VERSION_PARAM_NAME, API_PROTOCOL_VERSION.toString())
 
-internal class ChatApi(private val realtimeClient: RealtimeClient, private val clientId: String) {
+internal class ChatApi(
+    private val realtimeClient: RealtimeClient,
+    private val clientId: String,
+    private val logger: Logger,
+) {
 
     /**
      * Get messages from the Chat Backend
@@ -134,6 +138,15 @@ internal class ChatApi(private val realtimeClient: RealtimeClient, private val c
                 }
 
                 override fun onError(reason: ErrorInfo?) {
+                    logger.error(
+                        "ChatApi.makeAuthorizedRequest(); failed to make request",
+                        staticContext = mapOf(
+                            "url" to url,
+                            "statusCode" to reason?.statusCode.toString(),
+                            "errorCode" to reason?.code.toString(),
+                            "errorMessage" to reason?.message.toString(),
+                        ),
+                    )
                     // (CHA-M3e)
                     continuation.resumeWithException(AblyException.fromErrorInfo(reason))
                 }
@@ -159,6 +172,15 @@ internal class ChatApi(private val realtimeClient: RealtimeClient, private val c
                 }
 
                 override fun onError(reason: ErrorInfo?) {
+                    logger.error(
+                        "ChatApi.makeAuthorizedPaginatedRequest(); failed to make request",
+                        staticContext = mapOf(
+                            "url" to url,
+                            "statusCode" to reason?.statusCode.toString(),
+                            "errorCode" to reason?.code.toString(),
+                            "errorMessage" to reason?.message.toString(),
+                        ),
+                    )
                     continuation.resumeWithException(AblyException.fromErrorInfo(reason))
                 }
             },
