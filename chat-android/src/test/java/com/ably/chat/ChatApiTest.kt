@@ -13,7 +13,7 @@ import org.junit.Test
 class ChatApiTest {
 
     private val realtime = mockk<RealtimeClient>(relaxed = true)
-    private val chatApi = ChatApi(realtime, "clientId")
+    private val chatApi = ChatApi(realtime, "clientId", logger = EmptyLogger)
 
     /**
      * @nospec
