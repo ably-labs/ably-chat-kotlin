@@ -9,11 +9,26 @@ import kotlinx.coroutines.launch
 private class Task(
     private val priority: Int,
     val coroutineBlock: suspend CoroutineScope.() -> Any,
-    val resultChannel: Channel<Result<Any>>)
+    val result: TaskResult<Any>)
     : Comparable<Task> {
         override fun compareTo(other: Task): Int {
             return other.priority - this.priority
         }
+        suspend fun setResult(result: Result<Any>) {
+            this.result.channel.send(result)
+        }
+}
+
+class TaskResult<T> {
+    // Size of channel is set to 1. This is to avoid sender getting blocked
+    // because receiver doesn't call receive on the channel
+    internal val channel = Channel<Result<T>>(1)
+
+    suspend fun await(): Result<T> {
+        val result = channel.receive()
+        channel.close()
+        return result
+    }
 }
 
 /**
@@ -30,11 +45,9 @@ class AtomicExecutor(private val scope: CoroutineScope) {
      *                 This can also be set to negative number if operation needs higher priority than existing ones.
      * @param coroutineBlock Suspended function that needs to be executed mutually exclusive under given scope.
      */
-    suspend fun <T : Any>execute(priority:Int = 0, coroutineBlock: suspend CoroutineScope.() -> T) : Channel<Result<T>> {
-        // Size of resultChannel is set to 1 to keep while loop running.
-        // i.e. If caller doesn't explicitly receive on the channel, loop will be blocked.
-        val resultChannel = Channel<Result<Any>>(1)
-        tasks.add(Task(priority, coroutineBlock, resultChannel))
+    suspend fun <T : Any>execute(priority:Int = 0, coroutineBlock: suspend CoroutineScope.() -> T) : TaskResult<T> {
+        val taskResult = TaskResult<Any>()
+        tasks.add(Task(priority, coroutineBlock, taskResult))
         scope.launch {
             if (!isRunning) {
                 isRunning = true
@@ -42,7 +55,7 @@ class AtomicExecutor(private val scope: CoroutineScope) {
                     val task = tasks.poll()
                     task?.let {
                         val result = kotlin.runCatching { scope.async(block = it.coroutineBlock).await() }
-                        it.resultChannel.send(result)
+                        it.setResult(result)
                     }
                 }
                 isRunning = false
@@ -50,6 +63,6 @@ class AtomicExecutor(private val scope: CoroutineScope) {
         }
 
         @Suppress("UNCHECKED_CAST")
-        return resultChannel as Channel<Result<T>>
+        return taskResult as TaskResult<T>
     }
 }

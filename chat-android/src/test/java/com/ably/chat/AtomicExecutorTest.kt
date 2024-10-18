@@ -5,7 +5,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
+import org.junit.Assert
 import org.junit.Test
 
 class AtomicExecutorTest {
@@ -14,12 +14,13 @@ class AtomicExecutorTest {
     fun `should perform given operation`() = runTest {
         val singleThreadedDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
         val atomicExecutor = AtomicExecutor(CoroutineScope(singleThreadedDispatcher))
-        val deferred = atomicExecutor.execute {
-            delay(5000)
-            return@execute "Hello"
+        val taskResult = atomicExecutor.execute {
+            delay(3000)
+            return@execute "Operation Success!"
         }
-        val result = deferred.receive()
-        assert(result.isSuccess)
-        assertEquals("Hello", result.getOrNull())
+        val result = taskResult.await()
+        Assert.assertTrue(result.isSuccess)
+        Assert.assertFalse(result.isFailure)
+        Assert.assertEquals("Operation Success!", result.getOrNull())
     }
 }
