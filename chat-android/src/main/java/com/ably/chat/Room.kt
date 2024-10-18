@@ -2,6 +2,11 @@
 
 package com.ably.chat
 
+import io.ably.lib.types.AblyException
+import io.ably.lib.types.ErrorInfo
+import io.ably.lib.util.Log
+import io.ably.lib.util.Log.LogHandler
+
 /**
  * Represents a chat room.
  */
@@ -89,6 +94,8 @@ internal class DefaultRoom(
     override val options: RoomOptions,
     realtimeClient: RealtimeClient,
     chatApi: ChatApi,
+    override val status: RoomStatus = DefaultRoomStatusStatus(),
+    val logger: LogHandler?,
 ) : Room {
 
     private val _messages = DefaultMessages(
@@ -117,15 +124,22 @@ internal class DefaultRoom(
         messages = messages,
     )
 
-    override val status: RoomStatus
-        get() {
-            TODO("Not yet implemented")
-        }
-
     override suspend fun attach() {
-        messages.channel.attachCoroutine()
-        typing.channel.attachCoroutine()
-        reactions.channel.attachCoroutine()
+        when (status.current) {
+            RoomLifecycle.Attached -> return
+            RoomLifecycle.Releasing ->
+                throw AblyException.fromErrorInfo(ErrorInfo("Can't ATTACH since room is in RELEASING state", ErrorCodes.RoomIsReleasing))
+            RoomLifecycle.Released ->
+                throw AblyException.fromErrorInfo(ErrorInfo("Can't ATTACH since room is in RELEASED state", ErrorCodes.RoomIsReleased))
+            else -> {}
+        }
+        try {
+            messages.channel.attachCoroutine()
+            typing.channel.attachCoroutine()
+            reactions.channel.attachCoroutine()
+        } catch (e: Exception) {
+            logger?.println(Log.ERROR, TAG, "Error handling room ATTACH ", e)
+        }
     }
 
     override suspend fun detach() {
@@ -136,5 +150,9 @@ internal class DefaultRoom(
 
     fun release() {
         _messages.release()
+    }
+
+    companion object {
+        const val TAG = "DefaultRoom"
     }
 }

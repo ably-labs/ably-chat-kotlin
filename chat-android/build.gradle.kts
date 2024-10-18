@@ -45,6 +45,7 @@ buildConfig {
 dependencies {
     api(libs.ably.android)
     implementation(libs.gson)
+    implementation(libs.coroutine.core)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
