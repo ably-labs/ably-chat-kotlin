@@ -180,6 +180,11 @@ data class SendMessageParams(
 )
 
 interface MessagesSubscription : Subscription {
+    /**
+     * (CHA-M5j)
+     * Get the previous messages that were sent to the room before the listener was subscribed.
+     * @return paginated result of messages, in newest-to-oldest order.
+     */
     suspend fun getPreviousMessages(start: Long? = null, end: Long? = null, limit: Int = 100): PaginatedResult<Message>
 }
 
@@ -195,6 +200,18 @@ internal class DefaultMessagesSubscription(
 
     override suspend fun getPreviousMessages(start: Long?, end: Long?, limit: Int): PaginatedResult<Message> {
         val fromSerial = fromSerialProvider().await()
+
+        // (CHA-M5j)
+        if (end != null && end > Timeserial.parse(fromSerial).timestamp) {
+            throw AblyException.fromErrorInfo(
+                ErrorInfo(
+                    "The `end` parameter is specified and is more recent than the subscription point timeserial",
+                    HttpStatusCodes.BadRequest,
+                    ErrorCodes.BadRequest,
+                ),
+            )
+        }
+
         val queryOptions = QueryOptions(start = start, end = end, limit = limit, orderBy = NewestFirst)
         return chatApi.getMessages(
             roomId = roomId,
@@ -217,6 +234,7 @@ internal class DefaultMessages(
     private var lock = Any()
 
     /**
+     * (CHA-M1)
      * the channel name for the chat messages channel.
      */
     private val messagesChannelName = "$roomId::\$chat::\$chatMessages"
@@ -249,8 +267,9 @@ internal class DefaultMessages(
             )
             listener.onEvent(MessageEvent(type = MessageEventType.Created, message = chatMessage))
         }
-
+        // (CHA-M4d)
         channel.subscribe(MessageEventType.Created.eventName, messageListener)
+        // (CHA-M5) setting subscription point
         associateWithCurrentChannelSerial(deferredChannelSerial)
 
         return DefaultMessagesSubscription(
@@ -293,10 +312,11 @@ internal class DefaultMessages(
     private fun associateWithCurrentChannelSerial(channelSerialProvider: DeferredValue<String>) {
         if (channel.state === ChannelState.attached) {
             channelSerialProvider.completeWith(requireChannelSerial())
+            return
         }
 
         channel.once(ChannelState.attached) {
-            channelSerialProvider.completeWith(requireChannelSerial())
+            channelSerialProvider.completeWith(requireAttachSerial())
         }
     }
 
@@ -304,6 +324,13 @@ internal class DefaultMessages(
         return channel.properties.channelSerial
             ?: throw AblyException.fromErrorInfo(
                 ErrorInfo("Channel has been attached, but channelSerial is not defined", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest),
+            )
+    }
+
+    private fun requireAttachSerial(): String {
+        return channel.properties.attachSerial
+            ?: throw AblyException.fromErrorInfo(
+                ErrorInfo("Channel has been attached, but attachSerial is not defined", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest),
             )
     }
 
@@ -319,9 +346,12 @@ internal class DefaultMessages(
         }
     }
 
+    /**
+     * (CHA-M5c), (CHA-M5d)
+     */
     private fun updateChannelSerialsAfterDiscontinuity() {
         val deferredChannelSerial = DeferredValue<String>()
-        associateWithCurrentChannelSerial(deferredChannelSerial)
+        deferredChannelSerial.completeWith(requireAttachSerial())
 
         synchronized(lock) {
             listeners = listeners.mapValues {

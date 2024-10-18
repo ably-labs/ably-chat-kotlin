@@ -42,6 +42,8 @@ fun ChatChannelOptions(init: (ChannelOptions.() -> Unit)? = null): ChannelOption
     options.params = (options.params ?: mapOf()) + mapOf(
         AGENT_PARAMETER_NAME to "chat-kotlin/${BuildConfig.APP_VERSION}",
     )
+    // (CHA-M4a)
+    options.attachOnSubscribe = false
     return options
 }
 

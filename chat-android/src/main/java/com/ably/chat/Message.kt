@@ -68,3 +68,21 @@ data class Message(
      */
     val headers: MessageHeaders,
 )
+
+/**
+ * (CHA-M2a)
+ * @return true if the timeserial of the corresponding realtime channel message comes first.
+ */
+fun Message.isBefore(other: Message): Boolean = Timeserial.parse(timeserial) < Timeserial.parse(other.timeserial)
+
+/**
+ * (CHA-M2b)
+ * @return true if the timeserial of the corresponding realtime channel message comes second.
+ */
+fun Message.isAfter(other: Message): Boolean = Timeserial.parse(timeserial) > Timeserial.parse(other.timeserial)
+
+/**
+ * (CHA-M2c)
+ * @return true if they have the same timeserial.
+ */
+fun Message.isAtTheSameTime(other: Message): Boolean = Timeserial.parse(timeserial) == Timeserial.parse(other.timeserial)

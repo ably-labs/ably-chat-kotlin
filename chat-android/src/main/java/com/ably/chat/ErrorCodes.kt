@@ -92,6 +92,16 @@ object ErrorCodes {
      * The request cannot be understood
      */
     const val BadRequest = 40_000
+
+    /**
+     * Invalid request body
+     */
+    const val InvalidRequestBody = 40_001
+
+    /**
+     * Internal error
+     */
+    const val InternalError = 50_000
 }
 
 /**
