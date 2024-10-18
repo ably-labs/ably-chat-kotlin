@@ -6,8 +6,11 @@ import java.util.concurrent.Executors
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert
 import org.junit.Test
@@ -23,9 +26,7 @@ class TaskSchedulerTest {
             return@schedule "Operation Success!"
         }
         val result = taskResult.await()
-        Assert.assertTrue(result.isSuccess)
-        Assert.assertFalse(result.isFailure)
-        Assert.assertEquals("Operation Success!", result.getOrNull())
+        Assert.assertEquals("Operation Success!", result)
     }
 
     @Test
@@ -36,18 +37,18 @@ class TaskSchedulerTest {
             delay(2000)
             throw AblyException.fromErrorInfo(ErrorInfo("Error performing operation", 400))
         }
-        val result = taskResult.await()
-        Assert.assertFalse(result.isSuccess)
-        Assert.assertTrue(result.isFailure)
-        val exception = result.exceptionOrNull() as AblyException
-        Assert.assertEquals("Error performing operation", exception.errorInfo.message)
+        Assert.assertThrows("Error performing operation", AblyException::class.java) {
+            runBlocking {
+                taskResult.await()
+            }
+        }
     }
 
     @Test
     fun `should perform mutually exclusive operations with given priority`() = runTest {
         val singleThreadedDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
         val taskScheduler = TaskScheduler(CoroutineScope(singleThreadedDispatcher))
-        val taskResults = mutableListOf<TaskResult<Int>>()
+        val taskResults = mutableListOf<Deferred<Int>>()
         var operationInProgress = false
         var counter = 0
         val threadIds = mutableSetOf<Long>()
@@ -56,23 +57,22 @@ class TaskSchedulerTest {
             val result = taskScheduler.schedule(it) {
                 threadIds.add(Thread.currentThread().id)
                 if (operationInProgress) {
-                    throw IllegalStateException("Can't perform operation when other operation is going on")
+                    error("Can't perform operation when other operation is going on")
                 }
                 operationInProgress = true
                 delay((200..800).random().toDuration(DurationUnit.MILLISECONDS))
                 operationInProgress = false
-                return@schedule counter++
+                val returnValue = counter++
+                return@schedule returnValue
             }
             taskResults.add(result)
         }
 
-        val results = taskResults.map { it.await() }
+        val results = taskResults.awaitAll()
         repeat(20) {
-            Assert.assertTrue(results[it].isSuccess)
-            Assert.assertEquals(it, results[it].getOrNull())
+            Assert.assertEquals(it, results[it])
         }
-
         // Scheduler should run all async operations under single thread
-        Assert.assertEquals(1, threadIds.size);
+        Assert.assertEquals(1, threadIds.size)
     }
 }

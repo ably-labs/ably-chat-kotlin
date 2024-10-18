@@ -1,35 +1,18 @@
 package com.ably.chat
 
 import java.util.PriorityQueue
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 
 private class Task(
     private val priority: Int,
     val coroutineBlock: suspend CoroutineScope.() -> Any,
-    val result: TaskResult<Any>)
-    : Comparable<Task> {
-        override fun compareTo(other: Task): Int {
-            return this.priority.compareTo(other.priority)
-        }
-
-        suspend fun setResult(res: Result<Any>) {
-            result.channel.send(res)
-        }
-}
-
-class TaskResult<T> {
-    // Size of channel is set to 1. This is to avoid sender getting blocked
-    // because receiver doesn't call receive on the channel
-    internal val channel = Channel<Result<T>>(1)
-
-    suspend fun await(): Result<T> {
-        val result = channel.receive()
-        channel.close()
-        return result
-    }
+    val deferredResult: CompletableDeferred<Any>,
+) :
+    Comparable<Task> {
+    override fun compareTo(other: Task): Int = this.priority.compareTo(other.priority)
 }
 
 /**
@@ -46,17 +29,20 @@ class TaskScheduler(private val scope: CoroutineScope) {
      *                 This can also be set to negative number if operation needs higher priority than existing ones.
      * @param coroutineBlock Suspended function that needs to be executed mutually exclusive under given scope.
      */
-    suspend fun <T : Any>schedule(priority:Int = 0, coroutineBlock: suspend CoroutineScope.() -> T) : TaskResult<T> {
-        val taskResult = TaskResult<Any>()
+    suspend fun <T : Any>schedule(priority: Int = 0, coroutineBlock: suspend CoroutineScope.() -> T): CompletableDeferred<T> {
+        val deferredResult = CompletableDeferred<Any>()
         scope.launch {
-            tasks.add(Task(priority, coroutineBlock, taskResult))
+            tasks.add(Task(priority, coroutineBlock, deferredResult))
             if (!isRunning) {
                 isRunning = true
                 while (tasks.isNotEmpty()) {
                     val task = tasks.poll()
                     task?.let {
-                        val result = kotlin.runCatching { scope.async(block = it.coroutineBlock).await() }
-                        it.setResult(result)
+                        try {
+                            it.deferredResult.complete(scope.async(block = it.coroutineBlock).await())
+                        } catch (t: Throwable) {
+                            it.deferredResult.completeExceptionally(t)
+                        }
                     }
                 }
                 isRunning = false
@@ -64,6 +50,6 @@ class TaskScheduler(private val scope: CoroutineScope) {
         }
 
         @Suppress("UNCHECKED_CAST")
-        return taskResult as TaskResult<T>
+        return deferredResult as CompletableDeferred<T>
     }
 }
