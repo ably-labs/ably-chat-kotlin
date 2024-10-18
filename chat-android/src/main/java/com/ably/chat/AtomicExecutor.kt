@@ -12,10 +12,11 @@ private class Task(
     val result: TaskResult<Any>)
     : Comparable<Task> {
         override fun compareTo(other: Task): Int {
-            return other.priority - this.priority
+            return this.priority.compareTo(other.priority)
         }
-        suspend fun setResult(result: Result<Any>) {
-            this.result.channel.send(result)
+
+        suspend fun setResult(res: Result<Any>) {
+            result.channel.send(res)
         }
 }
 
@@ -47,8 +48,8 @@ class AtomicExecutor(private val scope: CoroutineScope) {
      */
     suspend fun <T : Any>execute(priority:Int = 0, coroutineBlock: suspend CoroutineScope.() -> T) : TaskResult<T> {
         val taskResult = TaskResult<Any>()
-        tasks.add(Task(priority, coroutineBlock, taskResult))
         scope.launch {
+            tasks.add(Task(priority, coroutineBlock, taskResult))
             if (!isRunning) {
                 isRunning = true
                 while (tasks.isNotEmpty()) {
