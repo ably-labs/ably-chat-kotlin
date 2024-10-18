@@ -7,7 +7,7 @@ import kotlinx.coroutines.Deferred
 /**
  * An interface for features that contribute to the room status.
  */
-interface ContributesToRoomLifecycle: EmitsDiscontinuities {
+interface ContributesToRoomLifecycle : EmitsDiscontinuities {
     /**
      * Gets the channel on which the feature operates. This promise is never
      * rejected except in the case where room initialization is canceled.
@@ -18,13 +18,13 @@ interface ContributesToRoomLifecycle: EmitsDiscontinuities {
      * Gets the ErrorInfo code that should be used when the feature fails to attach.
      * @returns The error that should be used when the feature fails to attach.
      */
-     val attachmentErrorCode: ErrorCodes;
+    val attachmentErrorCode: ErrorCodes
 
     /**
      * Gets the ErrorInfo code that should be used when the feature fails to detach.
      * @returns The error that should be used when the feature fails to detach.
      */
-    val detachmentErrorCode: ErrorCodes;
+    val detachmentErrorCode: ErrorCodes
 }
 
 /**
@@ -65,6 +65,4 @@ interface RoomAttachmentResult : NewRoomStatus {
  * An implementation of the `Status` interface.
  * @internal
  */
-class RoomLifecycleManager {
-
-}
+class RoomLifecycleManager

@@ -98,10 +98,6 @@ internal class DefaultRoom(
     val logger: LogHandler?,
 ) : Room {
 
-    companion object {
-        const val TAG = "DefaultRoom"
-    }
-
     private val _messages = DefaultMessages(
         roomId = roomId,
         realtimeChannels = realtimeClient.channels,
@@ -129,16 +125,12 @@ internal class DefaultRoom(
     )
 
     override suspend fun attach() {
-        when(status.current) {
-            RoomLifecycle.Attached -> {
-                return
-            }
-            RoomLifecycle.Releasing -> {
+        when (status.current) {
+            RoomLifecycle.Attached -> return
+            RoomLifecycle.Releasing ->
                 throw AblyException.fromErrorInfo(ErrorInfo("Can't ATTACH since room is in RELEASING state", ErrorCodes.RoomIsReleasing))
-            }
-            RoomLifecycle.Released -> {
+            RoomLifecycle.Released ->
                 throw AblyException.fromErrorInfo(ErrorInfo("Can't ATTACH since room is in RELEASED state", ErrorCodes.RoomIsReleased))
-            }
             else -> {}
         }
         try {
@@ -158,5 +150,9 @@ internal class DefaultRoom(
 
     fun release() {
         _messages.release()
+    }
+
+    companion object {
+        const val TAG = "DefaultRoom"
     }
 }

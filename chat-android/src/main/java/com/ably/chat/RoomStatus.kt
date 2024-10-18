@@ -41,7 +41,7 @@ interface RoomStatus {
     /**
      * Removes all listeners that were added by the `onChange` method.
      */
-    fun offAll();
+    fun offAll()
 }
 
 /**
@@ -51,7 +51,7 @@ interface NewRoomStatus {
     /**
      * The new status of the room.
      */
-    val status: RoomLifecycle;
+    val status: RoomLifecycle
 
     /**
      * An error that provides a reason why the room has
@@ -60,7 +60,7 @@ interface NewRoomStatus {
     val error: ErrorInfo?
 }
 
-interface InternalRoomStatus: RoomStatus {
+interface InternalRoomStatus : RoomStatus {
     /**
      * Registers a listener that will be called once when the room status changes.
      * @param listener The function to call when the status changes.
@@ -186,7 +186,7 @@ class DefaultRoomStatusStatus : InternalRoomStatus, RoomStatusEvenEmitter() {
     private val internalEmitter = RoomStatusEvenEmitter()
 
     override fun onChange(listener: RoomStatus.Listener): Subscription {
-        this.on(listener);
+        this.on(listener)
         return Subscription {
             this.off(listener)
         }
@@ -201,7 +201,7 @@ class DefaultRoomStatusStatus : InternalRoomStatus, RoomStatusEvenEmitter() {
     }
 
     override fun setStatus(params: NewRoomStatus) {
-        val change = RoomStatusChange(params.status, current, params.error);
+        val change = RoomStatusChange(params.status, current, params.error)
         this._state = change.current
         this._error = change.error
         this.internalEmitter.emit(change.current, change)
