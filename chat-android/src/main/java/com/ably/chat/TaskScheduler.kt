@@ -33,10 +33,10 @@ class TaskResult<T> {
 }
 
 /**
- * Aim of AtomicExecutor is to execute given coroutine operation mutually exclusive.
+ * TaskScheduler schedules given coroutine operation mutually exclusive.
  * @property scope Uses single threaded dispatcher to avoid thread synchronization issues.
  */
-class AtomicExecutor(private val scope: CoroutineScope) {
+class TaskScheduler(private val scope: CoroutineScope) {
     private var isRunning = false
     private val tasks: PriorityQueue<Task> = PriorityQueue()
 
@@ -46,7 +46,7 @@ class AtomicExecutor(private val scope: CoroutineScope) {
      *                 This can also be set to negative number if operation needs higher priority than existing ones.
      * @param coroutineBlock Suspended function that needs to be executed mutually exclusive under given scope.
      */
-    suspend fun <T : Any>execute(priority:Int = 0, coroutineBlock: suspend CoroutineScope.() -> T) : TaskResult<T> {
+    suspend fun <T : Any>schedule(priority:Int = 0, coroutineBlock: suspend CoroutineScope.() -> T) : TaskResult<T> {
         val taskResult = TaskResult<Any>()
         scope.launch {
             tasks.add(Task(priority, coroutineBlock, taskResult))
