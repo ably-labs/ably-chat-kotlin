@@ -173,7 +173,7 @@ open class RoomStatusEvenEmitter : EventEmitter<RoomLifecycle, RoomStatus.Listen
     }
 }
 
-class DefaultRoomStatusStatus : InternalRoomStatus, RoomStatusEvenEmitter() {
+class DefaultStatus : InternalRoomStatus, RoomStatusEvenEmitter() {
 
     private var _state = RoomLifecycle.Initializing
     override val current: RoomLifecycle

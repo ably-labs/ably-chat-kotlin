@@ -94,7 +94,7 @@ internal class DefaultRoom(
     override val options: RoomOptions,
     realtimeClient: RealtimeClient,
     chatApi: ChatApi,
-    override val status: RoomStatus = DefaultRoomStatusStatus(),
+    override val status: RoomStatus = DefaultStatus(),
     val logger: LogHandler?,
 ) : Room {
 
