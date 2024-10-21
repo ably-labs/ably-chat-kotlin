@@ -17,7 +17,7 @@ activity-compose = "1.9.1"
 compose-bom = "2024.06.00"
 gson = "2.11.0"
 mockk = "1.13.12"
-coroutine = "1.8.1"
+coroutine = "1.9.0"
 build-config = "5.4.0"
 
 [libraries]
