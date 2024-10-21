@@ -2,7 +2,7 @@ package com.ably.chat
 
 import io.ably.lib.realtime.ChannelBase
 import io.ably.lib.types.ErrorInfo
-import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.CompletableDeferred
 
 /**
  * An interface for features that contribute to the room status.
@@ -12,7 +12,7 @@ interface ContributesToRoomLifecycle : EmitsDiscontinuities {
      * Gets the channel on which the feature operates. This promise is never
      * rejected except in the case where room initialization is canceled.
      */
-    val channel: Deferred<ChannelBase>
+    val channel: CompletableDeferred<ChannelBase>
 
     /**
      * Gets the ErrorInfo code that should be used when the feature fails to attach.
