@@ -2,7 +2,6 @@
 
 package com.ably.chat
 
-import io.ably.lib.realtime.Channel
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
 import io.ably.lib.util.Log
@@ -125,7 +124,7 @@ internal class DefaultRoom(
         messages = messages,
     )
 
-    private var _lifecycleManager : RoomLifecycleManager? = null
+    private var _lifecycleManager: RoomLifecycleManager? = null
 
     init {
         val features = listOf(messages, presence, typing, reactions, occupancy)
@@ -136,9 +135,13 @@ internal class DefaultRoom(
         when (status.current) {
             RoomLifecycle.Attached -> return
             RoomLifecycle.Releasing ->
-                throw AblyException.fromErrorInfo(ErrorInfo("Can't ATTACH since room is in RELEASING state", ErrorCodes.RoomIsReleasing.errorCode))
+                throw AblyException.fromErrorInfo(
+                    ErrorInfo("Can't ATTACH since room is in RELEASING state", ErrorCodes.RoomIsReleasing.errorCode),
+                )
             RoomLifecycle.Released ->
-                throw AblyException.fromErrorInfo(ErrorInfo("Can't ATTACH since room is in RELEASED state", ErrorCodes.RoomIsReleased.errorCode))
+                throw AblyException.fromErrorInfo(
+                    ErrorInfo("Can't ATTACH since room is in RELEASED state", ErrorCodes.RoomIsReleased.errorCode),
+                )
             else -> {}
         }
         try {

@@ -1,11 +1,11 @@
 package com.ably.chat
 
 import io.ably.lib.realtime.Channel
-import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 import io.ably.lib.types.ErrorInfo
 import io.ably.lib.util.Log.LogHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
 /**
  * An interface for features that contribute to the room status.
@@ -69,7 +69,7 @@ interface RoomAttachmentResult : NewRoomStatus {
  * @internal
  */
 class RoomLifecycleManager
-    (status: DefaultStatus, contributors: List<ResolvedContributor>, logger: LogHandler?) {
+(status: DefaultStatus, contributors: List<ResolvedContributor>, logger: LogHandler?) {
 
     /**
      * The status of the room.
@@ -101,7 +101,7 @@ class RoomLifecycleManager
      * It is used to prevent the room status from being changed by individual channel state changes and ignore
      * underlying channel events until we reach a consistent state.
      */
-    private var _operationInProgress = false;
+    private var _operationInProgress = false
 
     /**
      * A map of contributors to whether their first attach has completed.

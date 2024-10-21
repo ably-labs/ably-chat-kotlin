@@ -329,14 +329,18 @@ internal class DefaultMessages(
     private fun requireChannelSerial(): String {
         return channel.properties.channelSerial
             ?: throw AblyException.fromErrorInfo(
-                ErrorInfo("Channel has been attached, but channelSerial is not defined", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest.errorCode),
+                ErrorInfo("Channel has been attached, but channelSerial is not defined",
+                    HttpStatusCodes.BadRequest,
+                    ErrorCodes.BadRequest.errorCode),
             )
     }
 
     private fun requireAttachSerial(): String {
         return channel.properties.attachSerial
             ?: throw AblyException.fromErrorInfo(
-                ErrorInfo("Channel has been attached, but attachSerial is not defined", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest.errorCode),
+                ErrorInfo("Channel has been attached, but attachSerial is not defined",
+                    HttpStatusCodes.BadRequest,
+                    ErrorCodes.BadRequest.errorCode),
             )
     }
 
