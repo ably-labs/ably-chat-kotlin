@@ -101,11 +101,17 @@ data class SendReactionParams(
 internal class DefaultRoomReactions(
     roomId: String,
     private val realtimeClient: RealtimeClient,
-) : RoomReactions {
+) : RoomReactions, ContributesToRoomLifecycle, ResolvedContributor {
+
     private val roomReactionsChannelName = "$roomId::\$chat::\$reactions"
 
-    override val channel: Channel
-        get() = realtimeClient.channels.get(roomReactionsChannelName, ChatChannelOptions())
+    override val channel: Channel = realtimeClient.channels.get(roomReactionsChannelName, ChatChannelOptions())
+
+    override val contributor: ContributesToRoomLifecycle = this
+
+    override val attachmentErrorCode: ErrorCodes = ErrorCodes.ReactionsAttachmentFailed
+
+    override val detachmentErrorCode: ErrorCodes = ErrorCodes.ReactionsDetachmentFailed
 
     override suspend fun send(params: SendReactionParams) {
         TODO("Not yet implemented")

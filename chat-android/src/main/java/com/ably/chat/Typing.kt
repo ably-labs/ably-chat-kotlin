@@ -78,11 +78,17 @@ data class TypingEvent(val currentlyTyping: Set<String>)
 internal class DefaultTyping(
     roomId: String,
     private val realtimeClient: RealtimeClient,
-) : Typing {
+) : Typing, ContributesToRoomLifecycle, ResolvedContributor {
+
     private val typingIndicatorsChannelName = "$roomId::\$chat::\$typingIndicators"
 
-    override val channel: Channel
-        get() = realtimeClient.channels.get(typingIndicatorsChannelName, ChatChannelOptions())
+    override val channel: Channel = realtimeClient.channels.get(typingIndicatorsChannelName, ChatChannelOptions())
+
+    override val contributor: ContributesToRoomLifecycle = this
+
+    override val attachmentErrorCode: ErrorCodes = ErrorCodes.TypingAttachmentFailed
+
+    override val detachmentErrorCode: ErrorCodes = ErrorCodes.TypingDetachmentFailed
 
     override fun subscribe(listener: Typing.Listener): Subscription {
         TODO("Not yet implemented")

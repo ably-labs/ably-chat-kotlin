@@ -1,9 +1,9 @@
 package com.ably.chat
 
+import io.ably.lib.realtime.Channel
 import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 import io.ably.lib.types.ErrorInfo
 import io.ably.lib.util.Log.LogHandler
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 
@@ -15,7 +15,7 @@ interface ContributesToRoomLifecycle : EmitsDiscontinuities {
      * Gets the channel on which the feature operates. This promise is never
      * rejected except in the case where room initialization is canceled.
      */
-    val channel: CompletableDeferred<AblyRealtimeChannel>
+    val channel: Channel
 
     /**
      * Gets the ErrorInfo code that should be used when the feature fails to attach.
@@ -69,7 +69,7 @@ interface RoomAttachmentResult : NewRoomStatus {
  * @internal
  */
 class RoomLifecycleManager
-    (status: DefaultStatus, contributors: List<ResolvedContributor>, logger: LogHandler) {
+    (status: DefaultStatus, contributors: List<ResolvedContributor>, logger: LogHandler?) {
 
     /**
      * The status of the room.
@@ -84,7 +84,7 @@ class RoomLifecycleManager
     /**
      * Logger for RoomLifeCycleManager
      */
-    private val _logger: LogHandler = logger
+    private val _logger: LogHandler? = logger
 
     /**
      * sequentialCoroutineScope is to ensure the integrity and atomicity of operations that affect the room status, such as

@@ -131,10 +131,15 @@ data class PresenceEvent(
 
 internal class DefaultPresence(
     private val messages: Messages,
-) : Presence {
+) : Presence, ContributesToRoomLifecycle, ResolvedContributor {
 
-    override val channel: Channel
-        get() = messages.channel
+    override val channel: Channel = messages.channel
+
+    override val contributor: ContributesToRoomLifecycle = this
+
+    override val attachmentErrorCode: ErrorCodes = ErrorCodes.PresenceAttachmentFailed
+
+    override val detachmentErrorCode: ErrorCodes = ErrorCodes.PresenceDetachmentFailed
 
     override suspend fun get(params: List<Params>): List<PresenceMember> {
         TODO("Not yet implemented")

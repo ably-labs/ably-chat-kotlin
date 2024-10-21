@@ -61,9 +61,15 @@ data class OccupancyEvent(
 
 internal class DefaultOccupancy(
     private val messages: Messages,
-) : Occupancy {
-    override val channel: Channel
-        get() = messages.channel
+) : Occupancy, ContributesToRoomLifecycle, ResolvedContributor {
+
+    override val channel: Channel = messages.channel
+
+    override val contributor: ContributesToRoomLifecycle = this
+
+    override val attachmentErrorCode: ErrorCodes = ErrorCodes.OccupancyAttachmentFailed
+
+    override val detachmentErrorCode: ErrorCodes = ErrorCodes.OccupancyDetachmentFailed
 
     override fun subscribe(listener: Occupancy.Listener): Subscription {
         TODO("Not yet implemented")

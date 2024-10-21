@@ -49,7 +49,7 @@ data class Timeserial(
         fun parse(timeserial: String): Timeserial {
             val matched = """(\w+)@(\d+)-(\d+)(?::(\d+))?""".toRegex().matchEntire(timeserial)
                 ?: throw AblyException.fromErrorInfo(
-                    ErrorInfo("invalid timeserial", HttpStatusCodes.InternalServerError, ErrorCodes.InternalError),
+                    ErrorInfo("invalid timeserial", HttpStatusCodes.InternalServerError, ErrorCodes.InternalError.errorCode),
                 )
 
             val (seriesId, timestamp, counter, index) = matched.destructured

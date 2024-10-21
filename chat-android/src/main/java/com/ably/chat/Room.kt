@@ -2,6 +2,7 @@
 
 package com.ably.chat
 
+import io.ably.lib.realtime.Channel
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
 import io.ably.lib.util.Log
@@ -94,43 +95,50 @@ internal class DefaultRoom(
     override val options: RoomOptions,
     realtimeClient: RealtimeClient,
     chatApi: ChatApi,
-    override val status: RoomStatus = DefaultStatus(),
     val logger: LogHandler?,
 ) : Room {
 
-    private val _messages = DefaultMessages(
+    private val _logger = logger
+    override val status = DefaultStatus(logger)
+
+    override val messages = DefaultMessages(
         roomId = roomId,
         realtimeChannels = realtimeClient.channels,
         chatApi = chatApi,
     )
 
-    override val messages: Messages = _messages
-
-    override val presence: Presence = DefaultPresence(
+    override val presence = DefaultPresence(
         messages = messages,
     )
 
-    override val reactions: RoomReactions = DefaultRoomReactions(
+    override val typing = DefaultTyping(
         roomId = roomId,
         realtimeClient = realtimeClient,
     )
 
-    override val typing: Typing = DefaultTyping(
+    override val reactions = DefaultRoomReactions(
         roomId = roomId,
         realtimeClient = realtimeClient,
     )
 
-    override val occupancy: Occupancy = DefaultOccupancy(
+    override val occupancy = DefaultOccupancy(
         messages = messages,
     )
+
+    private var _lifecycleManager : RoomLifecycleManager? = null
+
+    init {
+        val features = listOf(messages, presence, typing, reactions, occupancy)
+        _lifecycleManager = RoomLifecycleManager(status, features, _logger)
+    }
 
     override suspend fun attach() {
         when (status.current) {
             RoomLifecycle.Attached -> return
             RoomLifecycle.Releasing ->
-                throw AblyException.fromErrorInfo(ErrorInfo("Can't ATTACH since room is in RELEASING state", ErrorCodes.RoomIsReleasing))
+                throw AblyException.fromErrorInfo(ErrorInfo("Can't ATTACH since room is in RELEASING state", ErrorCodes.RoomIsReleasing.errorCode))
             RoomLifecycle.Released ->
-                throw AblyException.fromErrorInfo(ErrorInfo("Can't ATTACH since room is in RELEASED state", ErrorCodes.RoomIsReleased))
+                throw AblyException.fromErrorInfo(ErrorInfo("Can't ATTACH since room is in RELEASED state", ErrorCodes.RoomIsReleased.errorCode))
             else -> {}
         }
         try {
@@ -149,7 +157,7 @@ internal class DefaultRoom(
     }
 
     fun release() {
-        _messages.release()
+        messages.release()
     }
 
     companion object {

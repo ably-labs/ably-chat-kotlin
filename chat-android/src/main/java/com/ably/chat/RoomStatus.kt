@@ -3,6 +3,7 @@ package com.ably.chat
 import io.ably.lib.types.ErrorInfo
 import io.ably.lib.util.EventEmitter
 import io.ably.lib.util.Log
+import io.ably.lib.util.Log.LogHandler
 
 /**
  * Represents the status of a Room.
@@ -173,7 +174,9 @@ open class RoomStatusEvenEmitter : EventEmitter<RoomLifecycle, RoomStatus.Listen
     }
 }
 
-class DefaultStatus : InternalRoomStatus, RoomStatusEvenEmitter() {
+class DefaultStatus(private val logger: LogHandler?) : InternalRoomStatus, RoomStatusEvenEmitter() {
+
+    private val _logger = logger
 
     private var _state = RoomLifecycle.Initializing
     override val current: RoomLifecycle
