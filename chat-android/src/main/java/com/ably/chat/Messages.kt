@@ -301,12 +301,17 @@ internal class DefaultMessages(
 
     override suspend fun send(params: SendMessageParams): Message = chatApi.sendMessage(roomId, params)
 
+    private val discontinuityEmitter = DiscontinuityEmitter()
+
     override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
-        TODO("Not yet implemented")
+        discontinuityEmitter.on(listener)
+        return Subscription {
+            discontinuityEmitter.off(listener)
+        }
     }
 
     override fun discontinuityDetected(reason: ErrorInfo?) {
-        TODO("Not yet implemented")
+        discontinuityEmitter.emit("discontinuity", reason)
     }
 
     fun release() {

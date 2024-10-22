@@ -122,11 +122,16 @@ internal class DefaultRoomReactions(
         TODO("Not yet implemented")
     }
 
+    private val discontinuityEmitter = DiscontinuityEmitter()
+
     override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
-        TODO("Not yet implemented")
+        discontinuityEmitter.on(listener)
+        return Subscription {
+            discontinuityEmitter.off(listener)
+        }
     }
 
     override fun discontinuityDetected(reason: ErrorInfo?) {
-        TODO("Not yet implemented")
+        discontinuityEmitter.emit("discontinuity", reason)
     }
 }

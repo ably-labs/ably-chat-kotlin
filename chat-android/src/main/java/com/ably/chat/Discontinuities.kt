@@ -1,7 +1,9 @@
 package com.ably.chat
 
-import io.ably.lib.realtime.ChannelBase as AblyRealtimeChannel
 import io.ably.lib.types.ErrorInfo
+import io.ably.lib.util.EventEmitter
+import io.ably.lib.util.Log
+import io.ably.lib.realtime.ChannelBase as AblyRealtimeChannel
 
 /**
  * Represents an object that has a channel and therefore may care about discontinuities.
@@ -39,5 +41,15 @@ interface EmitsDiscontinuities {
          * @param reason reason for discontinuity
          */
         fun discontinuityEmitted(reason: ErrorInfo?)
+    }
+}
+
+open class DiscontinuityEmitter : EventEmitter<String, EmitsDiscontinuities.Listener>() {
+    override fun apply(listener: EmitsDiscontinuities.Listener?, event: String?, vararg args: Any?) {
+        try {
+            listener?.discontinuityEmitted(args[0] as ErrorInfo?)
+        } catch (t: Throwable) {
+            Log.e("DiscontinuityEmitter", "Unexpected exception calling Discontinuity Listener", t)
+        }
     }
 }
