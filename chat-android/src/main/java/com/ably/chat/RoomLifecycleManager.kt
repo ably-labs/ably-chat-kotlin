@@ -1,5 +1,6 @@
 package com.ably.chat
 
+import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
 import io.ably.lib.util.Log.LogHandler
 import io.ably.lib.realtime.Channel as AblyRealtimeChannel
@@ -43,7 +44,7 @@ interface ResolvedContributor {
  * The order of precedence for lifecycle operations, passed to PriorityQueueExecutor which allows
  * us to ensure that internal operations take precedence over user-driven operations.
  */
-enum class LifecycleOperationPrecedence(val operationPriority: Int) {
+enum class LifecycleOperationPrecedence(val priority: Int) {
     Internal(1),
     Release(2),
     AttachOrDetach(3),
@@ -84,6 +85,13 @@ class RoomLifecycleManager
     private val _logger: LogHandler? = logger
 
     /**
+     * AtomicCoroutineScope makes sure all operations are atomic and run with given priority.
+     * See [Kotlin Dispatchers](https://kt.academy/article/cc-dispatchers) for more information.
+     * Spec: CHA-RL7
+     */
+    private val atomicCoroutineScope = AtomicCoroutineScope()
+
+    /**
      * This flag indicates whether some sort of controlled operation is in progress (e.g. attaching, detaching, releasing).
      *
      * It is used to prevent the room status from being changed by individual channel state changes and ignore
@@ -105,7 +113,40 @@ class RoomLifecycleManager
         // TODO - [CHA-RL4] set up room monitoring here
     }
 
-    suspend fun attach() {
-        TODO("Not yet implemented")
+    internal suspend fun attach() {
+        val deferredAttach = atomicCoroutineScope.async(LifecycleOperationPrecedence.AttachOrDetach.priority) {
+            when (_status.current) {
+                RoomLifecycle.Attached -> return@async
+                RoomLifecycle.Releasing ->
+                    throw AblyException.fromErrorInfo(
+                        ErrorInfo(
+                            "Can't ATTACH since room is in RELEASING state",
+                            ErrorCodes.RoomIsReleasing.errorCode,
+                        ),
+                    )
+                RoomLifecycle.Released ->
+                    throw AblyException.fromErrorInfo(
+                        ErrorInfo(
+                            "Can't ATTACH since room is in RELEASED state",
+                            ErrorCodes.RoomIsReleased.errorCode,
+                        ),
+                    )
+                else -> {}
+            }
+            doAttach()
+        }
+        deferredAttach.await()
+    }
+
+    /**
+     *
+     * Attaches each feature channel with rollback on channel attach failure.
+     * This method is re-usable and can be called as a part of internal room operations.
+     *
+     */
+    private suspend fun doAttach() {
+        for (feature in _contributors) {
+            feature.channel.attachCoroutine()
+        }
     }
 }
