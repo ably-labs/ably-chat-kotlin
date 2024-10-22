@@ -35,6 +35,21 @@ suspend fun Channel.detachCoroutine() = suspendCoroutine { continuation ->
     })
 }
 
+suspend fun Channel.publishCoroutine(message: PubSubMessage) = suspendCoroutine { continuation ->
+    publish(
+        message,
+        object : CompletionListener {
+            override fun onSuccess() {
+                continuation.resume(Unit)
+            }
+
+            override fun onError(reason: ErrorInfo?) {
+                continuation.resumeWithException(AblyException.fromErrorInfo(reason))
+            }
+        },
+    )
+}
+
 @Suppress("FunctionName")
 fun ChatChannelOptions(init: (ChannelOptions.() -> Unit)? = null): ChannelOptions {
     val options = ChannelOptions()
