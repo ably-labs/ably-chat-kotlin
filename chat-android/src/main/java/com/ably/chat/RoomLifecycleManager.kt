@@ -4,6 +4,10 @@ import io.ably.lib.realtime.ChannelState
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
 import io.ably.lib.util.Log.LogHandler
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
 /**
@@ -70,8 +74,10 @@ class DefaultRoomAttachmentResult : RoomAttachmentResult {
     internal var _error: ErrorInfo? = null
 
     override val failedFeature: ResolvedContributor? = _failedFeature
-    override val exception: AblyException = AblyException.fromErrorInfo(_error?:
-            ErrorInfo("unknown error in attach", ErrorCodes.RoomLifecycleError.errorCode, 500))
+    override val exception: AblyException = AblyException.fromErrorInfo(
+        _error
+            ?: ErrorInfo("unknown error in attach", ErrorCodes.RoomLifecycleError.errorCode, 500),
+    )
 
     override val status: RoomLifecycle = _status
     override val error: ErrorInfo? = _error
@@ -120,7 +126,7 @@ class RoomLifecycleManager
      * When a discontinuity happens due to a failed resume, we don't want to surface that until the room is consistently
      * attached again. This map allows us to queue up discontinuity events until we're ready to process them.
      */
-    private val _pendingDiscontinuityEvents: DiscontinuityEventMap = mutableMapOf();
+    private val _pendingDiscontinuityEvents: DiscontinuityEventMap = mutableMapOf()
 
     /**
      * A map of contributors to whether their first attach has completed.
@@ -144,13 +150,42 @@ class RoomLifecycleManager
         TODO("Need to implement")
     }
 
+    /**
+     * Given some contributor that has entered a suspended state:
+     *
+     * - Wind down any other channels
+     * - Wait for our contributor to recover
+     * - Attach everything else
+     *
+     * Repeat until either of the following happens:
+     *
+     * - Our contributor reattaches and we can attach everything else (repeat with the next contributor to break if necessary)
+     * - The room enters a failed state
+     *
+     * @param contributor The contributor that has entered a suspended state.
+     * @returns Returns when the room is attached, or the room enters a failed state.
+     */
     private suspend fun doRetry(contributor: ResolvedContributor) {
-        TODO("Need to implement")
+        var result = kotlin.runCatching { doChannelWindDown(contributor) }
+        while (result.isFailure) {
+            if (this._status.current === RoomLifecycle.Failed) {
+                error("room is in a failed state")
+            }
+            delay(250)
+            result = kotlin.runCatching { doChannelWindDown(contributor) }
+        }
     }
 
+    /**
+     * Try to attach all the channels in a room.
+     *
+     * If the operation succeeds, the room enters the attached state and this promise resolves.
+     * If a channel enters the suspended state, then we reject, but we will retry after a short delay as is the case
+     * in the core SDK.
+     * If a channel enters the failed state, we reject and then begin to wind down the other channels.
+     */
     internal suspend fun attach() {
-        val deferredAttach = atomicCoroutineScope.async(LifecycleOperationPrecedence.AttachOrDetach.priority)
-        {
+        val deferredAttach = atomicCoroutineScope.async(LifecycleOperationPrecedence.AttachOrDetach.priority) {
             when (_status.current) {
                 RoomLifecycle.Attached -> return@async
                 RoomLifecycle.Releasing ->
@@ -189,7 +224,8 @@ class RoomLifecycleManager
             if (attachResult.status === RoomLifecycle.Suspended) {
                 if (attachResult.failedFeature == null) {
                     AblyException.fromErrorInfo(
-                        ErrorInfo("no failed feature in attach", ErrorCodes.RoomLifecycleError.errorCode, 500))
+                        ErrorInfo("no failed feature in attach", ErrorCodes.RoomLifecycleError.errorCode, 500),
+                    )
                 }
                 attachResult.failedFeature?.let {
                     atomicCoroutineScope.async(LifecycleOperationPrecedence.Internal.priority) {
@@ -217,8 +253,7 @@ class RoomLifecycleManager
             try {
                 feature.channel.attachCoroutine()
                 _firstAttachesCompleted[feature] = true
-            }
-            catch (ex: Throwable) {
+            } catch (ex: Throwable) {
                 attachResult._failedFeature = feature
                 attachResult._error = ErrorInfo(
                     "failed to attach feature",
@@ -250,23 +285,84 @@ class RoomLifecycleManager
         }
 
         // We successfully attached all the channels - set our status to attached, start listening changes in channel status
-        this._status.setStatus(attachResult);
-        this._operationInProgress = false;
+        this._status.setStatus(attachResult)
+        this._operationInProgress = false
 
         // Iterate the pending discontinuity events and trigger them
         for ((contributor, error) in _pendingDiscontinuityEvents) {
             contributor.contributor.discontinuityDetected(error)
         }
         _pendingDiscontinuityEvents.clear()
-        return attachResult;
+        return attachResult
     }
 
     /**
      * If we've failed to attach, then we're in the failed state and all that is left to do is to detach all the channels.
      *
-     * @returns A promise that resolves when all channels are detached. We do not throw.
+     * @returns Returns only when all channels are detached. Doesn't throw exception.
      */
     private suspend fun runDownChannelsOnFailedAttach() {
-        TODO("Need to implement this")
+        // At this point, we have control over the channel lifecycle, so we can hold onto it until things are resolved
+        // Keep trying to detach the channels until they're all detached.
+        var channelWindDown = kotlin.runCatching { doChannelWindDown() }
+        while (channelWindDown.isFailure) {
+            // Something went wrong during the wind down. After a short delay, to give others a turn, we should run down
+            // again until we reach a suitable conclusion.
+            delay(250)
+            channelWindDown = kotlin.runCatching { doChannelWindDown() }
+        }
+    }
+
+    /**
+     * Detach all features except the one exception provided.
+     * If the room is in a failed state, then all channels should either reach the failed state or be detached.
+     *
+     * @param except The contributor to exclude from the detachment.
+     * @returns Success/Failure when all channels are detached or at least one of them fails.
+     */
+    private suspend fun doChannelWindDown(except: ResolvedContributor? = null) = coroutineScope {
+        _contributors.map {
+            val contributor = it
+            async {
+                // If its the contributor we want to wait for a conclusion on, then we should not detach it
+                // Unless we're in a failed state, in which case we should detach it
+                if (contributor === except && _status.current !== RoomLifecycle.Failed) {
+                    return@async
+                }
+                // If the room's already in the failed state, or it's releasing, we should not detach a failed channel
+                if (
+                    (
+                        _status.current === RoomLifecycle.Failed ||
+                            _status.current === RoomLifecycle.Releasing ||
+                            _status.current === RoomLifecycle.Released
+                        ) && contributor.channel.state === ChannelState.failed
+                ) {
+                    return@async
+                }
+
+                try {
+                    contributor.channel.detachCoroutine()
+                } catch (throwable: Throwable) {
+                    // If the contributor is in a failed state and we're not ignoring failed states, we should fail the room
+                    if (
+                        contributor.channel.state === ChannelState.failed &&
+                        _status.current !== RoomLifecycle.Failed &&
+                        _status.current !== RoomLifecycle.Releasing &&
+                        _status.current !== RoomLifecycle.Released
+                    ) {
+                        val contributorError = ErrorInfo(
+                            "failed to detach feature",
+                            contributor.contributor.detachmentErrorCode.errorCode,
+                            500,
+                        )
+                        _status.setStatus(RoomLifecycle.Failed, contributorError)
+                        throw AblyException.fromErrorInfo(throwable, contributorError)
+                    }
+
+                    // We throw an error so that the promise rejects
+                    throw AblyException.fromErrorInfo(throwable, ErrorInfo("detach failure, retry", -1, -1))
+                }
+            }
+        }.awaitAll()
     }
 }
