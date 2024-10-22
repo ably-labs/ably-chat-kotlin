@@ -2,7 +2,7 @@
 
 package com.ably.chat
 
-import io.ably.lib.realtime.Channel
+import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
 /**
  * base retry interval, we double it each time
@@ -30,7 +30,7 @@ interface Typing : EmitsDiscontinuities {
      * Get the name of the realtime channel underpinning typing events.
      * @returns The name of the realtime channel.
      */
-    val channel: Channel
+    val channel: AblyRealtimeChannel
 
     /**
      * Subscribe a given listener to all typing events from users in the chat room.
@@ -82,7 +82,7 @@ internal class DefaultTyping(
 
     private val typingIndicatorsChannelName = "$roomId::\$chat::\$typingIndicators"
 
-    override val channel: Channel = realtimeClient.channels.get(typingIndicatorsChannelName, ChatChannelOptions())
+    override val channel = realtimeClient.channels.get(typingIndicatorsChannelName, ChatChannelOptions())
 
     override val contributor: ContributesToRoomLifecycle = this
 

@@ -2,7 +2,7 @@
 
 package com.ably.chat
 
-import io.ably.lib.realtime.Channel
+import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
 /**
  * This interface is used to interact with occupancy in a chat room: subscribing to occupancy updates and
@@ -16,7 +16,7 @@ interface Occupancy : EmitsDiscontinuities {
      *
      * @returns The underlying Ably channel for occupancy events.
      */
-    val channel: Channel
+    val channel: AblyRealtimeChannel
 
     /**
      * Subscribe a given listener to occupancy updates of the chat room.
@@ -63,7 +63,7 @@ internal class DefaultOccupancy(
     private val messages: Messages,
 ) : Occupancy, ContributesToRoomLifecycle, ResolvedContributor {
 
-    override val channel: Channel = messages.channel
+    override val channel = messages.channel
 
     override val contributor: ContributesToRoomLifecycle = this
 

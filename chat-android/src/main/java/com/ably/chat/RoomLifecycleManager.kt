@@ -1,6 +1,5 @@
 package com.ably.chat
 
-import io.ably.lib.realtime.Channel
 import io.ably.lib.types.ErrorInfo
 import io.ably.lib.util.Log.LogHandler
 import kotlinx.coroutines.CoroutineScope
@@ -15,7 +14,7 @@ interface ContributesToRoomLifecycle : EmitsDiscontinuities {
      * Gets the channel on which the feature operates. This promise is never
      * rejected except in the case where room initialization is canceled.
      */
-    val channel: Channel
+    val channel: AblyRealtimeChannel
 
     /**
      * Gets the ErrorInfo code that should be used when the feature fails to attach.

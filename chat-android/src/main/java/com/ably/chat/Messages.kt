@@ -5,13 +5,13 @@ package com.ably.chat
 import com.ably.chat.QueryOptions.MessageOrder.NewestFirst
 import com.google.gson.JsonObject
 import io.ably.lib.realtime.AblyRealtime
-import io.ably.lib.realtime.Channel
 import io.ably.lib.realtime.ChannelState
 import io.ably.lib.realtime.ChannelStateListener
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
+import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
-typealias PubSubMessageListener = Channel.MessageListener
+typealias PubSubMessageListener = AblyRealtimeChannel.MessageListener
 typealias PubSubMessage = io.ably.lib.types.Message
 
 /**
@@ -26,7 +26,7 @@ interface Messages : EmitsDiscontinuities {
      *
      * @returns the realtime channel
      */
-    val channel: Channel
+    val channel: AblyRealtimeChannel
 
     /**
      * Subscribe to new messages in this chat room.
@@ -239,7 +239,7 @@ internal class DefaultMessages(
      */
     private val messagesChannelName = "$roomId::\$chat::\$chatMessages"
 
-    override val channel: Channel = realtimeChannels.get(messagesChannelName, ChatChannelOptions())
+    override val channel = realtimeChannels.get(messagesChannelName, ChatChannelOptions())
 
     override val contributor: ContributesToRoomLifecycle = this
 
@@ -329,18 +329,22 @@ internal class DefaultMessages(
     private fun requireChannelSerial(): String {
         return channel.properties.channelSerial
             ?: throw AblyException.fromErrorInfo(
-                ErrorInfo("Channel has been attached, but channelSerial is not defined",
+                ErrorInfo(
+                    "Channel has been attached, but channelSerial is not defined",
                     HttpStatusCodes.BadRequest,
-                    ErrorCodes.BadRequest.errorCode),
+                    ErrorCodes.BadRequest.errorCode,
+                ),
             )
     }
 
     private fun requireAttachSerial(): String {
         return channel.properties.attachSerial
             ?: throw AblyException.fromErrorInfo(
-                ErrorInfo("Channel has been attached, but attachSerial is not defined",
+                ErrorInfo(
+                    "Channel has been attached, but attachSerial is not defined",
                     HttpStatusCodes.BadRequest,
-                    ErrorCodes.BadRequest.errorCode),
+                    ErrorCodes.BadRequest.errorCode,
+                ),
             )
     }
 
