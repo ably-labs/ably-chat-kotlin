@@ -1,10 +1,6 @@
 @file:Suppress("StringLiteralDuplication", "NotImplementedDeclaration")
 
 package com.ably.chat
-
-import io.ably.lib.types.AblyException
-import io.ably.lib.types.ErrorInfo
-import io.ably.lib.util.Log
 import io.ably.lib.util.Log.LogHandler
 
 /**
@@ -127,30 +123,29 @@ internal class DefaultRoom(
     private var _lifecycleManager: RoomLifecycleManager? = null
 
     init {
+        /**
+         * TODO
+         * Initialize features based on provided RoomOptions.
+         * By default, only messages feature should be initialized.
+         * Currently, all features are initialized by default.
+         */
         val features = listOf(messages, presence, typing, reactions, occupancy)
         _lifecycleManager = RoomLifecycleManager(status, features, _logger)
+        /**
+         * TODO
+         * Make sure previous release op. for same was a success.
+         * Make sure channels were removed using realtime.channels.release(contributor.channel.name);
+         * Once this is a success, set room to initialized, if not set it to failed and throw error.
+         * Note that impl. can change based on recent proposed changes to chat-room-lifecycle DR.
+         */
+        this.status.setStatus(RoomLifecycle.Initialized)
     }
 
     override suspend fun attach() {
-        when (status.current) {
-            RoomLifecycle.Attached -> return
-            RoomLifecycle.Releasing ->
-                throw AblyException.fromErrorInfo(
-                    ErrorInfo("Can't ATTACH since room is in RELEASING state", ErrorCodes.RoomIsReleasing.errorCode),
-                )
-            RoomLifecycle.Released ->
-                throw AblyException.fromErrorInfo(
-                    ErrorInfo("Can't ATTACH since room is in RELEASED state", ErrorCodes.RoomIsReleased.errorCode),
-                )
-            else -> {}
+        if (_lifecycleManager == null) {
+            // TODO - wait for room to be initialized inside init
         }
-        try {
-            messages.channel.attachCoroutine()
-            typing.channel.attachCoroutine()
-            reactions.channel.attachCoroutine()
-        } catch (e: Exception) {
-            logger?.println(Log.ERROR, TAG, "Error handling room ATTACH ", e)
-        }
+        _lifecycleManager?.attach()
     }
 
     override suspend fun detach() {
@@ -161,9 +156,5 @@ internal class DefaultRoom(
 
     fun release() {
         messages.release()
-    }
-
-    companion object {
-        const val TAG = "DefaultRoom"
     }
 }

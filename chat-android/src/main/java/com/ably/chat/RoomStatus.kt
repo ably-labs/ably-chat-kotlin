@@ -210,4 +210,12 @@ class DefaultStatus(private val logger: LogHandler?) : InternalRoomStatus, RoomS
         this.internalEmitter.emit(change.current, change)
         this.emit(change.current, change)
     }
+
+    fun setStatus(status: RoomLifecycle, error: ErrorInfo? = null) {
+        val newStatus = object :NewRoomStatus {
+            override val status: RoomLifecycle = status
+            override val error: ErrorInfo? = error
+        }
+        this.setStatus(newStatus)
+    }
 }
