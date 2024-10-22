@@ -3,6 +3,7 @@
 package com.ably.chat
 
 import android.text.PrecomputedText.Params
+import io.ably.lib.types.ErrorInfo
 import io.ably.lib.types.PresenceMessage
 import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
@@ -166,6 +167,10 @@ internal class DefaultPresence(
     }
 
     override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
+        TODO("Not yet implemented")
+    }
+
+    override fun discontinuityDetected(reason: ErrorInfo?) {
         TODO("Not yet implemented")
     }
 }

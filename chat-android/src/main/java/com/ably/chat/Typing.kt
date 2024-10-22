@@ -2,6 +2,7 @@
 
 package com.ably.chat
 
+import io.ably.lib.types.ErrorInfo
 import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
 /**
@@ -107,6 +108,10 @@ internal class DefaultTyping(
     }
 
     override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
+        TODO("Not yet implemented")
+    }
+
+    override fun discontinuityDetected(reason: ErrorInfo?) {
         TODO("Not yet implemented")
     }
 }

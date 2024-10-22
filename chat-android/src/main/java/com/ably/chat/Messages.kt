@@ -305,6 +305,10 @@ internal class DefaultMessages(
         TODO("Not yet implemented")
     }
 
+    override fun discontinuityDetected(reason: ErrorInfo?) {
+        TODO("Not yet implemented")
+    }
+
     fun release() {
         channel.off(channelStateListener)
     }
