@@ -2,8 +2,6 @@ package com.ably.chat
 
 import io.ably.lib.types.ErrorInfo
 import io.ably.lib.util.Log.LogHandler
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
 /**
@@ -86,15 +84,6 @@ class RoomLifecycleManager
     private val _logger: LogHandler? = logger
 
     /**
-     * sequentialCoroutineScope is to ensure the integrity and atomicity of operations that affect the room status, such as
-     * attaching, detaching, and releasing the room. It makes sure that we don't have multiple operations happening
-     * at once which could leave us in an inconsistent state.
-     * It is used as a CoroutineContext for with [kotlinx.coroutines.selects.select] statement.
-     * See [Kotlin Dispatchers](https://kt.academy/article/cc-dispatchers) for more information.
-     */
-    private val sequentialCoroutineScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1))
-
-    /**
      * This flag indicates whether some sort of controlled operation is in progress (e.g. attaching, detaching, releasing).
      *
      * It is used to prevent the room status from being changed by individual channel state changes and ignore
@@ -114,5 +103,9 @@ class RoomLifecycleManager
             _operationInProgress = true
         }
         // TODO - [CHA-RL4] set up room monitoring here
+    }
+
+    suspend fun attach() {
+        TODO("Not yet implemented")
     }
 }
