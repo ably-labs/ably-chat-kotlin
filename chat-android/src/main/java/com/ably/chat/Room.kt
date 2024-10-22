@@ -1,6 +1,7 @@
 @file:Suppress("StringLiteralDuplication", "NotImplementedDeclaration")
 
 package com.ably.chat
+import io.ably.lib.util.Log.LogHandler
 
 /**
  * Represents a chat room.
@@ -89,43 +90,62 @@ internal class DefaultRoom(
     override val options: RoomOptions,
     realtimeClient: RealtimeClient,
     chatApi: ChatApi,
+    val logger: LogHandler?,
 ) : Room {
 
-    private val _messages = DefaultMessages(
+    private val _logger = logger
+    override val status = DefaultStatus(logger)
+
+    override val messages = DefaultMessages(
         roomId = roomId,
         realtimeChannels = realtimeClient.channels,
         chatApi = chatApi,
     )
 
-    override val messages: Messages = _messages
-
-    override val presence: Presence = DefaultPresence(
+    override val presence = DefaultPresence(
         messages = messages,
     )
 
-    override val reactions: RoomReactions = DefaultRoomReactions(
+    override val typing = DefaultTyping(
         roomId = roomId,
         realtimeClient = realtimeClient,
     )
 
-    override val typing: Typing = DefaultTyping(
+    override val reactions = DefaultRoomReactions(
         roomId = roomId,
         realtimeClient = realtimeClient,
     )
 
-    override val occupancy: Occupancy = DefaultOccupancy(
+    override val occupancy = DefaultOccupancy(
         messages = messages,
     )
 
-    override val status: RoomStatus
-        get() {
-            TODO("Not yet implemented")
-        }
+    private var _lifecycleManager: RoomLifecycleManager? = null
+
+    init {
+        /**
+         * TODO
+         * Initialize features based on provided RoomOptions.
+         * By default, only messages feature should be initialized.
+         * Currently, all features are initialized by default.
+         */
+        val features = listOf(messages, presence, typing, reactions, occupancy)
+        _lifecycleManager = RoomLifecycleManager(status, features, _logger)
+        /**
+         * TODO
+         * Make sure previous release op. for same was a success.
+         * Make sure channels were removed using realtime.channels.release(contributor.channel.name);
+         * Once this is a success, set room to initialized, if not set it to failed and throw error.
+         * Note that impl. can change based on recent proposed changes to chat-room-lifecycle DR.
+         */
+        this.status.setStatus(RoomLifecycle.Initialized)
+    }
 
     override suspend fun attach() {
-        messages.channel.attachCoroutine()
-        typing.channel.attachCoroutine()
-        reactions.channel.attachCoroutine()
+        if (_lifecycleManager == null) {
+            // TODO - wait for room to be initialized inside init
+        }
+        _lifecycleManager?.attach()
     }
 
     override suspend fun detach() {
@@ -135,6 +155,6 @@ internal class DefaultRoom(
     }
 
     fun release() {
-        _messages.release()
+        messages.release()
     }
 }

@@ -2,7 +2,7 @@
 
 package com.ably.chat
 
-import io.ably.lib.realtime.Channel
+import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
 /**
  * This interface is used to interact with room-level reactions in a chat room: subscribing to reactions and sending them.
@@ -16,7 +16,7 @@ interface RoomReactions : EmitsDiscontinuities {
      *
      * @returns The Ably realtime channel instance.
      */
-    val channel: Channel
+    val channel: AblyRealtimeChannel
 
     /**
      * Send a reaction to the room including some metadata.
@@ -101,11 +101,17 @@ data class SendReactionParams(
 internal class DefaultRoomReactions(
     roomId: String,
     private val realtimeClient: RealtimeClient,
-) : RoomReactions {
+) : RoomReactions, ContributesToRoomLifecycle, ResolvedContributor {
+
     private val roomReactionsChannelName = "$roomId::\$chat::\$reactions"
 
-    override val channel: Channel
-        get() = realtimeClient.channels.get(roomReactionsChannelName, ChatChannelOptions())
+    override val channel: AblyRealtimeChannel = realtimeClient.channels.get(roomReactionsChannelName, ChatChannelOptions())
+
+    override val contributor: ContributesToRoomLifecycle = this
+
+    override val attachmentErrorCode: ErrorCodes = ErrorCodes.ReactionsAttachmentFailed
+
+    override val detachmentErrorCode: ErrorCodes = ErrorCodes.ReactionsDetachmentFailed
 
     override suspend fun send(params: SendReactionParams) {
         TODO("Not yet implemented")

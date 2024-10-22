@@ -3,8 +3,8 @@
 package com.ably.chat
 
 import android.text.PrecomputedText.Params
-import io.ably.lib.realtime.Channel
 import io.ably.lib.types.PresenceMessage
+import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
 typealias PresenceData = Any
 
@@ -19,7 +19,7 @@ interface Presence : EmitsDiscontinuities {
      * Get the underlying Ably realtime channel used for presence in this chat room.
      * @returns The realtime channel.
      */
-    val channel: Channel
+    val channel: AblyRealtimeChannel
 
     /**
      * Method to get list of the current online users and returns the latest presence messages associated to it.
@@ -131,10 +131,15 @@ data class PresenceEvent(
 
 internal class DefaultPresence(
     private val messages: Messages,
-) : Presence {
+) : Presence, ContributesToRoomLifecycle, ResolvedContributor {
 
-    override val channel: Channel
-        get() = messages.channel
+    override val channel = messages.channel
+
+    override val contributor: ContributesToRoomLifecycle = this
+
+    override val attachmentErrorCode: ErrorCodes = ErrorCodes.PresenceAttachmentFailed
+
+    override val detachmentErrorCode: ErrorCodes = ErrorCodes.PresenceDetachmentFailed
 
     override suspend fun get(params: List<Params>): List<PresenceMember> {
         TODO("Not yet implemented")

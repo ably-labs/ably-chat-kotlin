@@ -87,7 +87,7 @@ internal class ChatApi(private val realtimeClient: RealtimeClient, private val c
                 ErrorInfo(
                     "Metadata contains reserved 'ably-chat' key",
                     HttpStatusCodes.BadRequest,
-                    ErrorCodes.InvalidRequestBody,
+                    ErrorCodes.InvalidRequestBody.errorCode,
                 ),
             )
         }
@@ -98,7 +98,7 @@ internal class ChatApi(private val realtimeClient: RealtimeClient, private val c
                 ErrorInfo(
                     "Headers contains reserved key with reserved 'ably-chat' prefix",
                     HttpStatusCodes.BadRequest,
-                    ErrorCodes.InvalidRequestBody,
+                    ErrorCodes.InvalidRequestBody.errorCode,
                 ),
             )
         }

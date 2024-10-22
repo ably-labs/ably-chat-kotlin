@@ -57,12 +57,13 @@ internal class DefaultRooms(
                     options = options,
                     realtimeClient = realtimeClient,
                     chatApi = chatApi,
+                    logger = clientOptions.logHandler,
                 )
             }
 
             if (room.options != options) {
                 throw AblyException.fromErrorInfo(
-                    ErrorInfo("Room already exists with different options", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest),
+                    ErrorInfo("Room already exists with different options", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest.errorCode),
                 )
             }
 
