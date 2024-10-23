@@ -179,12 +179,10 @@ class DefaultStatus(private val logger: LogHandler?) : InternalRoomStatus, RoomS
     private val _logger = logger
 
     private var _state = RoomLifecycle.Initializing
-    override val current: RoomLifecycle
-        get() = _state
+    override val current: RoomLifecycle = _state
 
     private var _error: ErrorInfo? = null
-    override val error: ErrorInfo?
-        get() = _error
+    override val error: ErrorInfo? = _error
 
     private val internalEmitter = RoomStatusEvenEmitter()
 
