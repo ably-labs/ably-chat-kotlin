@@ -4,6 +4,9 @@ import io.ably.lib.realtime.ChannelState
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
 import io.ably.lib.util.Log.LogHandler
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -147,7 +150,7 @@ class RoomLifecycleManager
      * as a failed channel or suspension.
      */
     private fun clearAllTransientDetachTimeouts() {
-        TODO("Need to implement")
+        // This will be implemented as a part of channel detach
     }
 
     /**
@@ -166,13 +169,73 @@ class RoomLifecycleManager
      * @returns Returns when the room is attached, or the room enters a failed state.
      */
     private suspend fun doRetry(contributor: ResolvedContributor) {
+        // Handle the channel wind-down for other channels
         var result = kotlin.runCatching { doChannelWindDown(contributor) }
         while (result.isFailure) {
+            // If in doing the wind down, we've entered failed state, then it's game over anyway
             if (this._status.current === RoomLifecycle.Failed) {
                 error("room is in a failed state")
             }
             delay(250)
             result = kotlin.runCatching { doChannelWindDown(contributor) }
+        }
+
+        // A helper that allows us to retry the attach operation
+        val doAttachWithRetry: suspend () -> Unit = {
+            coroutineScope {
+                _status.setStatus(RoomLifecycle.Attaching)
+                val attachmentResult = doAttach()
+
+                // If we're in failed, then we should wind down all the channels, eventually - but we're done here
+                if (attachmentResult.status === RoomLifecycle.Failed) {
+                    atomicCoroutineScope.async(LifecycleOperationPrecedence.Internal.priority) {
+                        runDownChannelsOnFailedAttach()
+                    }
+                    return@coroutineScope
+                }
+
+                // If we're in suspended, then we should wait for the channel to reattach, but wait for it to do so
+                if (attachmentResult.status === RoomLifecycle.Suspended) {
+                    val failedFeature = attachmentResult.failedFeature
+                    if (failedFeature == null) {
+                        AblyException.fromErrorInfo(
+                            ErrorInfo("no failed feature in doRetry", ErrorCodes.RoomLifecycleError.errorCode, 500),
+                        )
+                    }
+                    // No need to catch errors, rather they should propagate to caller method
+                    return@coroutineScope doRetry(failedFeature as ResolvedContributor)
+                }
+                // We attached, huzzah!
+            }
+        }
+
+        // If given suspended contributor channel has reattached, then we can retry the attach
+        if (contributor.channel.state == ChannelState.attached) {
+            return doAttachWithRetry()
+        }
+
+        // Otherwise, wait for our suspended contributor channel to re-attach and try again
+        try {
+            listenToChannelAttachOrFailure(contributor)
+            // Attach successful
+            return doAttachWithRetry()
+        } catch (ex: AblyException) {
+            // Channel attach failed
+            _status.setStatus(RoomLifecycle.Failed, ex.errorInfo)
+            throw ex
+        }
+    }
+
+    private suspend fun listenToChannelAttachOrFailure(contributor: ResolvedContributor) = suspendCoroutine { continuation ->
+        contributor.channel.once(ChannelState.attached) {
+            continuation.resume(true)
+        }
+        contributor.channel.once(ChannelState.failed) {
+            val exception = AblyException.fromErrorInfo(
+                it.reason
+                    ?: ErrorInfo("unknown error in _doRetry", ErrorCodes.RoomLifecycleError.errorCode, 500),
+            )
+            continuation.resumeWithException(exception)
         }
     }
 
@@ -321,8 +384,7 @@ class RoomLifecycleManager
      * @returns Success/Failure when all channels are detached or at least one of them fails.
      */
     private suspend fun doChannelWindDown(except: ResolvedContributor? = null) = coroutineScope {
-        _contributors.map {
-            val contributor = it
+        _contributors.map { contributor: ResolvedContributor ->
             async {
                 // If its the contributor we want to wait for a conclusion on, then we should not detach it
                 // Unless we're in a failed state, in which case we should detach it
