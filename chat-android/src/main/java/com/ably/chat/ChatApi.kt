@@ -140,13 +140,11 @@ internal class ChatApi(
                 override fun onError(reason: ErrorInfo?) {
                     logger.error(
                         "ChatApi.makeAuthorizedRequest(); failed to make request",
-                        context = LogContext(
-                            contextMap = mapOf(
-                                "url" to url,
-                                "statusCode" to reason?.statusCode.toString(),
-                                "errorCode" to reason?.code.toString(),
-                                "errorMessage" to reason?.message.toString(),
-                            ),
+                        contextMap = mapOf(
+                            "url" to url,
+                            "statusCode" to reason?.statusCode.toString(),
+                            "errorCode" to reason?.code.toString(),
+                            "errorMessage" to reason?.message.toString(),
                         ),
                     )
                     // (CHA-M3e)
@@ -176,13 +174,11 @@ internal class ChatApi(
                 override fun onError(reason: ErrorInfo?) {
                     logger.error(
                         "ChatApi.makeAuthorizedPaginatedRequest(); failed to make request",
-                        context = LogContext(
-                            contextMap = mapOf(
-                                "url" to url,
-                                "statusCode" to reason?.statusCode.toString(),
-                                "errorCode" to reason?.code.toString(),
-                                "errorMessage" to reason?.message.toString(),
-                            ),
+                        contextMap = mapOf(
+                            "url" to url,
+                            "statusCode" to reason?.statusCode.toString(),
+                            "errorCode" to reason?.code.toString(),
+                            "errorMessage" to reason?.message.toString(),
                         ),
                     )
                     continuation.resumeWithException(AblyException.fromErrorInfo(reason))

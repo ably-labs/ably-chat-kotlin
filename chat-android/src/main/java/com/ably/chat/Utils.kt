@@ -5,6 +5,7 @@ import io.ably.lib.realtime.CompletionListener
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ChannelOptions
 import io.ably.lib.types.ErrorInfo
+import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -46,6 +47,8 @@ fun ChatChannelOptions(init: (ChannelOptions.() -> Unit)? = null): ChannelOption
     options.attachOnSubscribe = false
     return options
 }
+
+fun generateUUID() = UUID.randomUUID().toString()
 
 /**
  * A value that can be evaluated at a later time, similar to `kotlinx.coroutines.Deferred` or a JavaScript Promise.

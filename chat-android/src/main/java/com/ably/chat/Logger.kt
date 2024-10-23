@@ -7,59 +7,73 @@ fun interface LogHandler {
     fun log(message: String, level: LogLevel, throwable: Throwable?, context: LogContext)
 }
 
-data class LogContext(val tag: String? = null, val contextMap: Map<String, String> = mapOf())
+data class LogContext(
+    val tag: String,
+    val clientId: String,
+    val instanceId: String,
+    val contextMap: Map<String, String> = mapOf(),
+)
 
 internal interface Logger {
-    val defaultContext: LogContext
-    fun withContext(additionalContext: LogContext): Logger
-    fun log(message: String, level: LogLevel, throwable: Throwable? = null, context: LogContext? = null)
+    val context: LogContext
+    fun withContext(tag: String? = null, contextMap: Map<String, String> = mapOf()): Logger
+    fun log(
+        message: String,
+        level: LogLevel,
+        throwable: Throwable? = null,
+        newTag: String? = null,
+        newContextMap: Map<String, String> = mapOf(),
+    )
 }
 
-internal fun Logger.trace(message: String, throwable: Throwable? = null, context: LogContext? = null) {
-    log(message, LogLevel.Trace, throwable, context)
+internal fun Logger.trace(message: String, throwable: Throwable? = null, tag: String? = null, contextMap: Map<String, String> = mapOf()) {
+    log(message, LogLevel.Trace, throwable, tag, contextMap)
 }
 
-internal fun Logger.debug(message: String, throwable: Throwable? = null, context: LogContext? = null) {
-    log(message, LogLevel.Debug, throwable, context)
+internal fun Logger.debug(message: String, throwable: Throwable? = null, tag: String? = null, contextMap: Map<String, String> = mapOf()) {
+    log(message, LogLevel.Debug, throwable, tag, contextMap)
 }
 
-internal fun Logger.info(message: String, throwable: Throwable? = null, context: LogContext? = null) {
-    log(message, LogLevel.Info, throwable, context)
+internal fun Logger.info(message: String, throwable: Throwable? = null, tag: String? = null, contextMap: Map<String, String> = mapOf()) {
+    log(message, LogLevel.Info, throwable, tag, contextMap)
 }
 
-internal fun Logger.warn(message: String, throwable: Throwable? = null, context: LogContext? = null) {
-    log(message, LogLevel.Warn, throwable, context)
+internal fun Logger.warn(message: String, throwable: Throwable? = null, tag: String? = null, contextMap: Map<String, String> = mapOf()) {
+    log(message, LogLevel.Warn, throwable, tag, contextMap)
 }
 
-internal fun Logger.error(message: String, throwable: Throwable? = null, context: LogContext? = null) {
-    log(message, LogLevel.Error, throwable, context)
+internal fun Logger.error(message: String, throwable: Throwable? = null, tag: String? = null, contextMap: Map<String, String> = mapOf()) {
+    log(message, LogLevel.Error, throwable, tag, contextMap)
 }
 
-internal fun LogContext.mergeWith(other: LogContext): LogContext {
+internal fun LogContext.mergeWith(tag: String? = null, contextMap: Map<String, String> = mapOf()): LogContext {
     return LogContext(
-        tag = other.tag ?: tag,
-        contextMap = contextMap + other.contextMap,
+        tag = tag ?: this.tag,
+        instanceId = instanceId,
+        clientId = clientId,
+        contextMap = this.contextMap + contextMap,
     )
 }
 
 internal class AndroidLogger(
     private val minimalVisibleLogLevel: LogLevel,
-    override val defaultContext: LogContext = LogContext(),
+    override val context: LogContext,
 ) : Logger {
 
-    override fun withContext(additionalContext: LogContext): Logger {
+    override fun withContext(newTag: String?, newContextMap: Map<String, String>): Logger {
         return AndroidLogger(
             minimalVisibleLogLevel = minimalVisibleLogLevel,
-            defaultContext = defaultContext.mergeWith(additionalContext),
+            context = context.mergeWith(newTag, newContextMap),
         )
     }
 
-    override fun log(message: String, level: LogLevel, throwable: Throwable?, context: LogContext?) {
+    override fun log(message: String, level: LogLevel, throwable: Throwable?, newTag: String?, newContextMap: Map<String, String>) {
         if (level.logLevelValue <= minimalVisibleLogLevel.logLevelValue) return
-        val finalContext = context?.let { defaultContext.mergeWith(it) } ?: this.defaultContext
-        val tag = finalContext.tag ?: "AblyChatSDK"
+        val finalContext = context.mergeWith(newTag, newContextMap)
+        val tag = finalContext.tag
+        val contextMap = finalContext.contextMap + ("instanceId" to finalContext.instanceId)
 
-        val contextString = if (this.defaultContext.contextMap.isEmpty()) "" else ", context: $finalContext"
+        val contextString = ", context: $contextMap"
         val formattedMessage = "[${LocalDateTime.now()}] ${level.name} ably-chat: ${message}$contextString"
         when (level) {
             // We use Logcat's info level for Trace and Debug
@@ -76,20 +90,20 @@ internal class AndroidLogger(
 internal class CustomLogger(
     private val logHandler: LogHandler,
     private val minimalVisibleLogLevel: LogLevel,
-    override val defaultContext: LogContext = LogContext(),
+    override val context: LogContext,
 ) : Logger {
 
-    override fun withContext(additionalContext: LogContext): Logger {
+    override fun withContext(tag: String?, contextMap: Map<String, String>): Logger {
         return CustomLogger(
             logHandler = logHandler,
             minimalVisibleLogLevel = minimalVisibleLogLevel,
-            defaultContext = defaultContext.mergeWith(additionalContext),
+            context = context.mergeWith(tag, contextMap),
         )
     }
 
-    override fun log(message: String, level: LogLevel, throwable: Throwable?, context: LogContext?) {
+    override fun log(message: String, level: LogLevel, throwable: Throwable?, newTag: String?, newContextMap: Map<String, String>) {
         if (level.logLevelValue <= minimalVisibleLogLevel.logLevelValue) return
-        val finalContext = context?.let { defaultContext.mergeWith(it) } ?: this.defaultContext
+        val finalContext = context.mergeWith(newTag, newContextMap)
         logHandler.log(
             message = message,
             level = level,
@@ -99,10 +113,7 @@ internal class CustomLogger(
     }
 }
 
-internal object EmptyLogger : Logger {
-    override val defaultContext: LogContext = LogContext()
-
-    override fun withContext(additionalContext: LogContext): Logger = this
-
-    override fun log(message: String, level: LogLevel, throwable: Throwable?, context: LogContext?) = Unit
+internal class EmptyLogger(override val context: LogContext) : Logger {
+    override fun withContext(newTag: String?, newContextMap: Map<String, String>): Logger = this
+    override fun log(message: String, level: LogLevel, throwable: Throwable?, newTag: String?, newContextMap: Map<String, String>) = Unit
 }
