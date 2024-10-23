@@ -27,6 +27,7 @@ android {
     }
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -45,7 +46,7 @@ buildConfig {
 dependencies {
     api(libs.ably.android)
     implementation(libs.gson)
-
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.coroutine.test)
