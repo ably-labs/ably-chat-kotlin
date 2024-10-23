@@ -117,6 +117,7 @@ internal class DefaultRoomReactions(
     // (CHA-ER3a) Reactions are sent on the channel using a message in a particular format - see spec for format.
     override suspend fun send(params: SendReactionParams) {
         val pubSubMessage = PubSubMessage().apply {
+            name = RoomReactionEventType.Reaction.eventName
             data = JsonObject().apply {
                 addProperty("type", params.type)
                 params.metadata?.let { add("metadata", it.toJson()) }
@@ -145,7 +146,7 @@ internal class DefaultRoomReactions(
                 createdAt = pubSubMessage.timestamp,
                 clientId = pubSubMessage.clientId,
                 metadata = data.get("metadata")?.toMap() ?: mapOf(),
-                headers = pubSubMessage.extras.asJsonObject().get("headers")?.toMap() ?: mapOf(),
+                headers = pubSubMessage.extras?.asJsonObject()?.get("headers")?.toMap() ?: mapOf(),
                 isSelf = pubSubMessage.clientId == clientId,
             )
             listener.onReaction(reaction)
