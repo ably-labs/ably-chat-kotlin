@@ -1,6 +1,7 @@
 package com.ably.chat
 
 import io.ably.lib.realtime.ChannelState
+import io.ably.lib.realtime.ChannelStateListener.ChannelStateChange
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
 import io.ably.lib.util.Log.LogHandler
@@ -114,6 +115,8 @@ class RoomLifecycleManager
      * Spec: CHA-RL7
      */
     private val atomicCoroutineScope = AtomicCoroutineScope()
+
+    private val atomicEmitter = FlowEmitter<ChannelStateChange>(atomicCoroutineScope.sequentialScope)
 
     /**
      * This flag indicates whether some sort of controlled operation is in progress (e.g. attaching, detaching, releasing).

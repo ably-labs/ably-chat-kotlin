@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
  */
 class AtomicCoroutineScope {
 
-    private val sequentialScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1))
+    internal val sequentialScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1))
 
     private class Job(
         private val priority: Int,
