@@ -105,7 +105,8 @@ internal class DefaultRoom(
 
     override val reactions: RoomReactions = DefaultRoomReactions(
         roomId = roomId,
-        realtimeClient = realtimeClient,
+        clientId = realtimeClient.auth.clientId,
+        realtimeChannels = realtimeClient.channels,
     )
 
     override val typing: Typing = DefaultTyping(
