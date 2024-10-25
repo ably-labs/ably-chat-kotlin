@@ -23,7 +23,7 @@ class FlowEmitterTest {
         subscription.unsubscribe()
 
         flowEmitter.emit("5")
-        flowEmitter.emit("7")
+        flowEmitter.emit("6")
 
         assertWaiter { receivedValues.size == 3 }.join()
 

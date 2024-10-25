@@ -1,12 +1,17 @@
 package com.ably.chat
 
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.count
+import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 /**
  * Interface implementation should work in both java and kotlin
@@ -37,18 +42,23 @@ open class FlowEmitter<V>(scope: CoroutineScope = CoroutineScope(Dispatchers.Def
         mutableFlow.tryEmit(value)
     }
 
-    override fun on(block: suspend CoroutineScope.(V) -> Unit): Subscription {
+    override fun on(block: suspend CoroutineScope.(V) -> Unit): Subscription = runBlocking {
         val keepCollecting = AtomicBoolean(true)
+        val flow = mutableFlow.takeWhile { it != null || keepCollecting.get() }
+        val flowCollectorInitiated = CompletableDeferred<Boolean>()
         coroutineScope.launch {
-            mutableFlow.takeWhile { keepCollecting.get() }.collect {
-                kotlin.runCatching { block(this, it) }
+            flowCollectorInitiated.complete(true)
+            flow.collect {
+                if (it != null) {
+                    kotlin.runCatching { block(this, it) }
+                }
             }
         }
-        return Subscription {
-            /**
-             * Seems only sensible way to cancel collector, since job.cancel cancels ongoing job
-             */
+        flowCollectorInitiated.join()
+        Subscription {
             keepCollecting.set(false)
+            @Suppress("UNCHECKED_CAST")
+            emit(null as V)
         }
     }
 
