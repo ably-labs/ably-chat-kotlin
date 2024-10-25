@@ -8,12 +8,18 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 
+/**
+ * Interface implementation should work in both java and kotlin
+ */
 interface Emitter<V> {
     fun emit(value: V)
     fun on(block: suspend CoroutineScope.(V) -> Unit): Subscription
     fun offAll()
 }
 
+/**
+ * Interface implementation should work in both java and kotlin
+ */
 interface EventEmitter<K, V> {
     fun emit(event: K, value: V)
     fun on(event: K, block: suspend CoroutineScope.(V) -> Unit): Subscription
@@ -39,6 +45,9 @@ open class FlowEmitter<V>(scope: CoroutineScope = CoroutineScope(Dispatchers.Def
             }
         }
         return Subscription {
+            /**
+             * Seems only sensible way to cancel collector, since job.cancel cancels ongoing job
+             */
             keepCollecting.set(false)
         }
     }
