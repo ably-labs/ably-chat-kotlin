@@ -6,11 +6,11 @@ import io.ably.lib.types.ErrorInfo
 import io.ably.lib.util.Log.LogHandler
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
 import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
 /**
@@ -76,14 +76,19 @@ class DefaultRoomAttachmentResult : RoomAttachmentResult {
     internal var _status: RoomLifecycle = RoomLifecycle.Attached
     internal var _error: ErrorInfo? = null
 
-    override val failedFeature: ResolvedContributor? = _failedFeature
+    override val failedFeature: ResolvedContributor?
+        get() = _failedFeature
+
     override val exception: AblyException = AblyException.fromErrorInfo(
         _error
             ?: ErrorInfo("unknown error in attach", ErrorCodes.RoomLifecycleError.errorCode, 500),
     )
 
-    override val status: RoomLifecycle = _status
-    override val error: ErrorInfo? = _error
+    override val status: RoomLifecycle
+        get() = _status
+
+    override val error: ErrorInfo?
+        get() = _error
 }
 
 /**
@@ -91,7 +96,7 @@ class DefaultRoomAttachmentResult : RoomAttachmentResult {
  * @internal
  */
 class RoomLifecycleManager
-(status: DefaultStatus, contributors: List<ResolvedContributor>, logger: LogHandler?) {
+(status: DefaultStatus, contributors: List<ResolvedContributor>, logger: LogHandler? = null) {
 
     /**
      * The status of the room.
@@ -226,9 +231,9 @@ class RoomLifecycleManager
         }
     }
 
-    private suspend fun listenToChannelAttachOrFailure(contributor: ResolvedContributor) = suspendCoroutine { continuation ->
+    private suspend fun listenToChannelAttachOrFailure(contributor: ResolvedContributor) = suspendCancellableCoroutine { continuation ->
         contributor.channel.once(ChannelState.attached) {
-            continuation.resume(true)
+            continuation.resume(Unit)
         }
         contributor.channel.once(ChannelState.failed) {
             val exception = AblyException.fromErrorInfo(
@@ -254,14 +259,16 @@ class RoomLifecycleManager
                 RoomLifecycle.Releasing ->
                     throw AblyException.fromErrorInfo(
                         ErrorInfo(
-                            "Can't ATTACH since room is in RELEASING state",
+                            "unable to attach room; room is releasing",
+                            500,
                             ErrorCodes.RoomIsReleasing.errorCode,
                         ),
                     )
                 RoomLifecycle.Released ->
                     throw AblyException.fromErrorInfo(
                         ErrorInfo(
-                            "Can't ATTACH since room is in RELEASED state",
+                            "unable to attach room; room is released",
+                            500,
                             ErrorCodes.RoomIsReleased.errorCode,
                         ),
                     )

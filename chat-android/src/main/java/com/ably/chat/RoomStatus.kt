@@ -174,15 +174,17 @@ open class RoomStatusEvenEmitter : EventEmitter<RoomLifecycle, RoomStatus.Listen
     }
 }
 
-class DefaultStatus(private val logger: LogHandler?) : InternalRoomStatus, RoomStatusEvenEmitter() {
+class DefaultStatus(private val logger: LogHandler? = null) : InternalRoomStatus, RoomStatusEvenEmitter() {
 
     private val _logger = logger
 
     private var _state = RoomLifecycle.Initializing
-    override val current: RoomLifecycle = _state
+    override val current: RoomLifecycle
+        get() = _state
 
     private var _error: ErrorInfo? = null
-    override val error: ErrorInfo? = _error
+    override val error: ErrorInfo?
+        get() = _error
 
     private val internalEmitter = RoomStatusEvenEmitter()
 
