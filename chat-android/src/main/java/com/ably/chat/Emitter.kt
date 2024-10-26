@@ -2,8 +2,8 @@ package com.ably.chat
 
 import io.ably.lib.util.Log.ERROR
 import io.ably.lib.util.Log.LogHandler
-import java.util.LinkedList
-import java.util.concurrent.CopyOnWriteArrayList
+import java.util.TreeSet
+import java.util.concurrent.LinkedBlockingQueue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -19,29 +19,33 @@ interface Emitter<V> {
 }
 
 /**
- * AsyncEmitter is thread safe, highly performant async emitter implementation for kotlin.
+ * AsyncEmitter is thread safe, async emitter implementation for kotlin.
  * Currently, use-case is limited to handle internal events.
  * This can be modified in the future to handle external listeners, events etc
  */
 class AsyncEmitter<V> (private val collectorScope: CoroutineScope = CoroutineScope(Dispatchers.Default)) : Emitter<V> {
 
-    // Read more on https://www.codejava.net/java-core/concurrency/java-concurrent-collection-copyonwritearraylist-examples
-    private val subscribers = CopyOnWriteArrayList<AsyncSubscriber<V>>()
+    private val subscribers = TreeSet<AsyncSubscriber<V>>()
 
+    @Synchronized
     override fun emit(value: V) {
         for (subscriber in subscribers) {
-            subscriber.notifyAsync(value)
+            subscriber.notify(value)
         }
     }
 
+    @Synchronized
     override fun on(block: suspend CoroutineScope.(V) -> Unit): Subscription {
         val subscriber = AsyncSubscriber(collectorScope, block)
-        subscribers.addIfAbsent(subscriber)
+        subscribers.add(subscriber)
         return Subscription {
-            subscribers.remove(subscriber)
+            synchronized(this) {
+                subscribers.remove(subscriber)
+            }
         }
     }
 
+    @Synchronized
     override fun offAll() {
         subscribers.clear()
     }
@@ -51,13 +55,13 @@ private class AsyncSubscriber<V>(
     private val scope: CoroutineScope,
     private val subscriberBlock: (suspend CoroutineScope.(V) -> Unit),
     private val logger: LogHandler? = null,
-) {
+) : Comparable<V> {
+    private val values = LinkedBlockingQueue<V>()
     private var isSubscriberRunning = false
-    private val values = LinkedList<V>()
 
-    fun notifyAsync(value: V) {
+    fun notify(value: V) {
+        values.add(value)
         sequentialScope.launch {
-            values.add(value)
             if (!isSubscriberRunning) {
                 isSubscriberRunning = true
                 while (values.isNotEmpty()) {
@@ -75,16 +79,16 @@ private class AsyncSubscriber<V>(
         }
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (other is AsyncSubscriber<*>) {
-            // Avoid registering duplicate anonymous subscriber block with same instance id
-            // Common scenario when Android activity is refreshed or some app components refresh
-            return this.subscriberBlock.hashCode() == other.subscriberBlock.hashCode()
-        }
-        return super.equals(other)
-    }
-
     companion object {
         val sequentialScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1))
+    }
+
+    override fun compareTo(other: V): Int {
+        // Avoid registering duplicate anonymous subscriber block with same instance id
+        // Common scenario when Android activity is refreshed or some app components refresh
+        if (other is AsyncSubscriber<*>) {
+            return this.subscriberBlock.hashCode().compareTo(other.subscriberBlock.hashCode())
+        }
+        return this.hashCode().compareTo(other.hashCode())
     }
 }
