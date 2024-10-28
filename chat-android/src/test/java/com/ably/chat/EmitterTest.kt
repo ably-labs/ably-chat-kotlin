@@ -238,4 +238,60 @@ class AsyncEmitterTest {
 
         Assert.assertEquals(1, receivedValues[0])
     }
+
+    @Test
+    fun `Ignore subscriber errors while processing events`() = runTest {
+        val emitter = AsyncEmitter<Int>()
+        val emittedValues = mutableListOf<Int>()
+        val receivedValues1 = mutableListOf<Int>()
+        val receivedValues2 = mutableListOf<Int>()
+        val receivedValues3 = mutableListOf<Int>()
+
+        emitter.on { received ->
+            if (received % 2 == 0) {
+                throw Exception("Can't process integers divisible by 2")
+            }
+            delay((20..100).random().toDuration(DurationUnit.MILLISECONDS))
+            receivedValues1.add(received)
+        }
+
+        emitter.on { received ->
+            if (received % 5 == 0) {
+                throw Exception("Can't process integers divisible by 5")
+            }
+            delay((20..100).random().toDuration(DurationUnit.MILLISECONDS))
+            receivedValues2.add(received)
+        }
+
+        emitter.on { received ->
+            if (received % 7 == 0) {
+                throw Exception("Can't process integers divisible by 7")
+            }
+            delay((30..100).random().toDuration(DurationUnit.MILLISECONDS))
+            receivedValues3.add(received)
+        }
+
+        // emit 100 events from same thread
+        repeat(100) {
+            emitter.emit(it)
+            emittedValues.add(it)
+        }
+
+        Assert.assertFalse(emitter.finishedProcessing) // Processing events
+
+        val expectedReceivedValues1 = (0..99).toList().filter { it % 2 != 0 }
+        val expectedReceivedValues2 = (0..99).toList().filter { it % 5 != 0 }
+        val expectedReceivedValues3 = (0..99).toList().filter { it % 7 != 0 }
+
+        assertWaiter { emittedValues.size == 100 }.join()
+        assertWaiter { receivedValues1.size == expectedReceivedValues1.size }.join()
+        assertWaiter { receivedValues2.size == expectedReceivedValues2.size }.join()
+        assertWaiter { receivedValues3.size == expectedReceivedValues3.size }.join()
+
+        Assert.assertEquals(expectedReceivedValues1, receivedValues1)
+        Assert.assertEquals(expectedReceivedValues2, receivedValues2)
+        Assert.assertEquals(expectedReceivedValues3, receivedValues3)
+
+        Assert.assertTrue(emitter.finishedProcessing) // Finished processing
+    }
 }
