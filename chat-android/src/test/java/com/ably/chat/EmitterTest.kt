@@ -28,7 +28,7 @@ class AsyncEmitterTest {
             emitter.emit(it)
         }
 
-        assertWaiter { receivedValues.size == 10 }.join()
+        assertWaiter { receivedValues.size == 10 }
         Assert.assertTrue(emitter.finishedProcessing)
 
         Assert.assertEquals((0..9).toList(), receivedValues)
@@ -68,10 +68,10 @@ class AsyncEmitterTest {
 
         emitter.emit("6")
 
-        assertWaiter { receivedValues1.size == 3 }.join()
+        assertWaiter { receivedValues1.size == 3 }
         Assert.assertEquals(listOf("2", "3", "4"), receivedValues1)
 
-        assertWaiter { receivedValues2.size == 4 }.join()
+        assertWaiter { receivedValues2.size == 4 }
         Assert.assertEquals(listOf("2", "3", "4", "5"), receivedValues2)
 
         Assert.assertTrue(emitter.finishedProcessing)
@@ -108,10 +108,10 @@ class AsyncEmitterTest {
 
         Assert.assertFalse(emitter.finishedProcessing) // Processing events
 
-        assertWaiter { emittedValues.size == 100 }.join()
-        assertWaiter { receivedValues1.size == 100 }.join()
-        assertWaiter { receivedValues2.size == 100 }.join()
-        assertWaiter { receivedValues3.size == 100 }.join()
+        assertWaiter { emittedValues.size == 100 }
+        assertWaiter { receivedValues1.size == 100 }
+        assertWaiter { receivedValues2.size == 100 }
+        assertWaiter { receivedValues3.size == 100 }
 
         Assert.assertEquals(emittedValues, receivedValues1)
         Assert.assertEquals(emittedValues, receivedValues2)
@@ -152,10 +152,10 @@ class AsyncEmitterTest {
 
         Assert.assertFalse(emitter.finishedProcessing)
 
-        assertWaiter { emitted.size == 100000 }.join()
-        assertWaiter { receivedValues1.size == 100000 }.join()
-        assertWaiter { receivedValues2.size == 100000 }.join()
-        assertWaiter { receivedValues3.size == 100000 }.join()
+        assertWaiter { emitted.size == 100000 }
+        assertWaiter { receivedValues1.size == 100000 }
+        assertWaiter { receivedValues2.size == 100000 }
+        assertWaiter { receivedValues3.size == 100000 }
 
         // Due to concurrent emits, emit order is not guaranteed
         // i.e. assertEquals(emittedValues, receivedValues1) will fail
@@ -201,10 +201,10 @@ class AsyncEmitterTest {
 
         Assert.assertFalse(emitter.finishedProcessing)
 
-        assertWaiter { emitted.size == 100 }.join()
-        assertWaiter { receivedValues1.size == 100 }.join()
-        assertWaiter { receivedValues2.size == 100 }.join()
-        assertWaiter { receivedValues3.size == 100 }.join()
+        assertWaiter { emitted.size == 100 }
+        assertWaiter { receivedValues1.size == 100 }
+        assertWaiter { receivedValues2.size == 100 }
+        assertWaiter { receivedValues3.size == 100 }
 
         // Due to concurrent emits, emit order is not guaranteed
         // i.e. assertEquals(emittedValues, receivedValues1) will fail
@@ -233,7 +233,7 @@ class AsyncEmitterTest {
 
         emitter.emit(1)
 
-        assertWaiter { receivedValues.size == 1 }.join()
+        assertWaiter { receivedValues.size == 1 }
         Assert.assertTrue(emitter.finishedProcessing)
 
         Assert.assertEquals(1, receivedValues[0])
@@ -283,10 +283,10 @@ class AsyncEmitterTest {
         val expectedReceivedValues2 = (0..99).toList().filter { it % 5 != 0 }
         val expectedReceivedValues3 = (0..99).toList().filter { it % 7 != 0 }
 
-        assertWaiter { emittedValues.size == 100 }.join()
-        assertWaiter { receivedValues1.size == expectedReceivedValues1.size }.join()
-        assertWaiter { receivedValues2.size == expectedReceivedValues2.size }.join()
-        assertWaiter { receivedValues3.size == expectedReceivedValues3.size }.join()
+        assertWaiter { emittedValues.size == 100 }
+        assertWaiter { receivedValues1.size == expectedReceivedValues1.size }
+        assertWaiter { receivedValues2.size == expectedReceivedValues2.size }
+        assertWaiter { receivedValues3.size == expectedReceivedValues3.size }
 
         Assert.assertEquals(expectedReceivedValues1, receivedValues1)
         Assert.assertEquals(expectedReceivedValues2, receivedValues2)

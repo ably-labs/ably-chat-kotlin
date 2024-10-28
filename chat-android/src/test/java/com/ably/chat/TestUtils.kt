@@ -4,11 +4,9 @@ import com.google.gson.JsonElement
 import io.ably.lib.types.AsyncHttpPaginatedResponse
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
 fun buildAsyncHttpPaginatedResponse(items: List<JsonElement>): AsyncHttpPaginatedResponse {
@@ -56,10 +54,8 @@ fun mockOccupancyApiResponse(realtimeClientMock: RealtimeClient, response: JsonE
     }
 }
 
-suspend fun assertWaiter(timeoutInMs: Long = 10000, block: () -> Boolean): Job {
-    // Need to create coroutineScope because delay doesn't work in runTest default CoroutineScope
-    val scope = CoroutineScope(Dispatchers.Default)
-    return scope.launch {
+suspend fun assertWaiter(timeoutInMs: Long = 10000, block: () -> Boolean) {
+    withContext(Dispatchers.Default) {
         withTimeout(timeoutInMs) {
             do {
                 val success = block()
