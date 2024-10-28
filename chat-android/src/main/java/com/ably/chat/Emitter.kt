@@ -24,7 +24,7 @@ interface Emitter<V> {
  * Currently, use-case is limited to handle internal events.
  * This can be modified in the future to handle external listeners, events etc
  */
-class AsyncEmitter<V> (private val collectorScope: CoroutineScope = CoroutineScope(Dispatchers.Default)) : Emitter<V> {
+class AsyncEmitter<V> (private val subscriberScope: CoroutineScope = CoroutineScope(Dispatchers.Default)) : Emitter<V> {
 
     // Sorted list of unique subscribers based on supplied block
     private val subscribers = TreeSet<AsyncSubscriber<V>>()
@@ -42,7 +42,7 @@ class AsyncEmitter<V> (private val collectorScope: CoroutineScope = CoroutineSco
 
     @Synchronized
     override fun on(block: suspend CoroutineScope.(V) -> Unit): Subscription {
-        val subscriber = AsyncSubscriber(this, block)
+        val subscriber = AsyncSubscriber(sequentialScope, subscriberScope, block)
         subscribers.add(subscriber)
         return Subscription {
             synchronized(this) {
@@ -65,7 +65,8 @@ class AsyncEmitter<V> (private val collectorScope: CoroutineScope = CoroutineSco
         get() = subscribers.size
 
     private class AsyncSubscriber<V>(
-        private val emitter: AsyncEmitter<V>,
+        private val emitterSequentialScope: CoroutineScope,
+        private val subscriberScope: CoroutineScope,
         private val subscriberBlock: (suspend CoroutineScope.(V) -> Unit),
         private val logger: LogHandler? = null,
     ) : Comparable<V> {
@@ -74,17 +75,22 @@ class AsyncEmitter<V> (private val collectorScope: CoroutineScope = CoroutineSco
 
         fun inform(value: V) {
             values.add(value)
-            emitter.sequentialScope.launch {
+            emitterSequentialScope.launch {
                 if (!isSubscriberRunning) {
                     isSubscriberRunning = true
                     while (values.isNotEmpty()) {
                         val valueTobeEmitted = values.poll()
-                        try {
+                        runCatching {
                             // Should process values sequentially, similar to blocking eventEmitter
-                            emitter.collectorScope.launch { subscriberBlock(valueTobeEmitted as V) }.join()
-                        } catch (t: Throwable) {
-                            // TODO - replace with more verbose logging
-                            logger?.println(ERROR, "AsyncSubscriber", "Error processing value $valueTobeEmitted", t)
+                            subscriberScope.launch {
+                                try {
+                                    subscriberBlock(valueTobeEmitted as V)
+                                } catch (t: Throwable) {
+                                    // Catching exception to avoid error propagation to parent
+                                    // TODO - replace with more verbose logging
+                                    logger?.println(ERROR, "AsyncSubscriber", "Error processing value $valueTobeEmitted", t)
+                                }
+                            }.join()
                         }
                     }
                     isSubscriberRunning = false
