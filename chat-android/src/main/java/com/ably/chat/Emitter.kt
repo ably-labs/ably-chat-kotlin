@@ -1,5 +1,6 @@
 package com.ably.chat
 
+import io.ably.annotation.Experimental
 import io.ably.lib.util.Log.ERROR
 import io.ably.lib.util.Log.LogHandler
 import java.util.TreeSet
@@ -25,18 +26,23 @@ interface Emitter<V> {
  */
 class AsyncEmitter<V> (private val collectorScope: CoroutineScope = CoroutineScope(Dispatchers.Default)) : Emitter<V> {
 
+    // Sorted list of unique subscribers based on supplied block
     private val subscribers = TreeSet<AsyncSubscriber<V>>()
+
+    // Emitter scope to make sure all subscribers receive events in same order.
+    // Will be automatically garbage collected once all jobs are performed.
+    private val sequentialScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1))
 
     @Synchronized
     override fun emit(value: V) {
         for (subscriber in subscribers) {
-            subscriber.notify(value)
+            subscriber.inform(value)
         }
     }
 
     @Synchronized
     override fun on(block: suspend CoroutineScope.(V) -> Unit): Subscription {
-        val subscriber = AsyncSubscriber(collectorScope, block)
+        val subscriber = AsyncSubscriber(this, block)
         subscribers.add(subscriber)
         return Subscription {
             synchronized(this) {
@@ -49,46 +55,50 @@ class AsyncEmitter<V> (private val collectorScope: CoroutineScope = CoroutineSco
     override fun offAll() {
         subscribers.clear()
     }
-}
 
-private class AsyncSubscriber<V>(
-    private val scope: CoroutineScope,
-    private val subscriberBlock: (suspend CoroutineScope.(V) -> Unit),
-    private val logger: LogHandler? = null,
-) : Comparable<V> {
-    private val values = LinkedBlockingQueue<V>()
-    private var isSubscriberRunning = false
+    @Experimental
+    val finishedProcessing: Boolean
+        get() = subscribers.all { it.values.isEmpty() && !it.isSubscriberRunning }
 
-    fun notify(value: V) {
-        values.add(value)
-        sequentialScope.launch {
-            if (!isSubscriberRunning) {
-                isSubscriberRunning = true
-                while (values.isNotEmpty()) {
-                    val valueTobeEmitted = values.poll()
-                    try {
-                        // Should process values sequentially, similar to blocking eventEmitter
-                        scope.launch { subscriberBlock(valueTobeEmitted as V) }.join()
-                    } catch (t: Throwable) {
-                        // TODO - replace with more verbose logging
-                        logger?.println(ERROR, "AsyncSubscriber", "Error processing value $valueTobeEmitted", t)
+    @get:Synchronized
+    val subscribersCount: Int
+        get() = subscribers.size
+
+    private class AsyncSubscriber<V>(
+        private val emitter: AsyncEmitter<V>,
+        private val subscriberBlock: (suspend CoroutineScope.(V) -> Unit),
+        private val logger: LogHandler? = null,
+    ) : Comparable<V> {
+        val values = LinkedBlockingQueue<V>()
+        var isSubscriberRunning = false
+
+        fun inform(value: V) {
+            values.add(value)
+            emitter.sequentialScope.launch {
+                if (!isSubscriberRunning) {
+                    isSubscriberRunning = true
+                    while (values.isNotEmpty()) {
+                        val valueTobeEmitted = values.poll()
+                        try {
+                            // Should process values sequentially, similar to blocking eventEmitter
+                            emitter.collectorScope.launch { subscriberBlock(valueTobeEmitted as V) }.join()
+                        } catch (t: Throwable) {
+                            // TODO - replace with more verbose logging
+                            logger?.println(ERROR, "AsyncSubscriber", "Error processing value $valueTobeEmitted", t)
+                        }
                     }
+                    isSubscriberRunning = false
                 }
-                isSubscriberRunning = false
             }
         }
-    }
 
-    companion object {
-        val sequentialScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1))
-    }
-
-    override fun compareTo(other: V): Int {
-        // Avoid registering duplicate anonymous subscriber block with same instance id
-        // Common scenario when Android activity is refreshed or some app components refresh
-        if (other is AsyncSubscriber<*>) {
-            return this.subscriberBlock.hashCode().compareTo(other.subscriberBlock.hashCode())
+        override fun compareTo(other: V): Int {
+            // Avoid registering duplicate anonymous subscriber block with same instance id
+            // Common scenario when Android activity is refreshed or some app components refresh
+            if (other is AsyncSubscriber<*>) {
+                return this.subscriberBlock.hashCode().compareTo(other.subscriberBlock.hashCode())
+            }
+            return this.hashCode().compareTo(other.hashCode())
         }
-        return this.hashCode().compareTo(other.hashCode())
     }
 }

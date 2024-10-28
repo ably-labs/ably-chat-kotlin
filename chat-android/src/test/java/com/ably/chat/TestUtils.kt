@@ -56,7 +56,7 @@ fun mockOccupancyApiResponse(realtimeClientMock: RealtimeClient, response: JsonE
     }
 }
 
-suspend fun assertWaiter(timeoutInMs: Long = 10000, block : () -> Boolean): Job {
+suspend fun assertWaiter(timeoutInMs: Long = 10000, block: () -> Boolean): Job {
     // Need to create coroutineScope because delay doesn't work in runTest default CoroutineScope
     val scope = CoroutineScope(Dispatchers.Default)
     return scope.launch {
