@@ -100,7 +100,7 @@ class AsyncEmitterTest {
             receivedValues3.add(received)
         }
 
-        // Concurrently emit 100000 events from same thread
+        // emit 100 events from same thread
         repeat(100) {
             emitter.emit(it)
             emittedValues.add(it)
@@ -156,6 +156,55 @@ class AsyncEmitterTest {
         assertWaiter { receivedValues1.size == 100000 }.join()
         assertWaiter { receivedValues2.size == 100000 }.join()
         assertWaiter { receivedValues3.size == 100000 }.join()
+
+        // Due to concurrent emits, emit order is not guaranteed
+        // i.e. assertEquals(emittedValues, receivedValues1) will fail
+        // But order of received messages will be same across all subscribers
+        Assert.assertEquals(receivedValues1, receivedValues2)
+        Assert.assertEquals(receivedValues1, receivedValues3)
+
+        Assert.assertTrue(emitter.finishedProcessing)
+    }
+
+    @Test
+    fun `should be able to handle concurrent emits and all async subscribers should receive them in the same order`() = runTest {
+        val emitter = AsyncEmitter<Int>()
+        val emitted = LinkedBlockingQueue<Int>()
+        val receivedValues1 = mutableListOf<Int>()
+        val receivedValues2 = mutableListOf<Int>()
+        val receivedValues3 = mutableListOf<Int>()
+
+        emitter.on { received ->
+            delay((30..100).random().toDuration(DurationUnit.MILLISECONDS))
+            receivedValues1.add(received)
+        }
+
+        emitter.on { received ->
+            delay((30..100).random().toDuration(DurationUnit.MILLISECONDS))
+            receivedValues2.add(received)
+        }
+
+        emitter.on { received ->
+            delay((30..100).random().toDuration(DurationUnit.MILLISECONDS))
+            receivedValues3.add(received)
+        }
+
+        // Concurrently emit 100 events from multiple threads
+        withContext(Dispatchers.IO) {
+            repeat(100) {
+                launch {
+                    emitter.emit(it)
+                    emitted.add(it)
+                }
+            }
+        }
+
+        Assert.assertFalse(emitter.finishedProcessing)
+
+        assertWaiter { emitted.size == 100 }.join()
+        assertWaiter { receivedValues1.size == 100 }.join()
+        assertWaiter { receivedValues2.size == 100 }.join()
+        assertWaiter { receivedValues3.size == 100 }.join()
 
         // Due to concurrent emits, emit order is not guaranteed
         // i.e. assertEquals(emittedValues, receivedValues1) will fail
