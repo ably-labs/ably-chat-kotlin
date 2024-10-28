@@ -80,21 +80,25 @@ class AsyncEmitter<V> (private val subscriberScope: CoroutineScope = CoroutineSc
                     isSubscriberRunning = true
                     while (values.isNotEmpty()) {
                         val valueTobeEmitted = values.poll()
-                        runCatching {
-                            // Should process values sequentially, similar to blocking eventEmitter
-                            subscriberScope.launch {
-                                try {
-                                    subscriberBlock(valueTobeEmitted as V)
-                                } catch (t: Throwable) {
-                                    // Catching exception to avoid error propagation to parent
-                                    // TODO - replace with more verbose logging
-                                    logger?.println(ERROR, "AsyncSubscriber", "Error processing value $valueTobeEmitted", t)
-                                }
-                            }.join()
-                        }
+                        // Should process values sequentially, similar to blocking eventEmitter
+                        safelyPublish(valueTobeEmitted as V)
                     }
                     isSubscriberRunning = false
                 }
+            }
+        }
+
+        suspend fun safelyPublish(value: V) {
+            runCatching {
+                subscriberScope.launch {
+                    try {
+                        subscriberBlock(value)
+                    } catch (t: Throwable) {
+                        // Catching exception to avoid error propagation to parent
+                        // TODO - replace with more verbose logging
+                        logger?.println(ERROR, "AsyncSubscriber", "Error processing value $value", t)
+                    }
+                }.join()
             }
         }
 
