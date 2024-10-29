@@ -6,6 +6,7 @@ import io.ably.lib.types.ErrorInfo
 import io.ably.lib.util.Log.LogHandler
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -96,7 +97,7 @@ class DefaultRoomAttachmentResult : RoomAttachmentResult {
  * @internal
  */
 class RoomLifecycleManager
-(status: DefaultStatus, contributors: List<ResolvedContributor>, logger: LogHandler? = null) {
+(private val roomScope: CoroutineScope, status: DefaultStatus, contributors: List<ResolvedContributor>, logger: LogHandler? = null) {
 
     /**
      * The status of the room.
@@ -118,7 +119,7 @@ class RoomLifecycleManager
      * See [Kotlin Dispatchers](https://kt.academy/article/cc-dispatchers) for more information.
      * Spec: CHA-RL7
      */
-    private val atomicCoroutineScope = AtomicCoroutineScope()
+    private val atomicCoroutineScope = AtomicCoroutineScope(roomScope)
 
     /**
      * This flag indicates whether some sort of controlled operation is in progress (e.g. attaching, detaching, releasing).
