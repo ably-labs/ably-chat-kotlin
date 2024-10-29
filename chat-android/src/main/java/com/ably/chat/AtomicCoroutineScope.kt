@@ -1,22 +1,21 @@
 package com.ably.chat
 
-import java.util.PriorityQueue
+import io.ably.annotation.Experimental
+import java.util.concurrent.PriorityBlockingQueue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
- * AtomicCoroutineScope makes sure all operations are atomic and run with given priority.
- * Each ChatRoomLifecycleManager is supposed to have it's own AtomicCoroutineScope.
- * Uses limitedParallelism set to 1 to make sure coroutines under given scope do not run in parallel.
+ * AtomicCoroutineScope is a thread safe wrapper to run multiple operations mutually exclusive.
+ * All operations are atomic and run with given priority.
+ * Accepts scope as a constructor parameter to run operations under the given scope.
  * See [Kotlin Dispatchers](https://kt.academy/article/cc-dispatchers) for more information.
  */
-class AtomicCoroutineScope {
+class AtomicCoroutineScope(private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default)) {
 
-    private val sequentialScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1))
+    private val sequentialScope: CoroutineScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1))
 
     private class Job(
         private val priority: Int,
@@ -33,29 +32,25 @@ class AtomicCoroutineScope {
         }
     }
 
-    private var isRunning = false
-    private var queueCounter = 0
-    private val jobs: PriorityQueue<Job> = PriorityQueue()
+    private val jobs: PriorityBlockingQueue<Job> = PriorityBlockingQueue() // Accessed from both sequentialScope and async method
+    private var isRunning = false // Only accessed from sequentialScope
+    private var queueCounter = 0 // Only accessed from synchronized async method
 
     /**
      * @param priority Defines priority for the operation execution.
      * @param coroutineBlock Suspended function that needs to be executed mutually exclusive under given scope.
      */
-    suspend fun <T : Any>async(priority: Int = 0, coroutineBlock: suspend CoroutineScope.() -> T): CompletableDeferred<T> {
+    @Synchronized
+    fun <T : Any>async(priority: Int = 0, coroutineBlock: suspend CoroutineScope.() -> T): CompletableDeferred<T> {
         val deferredResult = CompletableDeferred<Any>()
+        jobs.add(Job(priority, coroutineBlock, deferredResult, queueCounter++))
         sequentialScope.launch {
-            jobs.add(Job(priority, coroutineBlock, deferredResult, queueCounter++))
             if (!isRunning) {
                 isRunning = true
                 while (jobs.isNotEmpty()) {
                     val job = jobs.poll()
                     job?.let {
-                        try {
-                            val result = sequentialScope.async(block = it.coroutineBlock).await()
-                            it.deferredResult.complete(result)
-                        } catch (t: Throwable) {
-                            it.deferredResult.completeExceptionally(t)
-                        }
+                        safeExecute(it)
                     }
                 }
                 isRunning = false
@@ -66,12 +61,22 @@ class AtomicCoroutineScope {
         return deferredResult as CompletableDeferred<T>
     }
 
-    /**
-     * Cancels all jobs along with it's children.
-     * This includes cancelling queued jobs and current retry timers.
-     */
-    fun cancel(message: String, cause: Throwable? = null) {
-        jobs.clear()
-        sequentialScope.cancel(message, cause)
+    private suspend fun safeExecute(job: Job) {
+        runCatching {
+            scope.launch {
+                try {
+                    val result = job.coroutineBlock(this)
+                    job.deferredResult.complete(result)
+                } catch (t: Throwable) {
+                    job.deferredResult.completeExceptionally(t)
+                }
+            }.join()
+        }.onFailure {
+            job.deferredResult.completeExceptionally(it)
+        }
     }
+
+    @Experimental
+    val finishedProcessing: Boolean
+        get() = jobs.isEmpty() && !isRunning
 }

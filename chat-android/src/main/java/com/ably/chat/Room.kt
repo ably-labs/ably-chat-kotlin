@@ -2,6 +2,9 @@
 
 package com.ably.chat
 import io.ably.lib.util.Log.LogHandler
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 
 /**
  * Represents a chat room.
@@ -96,6 +99,14 @@ internal class DefaultRoom(
     private val _logger = logger
     override val status = DefaultStatus(logger)
 
+    /**
+     * RoomScope is a crucial part of the Room lifecycle. It manages sequential and atomic operations.
+     * Parallelism is intentionally limited to 1 to ensure that only one coroutine runs at a time,
+     * preventing concurrency issues. Every operation within Room must be performed through this scope.
+     */
+    private val roomScope =
+        CoroutineScope(Dispatchers.Default.limitedParallelism(1) + CoroutineName(roomId))
+
     override val messages = DefaultMessages(
         roomId = roomId,
         realtimeChannels = realtimeClient.channels,
@@ -130,7 +141,7 @@ internal class DefaultRoom(
          * Currently, all features are initialized by default.
          */
         val features = listOf(messages, presence, typing, reactions, occupancy)
-        _lifecycleManager = RoomLifecycleManager(status, features, _logger)
+        _lifecycleManager = RoomLifecycleManager(roomScope, status, features, _logger)
         /**
          * TODO
          * Make sure previous release op. for same was a success.
