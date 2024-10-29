@@ -4,6 +4,10 @@ import com.google.gson.JsonElement
 import io.ably.lib.types.AsyncHttpPaginatedResponse
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 fun buildAsyncHttpPaginatedResponse(items: List<JsonElement>): AsyncHttpPaginatedResponse {
     val response = mockk<AsyncHttpPaginatedResponse>()
@@ -47,5 +51,16 @@ fun mockOccupancyApiResponse(realtimeClientMock: RealtimeClient, response: JsonE
                 listOf(response),
             ),
         )
+    }
+}
+
+suspend fun assertWaiter(timeoutInMs: Long = 10000, block: () -> Boolean) {
+    withContext(Dispatchers.Default) {
+        withTimeout(timeoutInMs) {
+            do {
+                val success = block()
+                delay(100)
+            } while (!success)
+        }
     }
 }
