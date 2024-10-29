@@ -2,15 +2,20 @@ package com.ably.chat
 
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
+import java.util.concurrent.LinkedBlockingQueue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.hamcrest.CoreMatchers.containsString
 import org.junit.Assert
 import org.junit.Test
@@ -69,8 +74,8 @@ class AtomicCoroutineScopeTest {
                 }
                 operationInProgress = true
                 delay((200..800).random().toDuration(DurationUnit.MILLISECONDS))
-                operationInProgress = false
                 val returnValue = counter++
+                operationInProgress = false
                 return@async returnValue
             }
             deferredResults.add(result)
@@ -86,24 +91,63 @@ class AtomicCoroutineScopeTest {
     }
 
     @Test
-    fun `should perform mutually exclusive operations with custom scope`() = runTest {
-        val sequentialScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1))
-        val atomicCoroutineScope = AtomicCoroutineScope(sequentialScope)
+    fun `Concurrently perform mutually exclusive operations`() = runTest {
+        val atomicCoroutineScope = AtomicCoroutineScope()
+        val deferredResults = LinkedBlockingQueue<CompletableDeferred<Unit>>()
+
+        var operationInProgress = false
+        var counter = 0
+        val countedValues = mutableListOf<Int>()
+
+        // Concurrently schedule 100000 jobs from multiple threads
+        withContext(Dispatchers.IO) {
+            repeat(100000) {
+                launch {
+                    val result = atomicCoroutineScope.async {
+                        if (operationInProgress) {
+                            error("Can't perform operation when other operation is going on")
+                        }
+                        operationInProgress = true
+                        countedValues.add(counter++)
+                        operationInProgress = false
+                    }
+                    deferredResults.add(result)
+                }
+            }
+        }
+
+        Assert.assertFalse(atomicCoroutineScope.finishedProcessing)
+        assertWaiter { deferredResults.size == 100000 }
+
+        deferredResults.awaitAll()
+        assertWaiter { atomicCoroutineScope.finishedProcessing }
+        Assert.assertEquals((0..99999).toList(), countedValues)
+    }
+
+    @Test
+    fun `should perform mutually exclusive operations with custom room scope`() = runTest {
+        val roomScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1) + CoroutineName("roomId"))
+        val atomicCoroutineScope = AtomicCoroutineScope(roomScope)
         val deferredResults = mutableListOf<Deferred<Int>>()
+
         val contexts = mutableListOf<String>()
+        val contextNames = mutableListOf<String>()
+
         var operationInProgress = false
         var counter = 0
 
         repeat(10) {
             val result = atomicCoroutineScope.async {
-                contexts.add(this.coroutineContext.toString())
                 if (operationInProgress) {
                     error("Can't perform operation when other operation is going on")
                 }
                 operationInProgress = true
+                contexts.add(coroutineContext.toString())
+                contextNames.add(coroutineContext[CoroutineName]!!.name)
+
                 delay((200..800).random().toDuration(DurationUnit.MILLISECONDS))
-                operationInProgress = false
                 val returnValue = counter++
+                operationInProgress = false
                 return@async returnValue
             }
             deferredResults.add(result)
@@ -113,6 +157,7 @@ class AtomicCoroutineScopeTest {
         val results = deferredResults.awaitAll()
         repeat(10) {
             Assert.assertEquals(it, results[it])
+            Assert.assertEquals("roomId", contextNames[it])
             Assert.assertThat(contexts[it], containsString("Dispatchers.Default.limitedParallelism(1)"))
         }
         Assert.assertTrue(atomicCoroutineScope.finishedProcessing)
@@ -138,14 +183,14 @@ class AtomicCoroutineScopeTest {
         // Add more jobs, will be processed based on priority
         repeat(10) {
             val result = atomicCoroutineScope.async(10 - it) {
-                contexts.add(this.coroutineContext.toString())
                 if (operationInProgress) {
                     error("Can't perform operation when other operation is going on")
                 }
                 operationInProgress = true
+                contexts.add(this.coroutineContext.toString())
                 delay((200..800).random().toDuration(DurationUnit.MILLISECONDS))
-                operationInProgress = false
                 val returnValue = counter++
+                operationInProgress = false
                 return@async returnValue
             }
             deferredResults.add(result)
@@ -161,6 +206,46 @@ class AtomicCoroutineScopeTest {
     }
 
     @Test
-    fun `reuse AtomicCoroutineScope once cancelled`() = runTest {
+    fun `Concurrently execute mutually exclusive operations with given priority`() = runTest {
+        val atomicCoroutineScope = AtomicCoroutineScope()
+        val deferredResults = LinkedBlockingQueue<Deferred<Unit>>()
+
+        var operationInProgress = false
+        val processedValues = mutableListOf<Int>()
+
+//         This will start first internal operation
+        deferredResults.add(
+            atomicCoroutineScope.async {
+                delay(1000)
+                processedValues.add(1000)
+                Unit
+            },
+        )
+
+        // Add more jobs, will be processed based on priority
+        // Concurrently schedule 1000 jobs with incremental priority from multiple threads
+        withContext(Dispatchers.IO) {
+            repeat(1000) {
+                launch {
+                    val result = atomicCoroutineScope.async(1000 - it) {
+                        if (operationInProgress) {
+                            error("Can't perform operation when other operation is going on")
+                        }
+                        operationInProgress = true
+                        processedValues.add(it)
+                        operationInProgress = false
+                    }
+                    deferredResults.add(result)
+                }
+            }
+        }
+
+        Assert.assertFalse(atomicCoroutineScope.finishedProcessing)
+        deferredResults.awaitAll()
+        val expectedResults = (1000 downTo 0).toList()
+        repeat(1001) {
+            Assert.assertEquals(expectedResults[it], processedValues[it])
+        }
+        Assert.assertTrue(atomicCoroutineScope.finishedProcessing)
     }
 }
