@@ -3,12 +3,14 @@ package com.ably.chat
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
+import org.hamcrest.CoreMatchers.containsString
 import org.junit.Assert
 import org.junit.Test
 
@@ -116,6 +118,61 @@ class AsyncEmitterTest {
         Assert.assertEquals(emittedValues, receivedValues1)
         Assert.assertEquals(emittedValues, receivedValues2)
         Assert.assertEquals(emittedValues, receivedValues3)
+
+        Assert.assertTrue(emitter.finishedProcessing) // Finished processing
+    }
+
+    @Test
+    fun `all subscribers should receive events in custom (room) scope`() = runTest {
+        val roomScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1) + CoroutineName("roomId"))
+        val emitter = AsyncEmitter<Int>(roomScope)
+
+        val contexts1 = mutableListOf<String>()
+        val contextNames1 = mutableListOf<String>()
+
+        val contexts2 = mutableListOf<String>()
+        val contextNames2 = mutableListOf<String>()
+
+        val contexts3 = mutableListOf<String>()
+        val contextNames3 = mutableListOf<String>()
+
+        emitter.on {
+            contexts1.add(coroutineContext.toString())
+            contextNames1.add(coroutineContext[CoroutineName]!!.name)
+        }
+        emitter.on {
+            contexts2.add(coroutineContext.toString())
+            contextNames2.add(coroutineContext[CoroutineName]!!.name)
+        }
+        emitter.on {
+            contexts3.add(coroutineContext.toString())
+            contextNames3.add(coroutineContext[CoroutineName]!!.name)
+        }
+
+        // emit 10000 concurrent events
+        withContext(Dispatchers.IO) {
+            repeat(10000) {
+                launch {
+                    emitter.emit(it)
+                }
+            }
+        }
+
+        Assert.assertFalse(emitter.finishedProcessing) // Processing events
+
+        assertWaiter { contextNames1.size == 10000 }
+        assertWaiter { contextNames2.size == 10000 }
+        assertWaiter { contextNames3.size == 10000 }
+
+        repeat(10000) {
+            Assert.assertEquals("roomId", contextNames1[it])
+            Assert.assertEquals("roomId", contextNames2[it])
+            Assert.assertEquals("roomId", contextNames3[it])
+
+            Assert.assertThat(contexts1[it], containsString("Dispatchers.Default.limitedParallelism(1)"))
+            Assert.assertThat(contexts2[it], containsString("Dispatchers.Default.limitedParallelism(1)"))
+            Assert.assertThat(contexts3[it], containsString("Dispatchers.Default.limitedParallelism(1)"))
+        }
 
         Assert.assertTrue(emitter.finishedProcessing) // Finished processing
     }
