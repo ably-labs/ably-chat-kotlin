@@ -4,13 +4,12 @@ import com.google.gson.JsonElement
 import io.ably.lib.types.AsyncHttpPaginatedResponse
 import io.mockk.every
 import io.mockk.mockk
-import kotlin.jvm.Throws
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import org.junit.Assert
 
 fun buildAsyncHttpPaginatedResponse(items: List<JsonElement>): AsyncHttpPaginatedResponse {
     val response = mockk<AsyncHttpPaginatedResponse>()
@@ -57,19 +56,21 @@ fun mockOccupancyApiResponse(realtimeClientMock: RealtimeClient, response: JsonE
     }
 }
 
-@Throws(TimeoutCancellationException::class)
 suspend fun assertWaiter(timeoutInMs: Long = 10000, block: () -> Boolean) {
-    withContext(Dispatchers.Default) {
-        withTimeout(timeoutInMs) {
-            do {
-                val success = block()
-                delay(100)
-            } while (!success)
+    runCatching {
+        withContext(Dispatchers.Default) {
+            withTimeout(timeoutInMs) {
+                do {
+                    val success = block()
+                    delay(100)
+                } while (!success)
+            }
         }
+    }.onFailure {
+        Assert.fail("Timed out waiting for condition with timeout of ${timeoutInMs}ms")
     }
 }
 
-@Throws(TimeoutCancellationException::class)
 fun AssertCondition(condition: () -> Boolean, timeoutInMs: Int = 10000) = runBlocking {
     assertWaiter(timeoutInMs.toLong(), condition)
 }
