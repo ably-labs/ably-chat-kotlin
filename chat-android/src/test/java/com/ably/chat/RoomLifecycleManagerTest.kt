@@ -2,18 +2,26 @@ package com.ably.chat
 
 import io.ably.lib.types.AblyException
 import io.mockk.spyk
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert
 import org.junit.Test
 
 class RoomLifecycleManagerTest {
+
+    private val roomScope = CoroutineScope(
+        Dispatchers.Default.limitedParallelism(1) + CoroutineName("roomId"),
+    )
+
     @Test
     fun `(CHA-RL1a) Attach return when channel in already in attached state`() = runTest {
         val status = spyk<DefaultStatus>().apply {
             setStatus(RoomLifecycle.Attached)
         }
-        val roomLifecycle = spyk(RoomLifecycleManager(status, listOf()))
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, listOf()))
         val result = kotlin.runCatching { roomLifecycle.attach() }
         Assert.assertTrue(result.isSuccess)
     }
@@ -23,7 +31,7 @@ class RoomLifecycleManagerTest {
         val status = spyk<DefaultStatus>().apply {
             setStatus(RoomLifecycle.Releasing)
         }
-        val roomLifecycle = spyk(RoomLifecycleManager(status, listOf()))
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, listOf()))
         val exception = Assert.assertThrows(AblyException::class.java) {
             runBlocking {
                 roomLifecycle.attach()
@@ -39,7 +47,7 @@ class RoomLifecycleManagerTest {
         val status = spyk<DefaultStatus>().apply {
             setStatus(RoomLifecycle.Released)
         }
-        val roomLifecycle = spyk(RoomLifecycleManager(status, listOf()))
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, listOf()))
         val exception = Assert.assertThrows(AblyException::class.java) {
             runBlocking {
                 roomLifecycle.attach()
