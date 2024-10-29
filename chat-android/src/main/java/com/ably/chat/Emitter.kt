@@ -70,8 +70,8 @@ class AsyncEmitter<V> (private val subscriberScope: CoroutineScope = CoroutineSc
         private val subscriberBlock: (suspend CoroutineScope.(V) -> Unit),
         private val logger: LogHandler? = null,
     ) : Comparable<V> {
-        val values = LinkedBlockingQueue<V>()
-        var isSubscriberRunning = false
+        val values = LinkedBlockingQueue<V>() // Accessed by both Emitter#emit and emitterSequentialScope
+        var isSubscriberRunning = false // Only accessed as a part of emitterSequentialScope
 
         fun inform(value: V) {
             values.add(value)
@@ -80,8 +80,7 @@ class AsyncEmitter<V> (private val subscriberScope: CoroutineScope = CoroutineSc
                     isSubscriberRunning = true
                     while (values.isNotEmpty()) {
                         val valueTobeEmitted = values.poll()
-                        // Should process values sequentially, similar to blocking eventEmitter
-                        safelyPublish(valueTobeEmitted as V)
+                        safelyPublish(valueTobeEmitted as V) // Process sequentially, similar to core ably eventEmitter
                     }
                     isSubscriberRunning = false
                 }

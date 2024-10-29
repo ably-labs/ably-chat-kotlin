@@ -4,8 +4,11 @@ import com.google.gson.JsonElement
 import io.ably.lib.types.AsyncHttpPaginatedResponse
 import io.mockk.every
 import io.mockk.mockk
+import kotlin.jvm.Throws
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
@@ -54,6 +57,7 @@ fun mockOccupancyApiResponse(realtimeClientMock: RealtimeClient, response: JsonE
     }
 }
 
+@Throws(TimeoutCancellationException::class)
 suspend fun assertWaiter(timeoutInMs: Long = 10000, block: () -> Boolean) {
     withContext(Dispatchers.Default) {
         withTimeout(timeoutInMs) {
@@ -63,4 +67,9 @@ suspend fun assertWaiter(timeoutInMs: Long = 10000, block: () -> Boolean) {
             } while (!success)
         }
     }
+}
+
+@Throws(TimeoutCancellationException::class)
+fun AssertCondition(condition: () -> Boolean, timeoutInMs: Int = 10000) = runBlocking {
+    assertWaiter(timeoutInMs.toLong(), condition)
 }

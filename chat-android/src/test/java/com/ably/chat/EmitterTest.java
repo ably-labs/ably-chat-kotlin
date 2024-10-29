@@ -1,5 +1,7 @@
 package com.ably.chat;
 
+import static com.ably.chat.TestUtilsKt.AssertCondition;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -29,9 +31,7 @@ public class EmitterTest {
         asyncEmitter.emit("5");
         asyncEmitter.emit("6");
 
-        Exception conditionError = new TestUtils.ConditionalWaiter().
-                wait(() -> receivedValues.size() == 3, 5000);
-        Assert.assertNull(conditionError);
+        AssertCondition(() -> receivedValues.size() == 3, 5000);
 
         Assert.assertEquals(Arrays.asList("2", "3", "4"), receivedValues);
     }
