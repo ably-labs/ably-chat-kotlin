@@ -1,5 +1,6 @@
 package com.ably.chat
 
+import com.ably.chat.common.AsyncEmitter
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration

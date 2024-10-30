@@ -2,7 +2,6 @@
 
 package com.ably.chat
 
-import io.ably.lib.types.ErrorInfo
 import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
 /**
@@ -102,7 +101,7 @@ data class SendReactionParams(
 internal class DefaultRoomReactions(
     roomId: String,
     private val realtimeClient: RealtimeClient,
-) : RoomReactions, ContributesToRoomLifecycle, ResolvedContributor {
+) : RoomReactions, ContributesToRoomLifecycleImpl(), ResolvedContributor {
 
     private val roomReactionsChannelName = "$roomId::\$chat::\$reactions"
 
@@ -120,18 +119,5 @@ internal class DefaultRoomReactions(
 
     override fun subscribe(listener: RoomReactions.Listener): Subscription {
         TODO("Not yet implemented")
-    }
-
-    private val discontinuityEmitter = DiscontinuityEmitter()
-
-    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
-        discontinuityEmitter.on(listener)
-        return Subscription {
-            discontinuityEmitter.off(listener)
-        }
-    }
-
-    override fun discontinuityDetected(reason: ErrorInfo?) {
-        discontinuityEmitter.emit("discontinuity", reason)
     }
 }

@@ -37,6 +37,30 @@ interface ContributesToRoomLifecycle : EmitsDiscontinuities, HandlesDiscontinuit
     val detachmentErrorCode: ErrorCodes
 }
 
+abstract class ContributesToRoomLifecycleImpl : ContributesToRoomLifecycle {
+
+    private val discontinuityEmitter = DiscontinuityEmitter()
+
+    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
+        val subscription = discontinuityEmitter.register(listener)
+        return Subscription {
+            subscription.unsubscribe()
+        }
+    }
+
+    @JvmSynthetic
+    override fun onDiscontinuity(listener: DiscontinuityListenerAsync): Subscription {
+        val subscription = discontinuityEmitter.on(listener)
+        return Subscription {
+            subscription.unsubscribe()
+        }
+    }
+
+    override fun discontinuityDetected(reason: ErrorInfo?) {
+        discontinuityEmitter.emit(reason)
+    }
+}
+
 /**
  * This interface represents a feature that contributes to the room lifecycle and
  * exposes its channel directly. Objects of this type are created by awaiting the

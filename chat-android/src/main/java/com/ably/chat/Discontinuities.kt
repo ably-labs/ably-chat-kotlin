@@ -1,8 +1,9 @@
 package com.ably.chat
 
+import com.ably.chat.common.BlockingListener
+import com.ably.chat.common.GenericEmitter
 import io.ably.lib.types.ErrorInfo
-import io.ably.lib.util.EventEmitter
-import io.ably.lib.util.Log
+import kotlinx.coroutines.CoroutineScope
 import io.ably.lib.realtime.ChannelBase as AblyRealtimeChannel
 
 /**
@@ -23,6 +24,12 @@ interface HandlesDiscontinuity {
 }
 
 /**
+ * A listener that can be registered for discontinuity events.
+ * @param reason The error that caused the discontinuity.
+ */
+typealias DiscontinuityListenerAsync = suspend CoroutineScope.(reason: ErrorInfo?) -> Unit
+
+/**
  * An interface to be implemented by objects that can emit discontinuities to listeners.
  */
 interface EmitsDiscontinuities {
@@ -33,9 +40,22 @@ interface EmitsDiscontinuities {
     fun onDiscontinuity(listener: Listener): Subscription
 
     /**
+     * Register a async suspended listener to be called when a discontinuity is detected.
+     * JvmSynthetic makes method unavailable for java code ( since java can't handle it ).
+     * @param listener The listener to be called when a discontinuity is detected.
+     */
+    @JvmSynthetic
+    fun onDiscontinuity(listener: DiscontinuityListenerAsync): Subscription
+
+    /**
      * An interface for listening when discontinuity happens
      */
-    fun interface Listener {
+    fun interface Listener : BlockingListener<ErrorInfo?> {
+
+        override fun onChange(value: ErrorInfo?) {
+            discontinuityEmitted(value)
+        }
+
         /**
          * A function that can be called when discontinuity happens.
          * @param reason reason for discontinuity
@@ -44,12 +64,4 @@ interface EmitsDiscontinuities {
     }
 }
 
-open class DiscontinuityEmitter : EventEmitter<String, EmitsDiscontinuities.Listener>() {
-    override fun apply(listener: EmitsDiscontinuities.Listener?, event: String?, vararg args: Any?) {
-        try {
-            listener?.discontinuityEmitted(args[0] as ErrorInfo?)
-        } catch (t: Throwable) {
-            Log.e("DiscontinuityEmitter", "Unexpected exception calling Discontinuity Listener", t)
-        }
-    }
-}
+open class DiscontinuityEmitter : GenericEmitter<ErrorInfo?>()

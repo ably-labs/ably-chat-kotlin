@@ -150,6 +150,8 @@ internal class DefaultRoom(
          * Note that impl. can change based on recent proposed changes to chat-room-lifecycle DR.
          */
         this.status.setStatus(RoomLifecycle.Initialized)
+        this.occupancy.onDiscontinuity {
+        }
     }
 
     override suspend fun attach() {

@@ -2,6 +2,8 @@ package com.ably.chat;
 
 import static com.ably.chat.TestUtilsKt.AssertCondition;
 
+import com.ably.chat.common.AsyncEmitter;
+
 import org.junit.Assert;
 import org.junit.Test;
 

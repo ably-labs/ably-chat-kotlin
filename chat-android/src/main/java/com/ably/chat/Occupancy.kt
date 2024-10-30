@@ -2,7 +2,6 @@
 
 package com.ably.chat
 
-import io.ably.lib.types.ErrorInfo
 import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
 /**
@@ -62,7 +61,7 @@ data class OccupancyEvent(
 
 internal class DefaultOccupancy(
     private val messages: Messages,
-) : Occupancy, ContributesToRoomLifecycle, ResolvedContributor {
+) : Occupancy, ContributesToRoomLifecycleImpl(), ResolvedContributor {
 
     override val channel = messages.channel
 
@@ -78,18 +77,5 @@ internal class DefaultOccupancy(
 
     override suspend fun get(): OccupancyEvent {
         TODO("Not yet implemented")
-    }
-
-    private val discontinuityEmitter = DiscontinuityEmitter()
-
-    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
-        discontinuityEmitter.on(listener)
-        return Subscription {
-            discontinuityEmitter.off(listener)
-        }
-    }
-
-    override fun discontinuityDetected(reason: ErrorInfo?) {
-        discontinuityEmitter.emit("discontinuity", reason)
     }
 }
