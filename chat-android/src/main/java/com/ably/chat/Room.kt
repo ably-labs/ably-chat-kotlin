@@ -97,7 +97,6 @@ internal class DefaultRoom(
 ) : Room {
 
     private val _logger = logger
-    override val status = DefaultStatus(logger)
 
     /**
      * RoomScope is a crucial part of the Room lifecycle. It manages sequential and atomic operations.
@@ -106,6 +105,8 @@ internal class DefaultRoom(
      */
     private val roomScope =
         CoroutineScope(Dispatchers.Default.limitedParallelism(1) + CoroutineName(roomId))
+
+    override val status = DefaultStatus(roomScope, logger)
 
     override val messages = DefaultMessages(
         roomId = roomId,
@@ -150,8 +151,6 @@ internal class DefaultRoom(
          * Note that impl. can change based on recent proposed changes to chat-room-lifecycle DR.
          */
         this.status.setStatus(RoomLifecycle.Initialized)
-        this.occupancy.onDiscontinuity {
-        }
     }
 
     override suspend fun attach() {

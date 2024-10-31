@@ -8,11 +8,13 @@ import kotlinx.coroutines.Dispatchers
 
 /**
  * Kotlin Emitter interface for supplied value
+ * Spec: RTE1
  */
 
 interface Emitter<V> {
     fun emit(value: V)
-    fun on(block: suspend CoroutineScope.(V) -> Unit, once: Boolean = false): Subscription
+    fun on(block: suspend CoroutineScope.(V) -> Unit): Subscription
+    fun once(block: suspend CoroutineScope.(V) -> Unit): Subscription
     fun off(subscriber: Subscriber<V>)
     fun offAll()
 }
@@ -24,7 +26,7 @@ interface Emitter<V> {
 open class AsyncEmitter<V> (private val subscriberScope: CoroutineScope = CoroutineScope(Dispatchers.Default)) : Emitter<V> {
 
     // Sorted list of unique subscribers based on supplied block
-    protected val subscribers = TreeSet<Subscriber<V>>()
+    private val subscribers = TreeSet<Subscriber<V>>()
 
     // Emitter scope to make sure all subscribers receive events in same order.
     // Will be automatically garbage collected once all jobs are performed.
@@ -40,9 +42,7 @@ open class AsyncEmitter<V> (private val subscriberScope: CoroutineScope = Corout
         }
     }
 
-    @Synchronized
-    override fun on(block: suspend CoroutineScope.(V) -> Unit, once: Boolean): Subscription {
-        val subscriber = Subscriber(sequentialScope, subscriberScope, SubscriberBlock(block), once)
+    protected fun register(subscriber: Subscriber<V>): Subscription {
         subscribers.add(subscriber)
         return Subscription {
             off(subscriber)
@@ -52,6 +52,18 @@ open class AsyncEmitter<V> (private val subscriberScope: CoroutineScope = Corout
     @Synchronized
     override fun off(subscriber: Subscriber<V>) {
         subscribers.remove(subscriber)
+    }
+
+    @Synchronized
+    override fun on(block: suspend CoroutineScope.(V) -> Unit): Subscription {
+        val subscriber = Subscriber(sequentialScope, subscriberScope, SubscriberBlock(block))
+        return register(subscriber)
+    }
+
+    @Synchronized
+    override fun once(block: suspend CoroutineScope.(V) -> Unit): Subscription {
+        val subscriber = Subscriber(sequentialScope, subscriberScope, SubscriberBlock(block), true)
+        return register(subscriber)
     }
 
     @Synchronized
@@ -68,9 +80,14 @@ open class AsyncEmitter<V> (private val subscriberScope: CoroutineScope = Corout
         get() = subscribers.size
 }
 
+/**
+ * Kotlin Event Emitter interface
+ * Spec: RTE1
+ */
 interface EventEmitter<E, V> {
     fun emit(event: E, value: V)
-    fun on(event: E, block: suspend CoroutineScope.(V) -> Unit, once: Boolean = false): Subscription
+    fun on(event: E, block: suspend CoroutineScope.(V) -> Unit): Subscription
+    fun once(event: E, block: suspend CoroutineScope.(V) -> Unit): Subscription
     fun off(event: E, subscriber: Subscriber<V>)
     fun offAll()
 }
@@ -85,7 +102,7 @@ open class AsyncEventEmitter<E, V> (
     ),
 ) : AsyncEmitter<V>(subscriberScope), EventEmitter<E, V> {
 
-    internal val eventToSubscribersMap = mutableMapOf<E, TreeSet<Subscriber<V>>>()
+    private val eventToSubscribersMap = mutableMapOf<E, TreeSet<Subscriber<V>>>()
 
     @Synchronized
     override fun emit(event: E, value: V) {
@@ -101,9 +118,7 @@ open class AsyncEventEmitter<E, V> (
         }
     }
 
-    @Synchronized
-    override fun on(event: E, block: suspend CoroutineScope.(V) -> Unit, once: Boolean): Subscription {
-        val subscriber = Subscriber(sequentialScope, subscriberScope, SubscriberBlock(block), once)
+    protected fun register(event: E, subscriber: Subscriber<V>): Subscription {
         if (eventToSubscribersMap.contains(event)) {
             val subscribers = eventToSubscribersMap[event]
             subscribers?.add(subscriber)
@@ -115,6 +130,18 @@ open class AsyncEventEmitter<E, V> (
         return Subscription {
             off(event, subscriber)
         }
+    }
+
+    @Synchronized
+    override fun on(event: E, block: suspend CoroutineScope.(V) -> Unit): Subscription {
+        val subscriber = Subscriber(sequentialScope, subscriberScope, SubscriberBlock(block))
+        return register(event, subscriber)
+    }
+
+    @Synchronized
+    override fun once(event: E, block: suspend CoroutineScope.(V) -> Unit): Subscription {
+        val subscriber = Subscriber(sequentialScope, subscriberScope, SubscriberBlock(block), true)
+        return register(event, subscriber)
     }
 
     @Synchronized

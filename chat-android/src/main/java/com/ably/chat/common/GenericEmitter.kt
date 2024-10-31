@@ -1,7 +1,6 @@
 package com.ably.chat.common
 
 import com.ably.chat.Subscription
-import java.util.TreeSet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 
@@ -26,41 +25,33 @@ open class GenericEmitter<V> (
         Dispatchers.Default,
     ),
 ) : AsyncEmitter<V>(subscriberScope), IGenericEmitter<V> {
+
+    @Synchronized
     override fun register(listener: BlockingListener<V>): Subscription {
         val subscriber = Subscriber(sequentialScope, subscriberScope, SubscriberBlock(block = listener))
-        subscribers.add(subscriber)
-        return Subscription {
-            synchronized(this) {
-                subscribers.remove(subscriber)
-            }
-        }
+        return register(subscriber)
     }
 }
 
-interface IGenericEventEmitter<E, V> : EventEmitter<E, V> {
+interface IGenericEventEmitter<E, V> : EventEmitter<E, V>, IGenericEmitter<V> {
     fun register(event: E, listener: BlockingListener<V>): Subscription
 }
 
-open class GeneticEventEmitter<E, V> (
+open class GenericEventEmitter<E, V> (
     private val subscriberScope: CoroutineScope = CoroutineScope(
         Dispatchers.Default,
     ),
 ) : AsyncEventEmitter<E, V>(subscriberScope), IGenericEventEmitter<E, V> {
 
+    @Synchronized
+    override fun register(listener: BlockingListener<V>): Subscription {
+        val subscriber = Subscriber(sequentialScope, subscriberScope, SubscriberBlock(block = listener))
+        return register(subscriber)
+    }
+
+    @Synchronized
     override fun register(event: E, listener: BlockingListener<V>): Subscription {
         val subscriber = Subscriber(sequentialScope, subscriberScope, SubscriberBlock(block = listener))
-        if (eventToSubscribersMap.contains(event)) {
-            val subscribers = eventToSubscribersMap[event]
-            subscribers?.add(subscriber)
-        } else {
-            eventToSubscribersMap[event] = TreeSet<Subscriber<V>>().apply {
-                add(subscriber)
-            }
-        }
-        return Subscription {
-            synchronized(this) {
-                eventToSubscribersMap[event]?.remove(subscriber)
-            }
-        }
+        return register(event, subscriber)
     }
 }

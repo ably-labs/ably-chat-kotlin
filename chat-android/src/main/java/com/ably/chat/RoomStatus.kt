@@ -1,9 +1,17 @@
 package com.ably.chat
 
+import com.ably.chat.common.AsyncEventEmitter
+import com.ably.chat.common.BlockingListener
+import com.ably.chat.common.GenericEventEmitter
 import io.ably.lib.types.ErrorInfo
-import io.ably.lib.util.EventEmitter
-import io.ably.lib.util.Log
 import io.ably.lib.util.Log.LogHandler
+import kotlinx.coroutines.CoroutineScope
+
+/**
+ * A listener that can be registered for RoomStatusChange events.
+ * @param roomStatusChange The change in status.
+ */
+typealias RoomStatusChangeListenerAsync = suspend CoroutineScope.(roomStatusChange: RoomStatusChange) -> Unit
 
 /**
  * Represents the status of a Room.
@@ -29,9 +37,22 @@ interface RoomStatus {
     fun onChange(listener: Listener): Subscription
 
     /**
+     * Register a async suspended listener to be called when a RoomStatusChange is detected.
+     * JvmSynthetic makes method unavailable for java code ( since java can't handle it ).
+     * @param listener The listener to be called when a RoomStatusChange is detected.
+     */
+    @JvmSynthetic
+    fun onChange(listener: RoomStatusChangeListenerAsync): Subscription
+
+    /**
      * An interface for listening to changes for the room status
      */
-    fun interface Listener {
+    fun interface Listener : BlockingListener<RoomStatusChange> {
+
+        override fun onChange(value: RoomStatusChange) {
+            roomStatusChanged(value)
+        }
+
         /**
          * A function that can be called when the room status changes.
          * @param change The change in status.
@@ -66,7 +87,7 @@ interface InternalRoomStatus : RoomStatus {
      * Registers a listener that will be called once when the room status changes.
      * @param listener The function to call when the status changes.
      */
-    fun onChangeOnce(listener: RoomStatus.Listener)
+    fun onChangeOnce(block: RoomStatusChangeListenerAsync)
 
     /**
      * Sets the status of the room.
@@ -163,18 +184,11 @@ data class RoomStatusChange(
     val error: ErrorInfo? = null,
 )
 
-open class RoomStatusEvenEmitter : EventEmitter<RoomLifecycle, RoomStatus.Listener>() {
+open class RoomStatusEventEmitter : GenericEventEmitter<RoomLifecycle, RoomStatusChange>()
 
-    override fun apply(listener: RoomStatus.Listener?, event: RoomLifecycle?, vararg args: Any?) {
-        try {
-            listener?.roomStatusChanged(args[0] as RoomStatusChange)
-        } catch (t: Throwable) {
-            Log.e("RoomEventEmitter", "Unexpected exception calling Room Status Listener", t)
-        }
-    }
-}
+open class RoomStatusInternalAsyncEventEmitter(roomScope: CoroutineScope) : AsyncEventEmitter<RoomLifecycle, RoomStatusChange>(roomScope)
 
-class DefaultStatus(private val logger: LogHandler? = null) : InternalRoomStatus, RoomStatusEvenEmitter() {
+class DefaultStatus(private val roomScope: CoroutineScope, private val logger: LogHandler? = null) : InternalRoomStatus, RoomStatusEventEmitter() {
 
     private val _logger = logger
 
@@ -186,21 +200,23 @@ class DefaultStatus(private val logger: LogHandler? = null) : InternalRoomStatus
     override val error: ErrorInfo?
         get() = _error
 
-    private val internalEmitter = RoomStatusEvenEmitter()
+    private val internalEmitter = RoomStatusInternalAsyncEventEmitter(roomScope)
 
     override fun onChange(listener: RoomStatus.Listener): Subscription {
-        this.on(listener)
-        return Subscription {
-            this.off(listener)
-        }
+        return this.register(listener)
+    }
+
+    @JvmSynthetic
+    override fun onChange(listener: RoomStatusChangeListenerAsync): Subscription {
+        return this.on(listener)
+    }
+
+    override fun onChangeOnce(block: RoomStatusChangeListenerAsync) {
+        internalEmitter.once(block)
     }
 
     override fun offAll() {
-        this.offAll()
-    }
-
-    override fun onChangeOnce(listener: RoomStatus.Listener) {
-        internalEmitter.once(listener)
+        super.offAll()
     }
 
     override fun setStatus(params: NewRoomStatus) {
@@ -211,7 +227,7 @@ class DefaultStatus(private val logger: LogHandler? = null) : InternalRoomStatus
         this.emit(change.current, change)
     }
 
-    fun setStatus(status: RoomLifecycle, error: ErrorInfo? = null) {
+    internal fun setStatus(status: RoomLifecycle, error: ErrorInfo? = null) {
         val newStatus = object : NewRoomStatus {
             override val status: RoomLifecycle = status
             override val error: ErrorInfo? = error
