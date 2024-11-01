@@ -203,7 +203,8 @@ class DefaultStatus(private val roomScope: CoroutineScope, private val logger: L
     private val internalEmitter = RoomStatusInternalAsyncEventEmitter(roomScope)
 
     override fun onChange(listener: RoomStatus.Listener): Subscription {
-        return this.register(listener)
+        // TODO - Add warning message when registering blocking subscriber
+        return this.subscribe(listener)
     }
 
     @JvmSynthetic
@@ -221,8 +222,10 @@ class DefaultStatus(private val roomScope: CoroutineScope, private val logger: L
 
     override fun setStatus(params: NewRoomStatus) {
         val change = RoomStatusChange(params.status, current, params.error)
-        this._state = change.current
-        this._error = change.error
+        synchronized(this) {
+            this._state = change.current
+            this._error = change.error
+        }
         this.internalEmitter.emit(change.current, change)
         this.emit(change.current, change)
     }

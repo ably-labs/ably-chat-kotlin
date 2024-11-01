@@ -17,7 +17,7 @@ fun interface BlockingListener<V> {
  * Ideally, class implementation should work for both kotlin and java
  */
 interface IGenericEmitter<V> : Emitter<V> {
-    fun register(listener: BlockingListener<V>): Subscription
+    fun subscribe(listener: BlockingListener<V>): Subscription
 }
 
 open class GenericEmitter<V> (
@@ -27,14 +27,14 @@ open class GenericEmitter<V> (
 ) : AsyncEmitter<V>(subscriberScope), IGenericEmitter<V> {
 
     @Synchronized
-    override fun register(listener: BlockingListener<V>): Subscription {
-        val subscriber = Subscriber(sequentialScope, subscriberScope, SubscriberBlock(block = listener))
+    override fun subscribe(listener: BlockingListener<V>): Subscription {
+        val subscriber = Subscriber(sequentialScope, subscriberScope, SubscriberBlock(blockingFn = listener))
         return register(subscriber)
     }
 }
 
 interface IGenericEventEmitter<E, V> : EventEmitter<E, V>, IGenericEmitter<V> {
-    fun register(event: E, listener: BlockingListener<V>): Subscription
+    fun subscribe(event: E, listener: BlockingListener<V>): Subscription
 }
 
 open class GenericEventEmitter<E, V> (
@@ -44,14 +44,14 @@ open class GenericEventEmitter<E, V> (
 ) : AsyncEventEmitter<E, V>(subscriberScope), IGenericEventEmitter<E, V> {
 
     @Synchronized
-    override fun register(listener: BlockingListener<V>): Subscription {
-        val subscriber = Subscriber(sequentialScope, subscriberScope, SubscriberBlock(block = listener))
+    override fun subscribe(listener: BlockingListener<V>): Subscription {
+        val subscriber = Subscriber(sequentialScope, subscriberScope, SubscriberBlock(blockingFn = listener))
         return register(subscriber)
     }
 
     @Synchronized
-    override fun register(event: E, listener: BlockingListener<V>): Subscription {
-        val subscriber = Subscriber(sequentialScope, subscriberScope, SubscriberBlock(block = listener))
+    override fun subscribe(event: E, listener: BlockingListener<V>): Subscription {
+        val subscriber = Subscriber(sequentialScope, subscriberScope, SubscriberBlock(blockingFn = listener))
         return register(event, subscriber)
     }
 }

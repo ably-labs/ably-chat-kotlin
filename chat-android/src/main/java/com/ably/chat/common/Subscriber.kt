@@ -11,21 +11,21 @@ interface ISubscriber<V> {
 }
 
 class SubscriberBlock<V>(
-    private val coroutineBlock: (suspend CoroutineScope.(V) -> Unit)? = null,
-    private val block: BlockingListener<V>? = null,
+    private val coroutineFn: (suspend CoroutineScope.(V) -> Unit)? = null,
+    private val blockingFn: BlockingListener<V>? = null,
 ) {
 
     suspend operator fun invoke(scope: CoroutineScope, value: V) {
-        coroutineBlock?.invoke(scope, value)
-        block?.onChange(value)
+        coroutineFn?.invoke(scope, value)
+        blockingFn?.onChange(value)
     }
 
     override fun hashCode(): Int {
-        coroutineBlock?.let {
-            return coroutineBlock.hashCode()
+        coroutineFn?.let {
+            return coroutineFn.hashCode()
         }
-        block?.let {
-            return block.hashCode()
+        blockingFn?.let {
+            return blockingFn.hashCode()
         }
         return super.hashCode()
     }

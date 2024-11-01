@@ -42,7 +42,8 @@ abstract class ContributesToRoomLifecycleImpl : ContributesToRoomLifecycle {
     private val discontinuityEmitter = DiscontinuityEmitter()
 
     override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
-        return discontinuityEmitter.register(listener)
+        // TODO - Add warning message when registering blocking subscriber
+        return discontinuityEmitter.subscribe(listener)
     }
 
     @JvmSynthetic
