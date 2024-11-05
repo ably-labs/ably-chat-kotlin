@@ -119,7 +119,7 @@ class RoomLifecycleManager
      * See [Kotlin Dispatchers](https://kt.academy/article/cc-dispatchers) for more information.
      * Spec: CHA-RL7
      */
-    internal val atomicCoroutineScope = AtomicCoroutineScope(roomScope)
+    private val atomicCoroutineScope = AtomicCoroutineScope(roomScope)
 
     /**
      * This flag indicates whether some sort of controlled operation is in progress (e.g. attaching, detaching, releasing).
