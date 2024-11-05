@@ -16,10 +16,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -38,6 +44,7 @@ import com.ably.chat.Message
 import com.ably.chat.RealtimeClient
 import com.ably.chat.SendMessageParams
 import com.ably.chat.SendReactionParams
+import com.ably.chat.example.ui.PresencePopup
 import com.ably.chat.example.ui.theme.AblyChatExampleTheme
 import io.ably.lib.types.ClientOptions
 import java.util.UUID
@@ -62,13 +69,36 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AblyChatExampleTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Chat(
-                        chatClient,
-                        modifier = Modifier.padding(innerPadding),
-                    )
-                }
+                App(chatClient)
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun App(chatClient: ChatClient) {
+    var showPopup by remember { mutableStateOf(false) }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { Text("Chat") },
+                actions = {
+                    IconButton(onClick = { showPopup = true }) {
+                        Icon(Icons.Default.Person, contentDescription = "Show members")
+                    }
+                },
+            )
+        },
+    ) { innerPadding ->
+        Chat(
+            chatClient,
+            modifier = Modifier.padding(innerPadding),
+        )
+        if (showPopup) {
+            PresencePopup(chatClient, onDismiss = { showPopup = false })
         }
     }
 }
@@ -83,8 +113,7 @@ fun Chat(chatClient: ChatClient, modifier: Modifier = Modifier) {
     val coroutineScope = rememberCoroutineScope()
     var receivedReactions by remember { mutableStateOf<List<String>>(listOf()) }
 
-    val roomId = "my-room"
-    val room = chatClient.rooms.get(roomId)
+    val room = chatClient.rooms.get(Settings.ROOM_ID)
 
     DisposableEffect(Unit) {
         coroutineScope.launch {
@@ -130,7 +159,9 @@ fun Chat(chatClient: ChatClient, modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         LazyColumn(
-            modifier = Modifier.weight(1f).padding(16.dp),
+            modifier = Modifier
+                .weight(1f)
+                .padding(16.dp),
             userScrollEnabled = true,
             state = listState,
         ) {
