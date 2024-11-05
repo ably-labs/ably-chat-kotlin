@@ -87,9 +87,11 @@ interface Room {
 internal class DefaultRoom(
     override val roomId: String,
     override val options: RoomOptions,
-    realtimeClient: RealtimeClient,
+    val realtimeClient: RealtimeClient,
     chatApi: ChatApi,
 ) : Room {
+
+    private val clientId get() = realtimeClient.auth.clientId
 
     private val _messages = DefaultMessages(
         roomId = roomId,
@@ -100,12 +102,14 @@ internal class DefaultRoom(
     override val messages: Messages = _messages
 
     override val presence: Presence = DefaultPresence(
-        messages = messages,
+        channel = messages.channel,
+        clientId = clientId,
+        presence = messages.channel.presence,
     )
 
     override val reactions: RoomReactions = DefaultRoomReactions(
         roomId = roomId,
-        clientId = realtimeClient.auth.clientId,
+        clientId = clientId,
         realtimeChannels = realtimeClient.channels,
     )
 

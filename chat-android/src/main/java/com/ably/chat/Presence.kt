@@ -2,11 +2,18 @@
 
 package com.ably.chat
 
-import android.text.PrecomputedText.Params
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
 import io.ably.lib.realtime.Channel
+import io.ably.lib.realtime.Presence.GET_CLIENTID
+import io.ably.lib.realtime.Presence.GET_CONNECTIONID
+import io.ably.lib.realtime.Presence.GET_WAITFORSYNC
+import io.ably.lib.types.Param
 import io.ably.lib.types.PresenceMessage
+import io.ably.lib.realtime.Presence as PubSubPresence
+import io.ably.lib.realtime.Presence.PresenceListener as PubSubPresenceListener
 
-typealias PresenceData = Any
+typealias PresenceData = JsonElement
 
 /**
  * This interface is used to interact with presence in a chat room: subscribing to presence events,
@@ -22,11 +29,11 @@ interface Presence : EmitsDiscontinuities {
     val channel: Channel
 
     /**
-     * Method to get list of the current online users and returns the latest presence messages associated to it.
-     * @param {Ably.RealtimePresenceParams} params - Parameters that control how the presence set is retrieved.
-     * @returns {Promise<PresenceMessage[]>} or upon failure, the promise will be rejected with an [[Ably.ErrorInfo]] object which explains the error.
+     *  Method to get list of the current online users and returns the latest presence messages associated to it.
+     *  @param {Ably.RealtimePresenceParams} params - Parameters that control how the presence set is retrieved.
+     *  @returns {List<PresenceMessage>} or upon failure, the promise will throw [[Ably.ErrorInfo]] object which explains the error.
      */
-    suspend fun get(params: List<Params>): List<PresenceMember>
+    suspend fun get(waitForSync: Boolean = true, clientId: String? = null, connectionId: String? = null): List<PresenceMember>
 
     /**
      * Method to check if user with supplied clientId is online
@@ -40,21 +47,21 @@ interface Presence : EmitsDiscontinuities {
      * @param {PresenceData} data - The users data, a JSON serializable object that will be sent to all subscribers.
      * @returns {Promise<void>} or upon failure, the promise will be rejected with an {@link ErrorInfo} object which explains the error.
      */
-    suspend fun enter(data: PresenceData?)
+    suspend fun enter(data: PresenceData? = null)
 
     /**
      * Method to update room presence, will emit an update event to all subscribers. If the user is not present, it will be treated as a join event.
      * @param {PresenceData} data - The users data, a JSON serializable object that will be sent to all subscribers.
      * @returns {Promise<void>} or upon failure, the promise will be rejected with an {@link ErrorInfo} object which explains the error.
      */
-    suspend fun update(data: PresenceData?)
+    suspend fun update(data: PresenceData? = null)
 
     /**
      * Method to leave room presence, will emit a leave event to all subscribers. If the user is not present, it will be treated as a no-op.
      * @param {PresenceData} data - The users data, a JSON serializable object that will be sent to all subscribers.
      * @returns {Promise<void>} or upon failure, the promise will be rejected with an {@link ErrorInfo} object which explains the error.
      */
-    suspend fun leave(data: PresenceData?)
+    suspend fun leave(data: PresenceData? = null)
 
     /**
      * Subscribe the given listener to all presence events.
@@ -86,7 +93,7 @@ data class PresenceMember(
     /**
      * The data associated with the presence member.
      */
-    val data: PresenceData,
+    val data: PresenceData?,
 
     /**
      * The current state of the presence member.
@@ -121,46 +128,80 @@ data class PresenceEvent(
     /**
      * The timestamp of the presence event.
      */
-    val timestamp: Int,
+    val timestamp: Long,
 
     /**
      * The data associated with the presence event.
      */
-    val data: PresenceData,
+    val data: PresenceData?,
 )
 
 internal class DefaultPresence(
-    private val messages: Messages,
+    private val clientId: String,
+    override val channel: Channel,
+    private val presence: PubSubPresence,
 ) : Presence {
 
-    override val channel: Channel
-        get() = messages.channel
-
-    override suspend fun get(params: List<Params>): List<PresenceMember> {
-        TODO("Not yet implemented")
+    suspend fun get(params: List<Param>): List<PresenceMember> {
+        val usersOnPresence = presence.getCoroutine(params)
+        return usersOnPresence.map { user ->
+            PresenceMember(
+                clientId = user.clientId,
+                action = user.action,
+                data = (user.data as? JsonObject)?.get("userCustomData"),
+                updatedAt = user.timestamp,
+            )
+        }
     }
 
-    override suspend fun isUserPresent(clientId: String): Boolean {
-        TODO("Not yet implemented")
+    override suspend fun get(waitForSync: Boolean, clientId: String?, connectionId: String?): List<PresenceMember> {
+        val params = buildList {
+            if (waitForSync) add(Param(GET_WAITFORSYNC, true))
+            clientId?.let { add(Param(GET_CLIENTID, it)) }
+            connectionId?.let { add(Param(GET_CONNECTIONID, it)) }
+        }
+        return get(params)
     }
+
+    override suspend fun isUserPresent(clientId: String): Boolean = presence.getCoroutine(Param(GET_CLIENTID, clientId)).isNotEmpty()
 
     override suspend fun enter(data: PresenceData?) {
-        TODO("Not yet implemented")
+        presence.enterClientCoroutine(clientId, wrapInUserCustomData(data))
     }
 
     override suspend fun update(data: PresenceData?) {
-        TODO("Not yet implemented")
+        presence.updateClientCoroutine(clientId, wrapInUserCustomData(data))
     }
 
     override suspend fun leave(data: PresenceData?) {
-        TODO("Not yet implemented")
+        presence.leaveClientCoroutine(clientId, wrapInUserCustomData(data))
     }
 
     override fun subscribe(listener: Presence.Listener): Subscription {
-        TODO("Not yet implemented")
+        val presenceListener = PubSubPresenceListener {
+            val presenceEvent = PresenceEvent(
+                action = it.action,
+                clientId = it.clientId,
+                timestamp = it.timestamp,
+                data = (it.data as? JsonObject)?.get("userCustomData"),
+            )
+            listener.onEvent(presenceEvent)
+        }
+
+        presence.subscribe(presenceListener)
+
+        return Subscription {
+            presence.unsubscribe(presenceListener)
+        }
     }
 
     override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
         TODO("Not yet implemented")
+    }
+
+    private fun wrapInUserCustomData(data: PresenceData?) = data?.let {
+        JsonObject().apply {
+            add("userCustomData", data)
+        }
     }
 }
