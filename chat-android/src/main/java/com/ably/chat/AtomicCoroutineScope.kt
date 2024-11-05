@@ -1,6 +1,5 @@
 package com.ably.chat
 
-import io.ably.annotation.Experimental
 import java.util.concurrent.PriorityBlockingQueue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -76,7 +75,9 @@ class AtomicCoroutineScope(private val scope: CoroutineScope = CoroutineScope(Di
         }
     }
 
-    @Experimental
     val finishedProcessing: Boolean
         get() = jobs.isEmpty() && !isRunning
+
+    val queuedJobs: Int
+        get() = jobs.count()
 }

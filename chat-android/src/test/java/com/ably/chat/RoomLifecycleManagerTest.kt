@@ -66,36 +66,40 @@ class RoomLifecycleManagerTest {
 
     @Test
     fun `(CHA-RL1d) Attach op should wait for existing operation as per (CHA-RL7)`() = runTest {
-        val status = spyk<DefaultStatus>().apply {
-            setStatus(RoomLifecycle.Released)
-        }
+        val status = spyk<DefaultStatus>()
+        Assert.assertEquals(RoomLifecycle.Initializing, status.current)
+
         val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, emptyList()))
 
-        val channelReleased = Channel<Unit>()
+        val roomReleased = Channel<Boolean>()
         coEvery {
             roomLifecycle.release()
         } coAnswers {
             roomLifecycle.atomicCoroutineScope.async {
                 status.setStatus(RoomLifecycle.Releasing)
-                channelReleased.receive()
+                roomReleased.receive()
                 status.setStatus(RoomLifecycle.Released)
             }
         }
-        launch { roomLifecycle.release() }
 
-        // Release op started
+        // Release op started from separate coroutine
+        launch { roomLifecycle.release() }
         assertWaiter { !roomLifecycle.atomicCoroutineScope.finishedProcessing }
+        Assert.assertEquals(0, roomLifecycle.atomicCoroutineScope.queuedJobs) // no queued jobs, one job running
         assertWaiter { status.current == RoomLifecycle.Releasing }
 
+        // Attach op started from separate coroutine
         val roomAttachOpDeferred = async(SupervisorJob()) { roomLifecycle.attach() }
+        assertWaiter { roomLifecycle.atomicCoroutineScope.queuedJobs == 1 } // attach op queued
         Assert.assertEquals(RoomLifecycle.Releasing, status.current)
-        channelReleased.send(Unit)
 
-        // Release op finished
-        assertWaiter { roomLifecycle.atomicCoroutineScope.finishedProcessing }
+        // Finish release op, so ATTACH op can start
+        roomReleased.send(true)
         assertWaiter { status.current == RoomLifecycle.Released }
 
         val result = kotlin.runCatching { roomAttachOpDeferred.await() }
+        Assert.assertTrue(roomLifecycle.atomicCoroutineScope.finishedProcessing)
+
         Assert.assertTrue(result.isFailure)
         val exception = result.exceptionOrNull() as AblyException
 
