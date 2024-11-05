@@ -119,7 +119,7 @@ class RoomLifecycleManager
      * See [Kotlin Dispatchers](https://kt.academy/article/cc-dispatchers) for more information.
      * Spec: CHA-RL7
      */
-    private val atomicCoroutineScope = AtomicCoroutineScope(roomScope)
+    internal val atomicCoroutineScope = AtomicCoroutineScope(roomScope)
 
     /**
      * This flag indicates whether some sort of controlled operation is in progress (e.g. attaching, detaching, releasing).
@@ -434,5 +434,27 @@ class RoomLifecycleManager
                 }
             }
         }.awaitAll()
+    }
+
+    /**
+     * Detaches the room. If the room is already detached, this is a no-op.
+     * If one of the channels fails to detach, the room status will be set to failed.
+     * If the room is in the process of detaching, this will wait for the detachment to complete.
+     * @return when the room is detached.
+     */
+    internal suspend fun detach() {
+        TODO("Need to impl. room detach")
+    }
+
+    /**
+     * Releases the room. If the room is already released, this is a no-op.
+     * Any channel that detaches into the failed state is ok. But any channel that fails to detach
+     * will cause the room status to be set to failed.
+     *
+     * @returns Returns when the room is released. If a channel detaches into a non-terminated
+     * state (e.g. attached), release will throw exception.
+     */
+    internal suspend fun release() {
+        TODO("Need to impl. room release")
     }
 }
