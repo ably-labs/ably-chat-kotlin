@@ -1,10 +1,16 @@
 package com.ably.chat
 
-import com.ably.helpers.atomicCoroutineScope
+import com.ably.utils.atomicCoroutineScope
+import com.ably.utils.createRoomFeatureMocks
 import io.ably.lib.types.AblyException
+import io.ably.lib.types.ErrorInfo
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.justRun
+import io.mockk.mockkStatic
 import io.mockk.spyk
+import io.mockk.verify
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -127,10 +133,78 @@ class RoomLifecycleManagerTest {
 
     @Test
     fun `(CHA-RL1f) Attach op should attach each contributor channel sequentially`() = runTest {
+        val status = spyk<DefaultStatus>()
 
+        mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
+        val capturedChannels = mutableListOf<io.ably.lib.realtime.Channel>()
+        coEvery { any<io.ably.lib.realtime.Channel>().attachCoroutine() } coAnswers {
+            capturedChannels.add(firstArg())
+        }
+
+        val contributors = createRoomFeatureMocks()
+        Assert.assertEquals(5, contributors.size)
+
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, contributors))
+        roomLifecycle.attach()
+        val result = kotlin.runCatching { roomLifecycle.attach() }
+        Assert.assertTrue(result.isSuccess)
+
+        Assert.assertEquals(5, capturedChannels.size)
+        repeat(5) {
+            Assert.assertEquals(contributors[it].channel.name, capturedChannels[it].name)
+        }
+        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[0].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[1].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[2].name)
+        Assert.assertEquals("1234::\$chat::\$typingIndicators", capturedChannels[3].name)
+        Assert.assertEquals("1234::\$chat::\$reactions", capturedChannels[4].name)
     }
 
     @Test
     fun `(CHA-RL1g) When all contributor channels ATTACH, op is complete and room should be considered ATTACHED`() = runTest {
+        val status = spyk<DefaultStatus>()
+
+        mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
+        coEvery { any<io.ably.lib.realtime.Channel>().attachCoroutine() } returns Unit
+
+        val contributors = createRoomFeatureMocks("1234")
+        val contributorErrors = mutableListOf<ErrorInfo>()
+        for (contributor in contributors) {
+            every {
+                contributor.contributor.discontinuityDetected(capture(contributorErrors))
+            } returns Unit
+        }
+        Assert.assertEquals(5, contributors.size)
+
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, contributors), recordPrivateCalls = true) {
+            val pendingDiscontinuityEvents = mutableMapOf<ResolvedContributor, ErrorInfo?>().apply {
+                for (contributor in contributors) {
+                    put(contributor, ErrorInfo("${contributor.channel.name} error", 500))
+                }
+            }
+            this.setPrivateField("_pendingDiscontinuityEvents", pendingDiscontinuityEvents)
+        }
+        justRun { roomLifecycle invokeNoArgs "clearAllTransientDetachTimeouts" }
+
+        roomLifecycle.attach()
+        val result = kotlin.runCatching { roomLifecycle.attach() }
+
+        // CHA-RL1g1
+        Assert.assertTrue(result.isSuccess)
+        Assert.assertEquals(RoomLifecycle.Attached, status.current)
+        assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
+
+        // CHA-RL1g2
+        verify(exactly = 1) {
+            for (contributor in contributors) {
+                contributor.contributor.discontinuityDetected(any<ErrorInfo>())
+            }
+        }
+        Assert.assertEquals(5, contributorErrors.size)
+
+        // CHA-RL1g3
+        verify(exactly = 1) {
+            roomLifecycle invokeNoArgs "clearAllTransientDetachTimeouts"
+        }
     }
 }
