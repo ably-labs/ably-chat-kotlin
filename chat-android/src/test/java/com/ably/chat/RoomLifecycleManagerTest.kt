@@ -207,4 +207,29 @@ class RoomLifecycleManagerTest {
             roomLifecycle invokeNoArgs "clearAllTransientDetachTimeouts"
         }
     }
+
+    // All of the following tests cover sub-spec points under CHA-RL1h
+    @Test
+    fun `(CHA-RL1h1) If a one of the contributors fails to attach, attach call must throw an ErrorInfo`() = runTest {
+    }
+
+    @Test
+    fun `(CHA-RL1h2) If a one of the contributors enters suspended, room status becomes suspended`() = runTest {
+    }
+
+    @Test
+    fun `(CHA-RL1h3) When room enters suspended state, corresponding error code should be thrown and enter recovery loop`() = runTest {
+    }
+
+    @Test
+    fun `(CHA-RL1h4) If a one of the contributors enters failed state, room status becomes failed, corresponding error code should be thrown`() = runTest {
+    }
+
+    @Test
+    fun `(CHA-RL1h5) When room enters failed state, room detach all channels not in failed state`() = runTest {
+    }
+
+    @Test
+    fun `(CHA-RL1h6) When room enters failed state, when CHA-RL1h5 fails to detach, op will be repeated till all channels are detached`() = runTest {
+    }
 }
