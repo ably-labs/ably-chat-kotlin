@@ -11,12 +11,20 @@ import com.ably.chat.ResolvedContributor
 import com.ably.chat.RoomLifecycleManager
 import com.ably.chat.getPrivateField
 import io.ably.lib.realtime.AblyRealtime
+import io.ably.lib.realtime.ChannelState
 import io.ably.lib.types.ClientOptions
+import io.ably.lib.types.ErrorInfo
 import io.mockk.mockk
 import io.mockk.spyk
+import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
 fun RoomLifecycleManager.atomicCoroutineScope(): AtomicCoroutineScope {
     return getPrivateField("atomicCoroutineScope")
+}
+
+fun AblyRealtimeChannel.setState(state: ChannelState, errorInfo: ErrorInfo? = null) {
+    this.state = state
+    this.reason = errorInfo
 }
 
 fun createRoomFeatureMocks(roomId: String = "1234"): List<ResolvedContributor> {

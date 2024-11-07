@@ -64,6 +64,8 @@ internal class DefaultOccupancy(
     private val messages: Messages,
 ) : Occupancy, ContributesToRoomLifecycle, ResolvedContributor {
 
+    override val featureName: String = "occupancy"
+
     override val channel = messages.channel
 
     override val contributor: ContributesToRoomLifecycle = this

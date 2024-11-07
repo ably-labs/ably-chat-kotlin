@@ -134,6 +134,8 @@ internal class DefaultPresence(
     private val messages: Messages,
 ) : Presence, ContributesToRoomLifecycle, ResolvedContributor {
 
+    override val featureName = "presence"
+
     override val channel = messages.channel
 
     override val contributor: ContributesToRoomLifecycle = this

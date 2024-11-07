@@ -35,6 +35,13 @@ suspend fun Channel.detachCoroutine() = suspendCoroutine { continuation ->
     })
 }
 
+val Channel.errorMessage: String
+    get() = if (reason == null) {
+        ""
+    } else {
+        ", ${reason.message}"
+    }
+
 @Suppress("FunctionName")
 fun ChatChannelOptions(init: (ChannelOptions.() -> Unit)? = null): ChannelOptions {
     val options = ChannelOptions()

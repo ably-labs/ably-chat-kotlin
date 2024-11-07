@@ -106,6 +106,8 @@ internal class DefaultRoomReactions(
 
     private val roomReactionsChannelName = "$roomId::\$chat::\$reactions"
 
+    override val featureName = "reactions"
+
     override val channel: AblyRealtimeChannel = realtimeClient.channels.get(roomReactionsChannelName, ChatChannelOptions())
 
     override val contributor: ContributesToRoomLifecycle = this

@@ -83,6 +83,8 @@ internal class DefaultTyping(
 
     private val typingIndicatorsChannelName = "$roomId::\$chat::\$typingIndicators"
 
+    override val featureName = "typing"
+
     override val channel = realtimeClient.channels.get(typingIndicatorsChannelName, ChatChannelOptions())
 
     override val contributor: ContributesToRoomLifecycle = this

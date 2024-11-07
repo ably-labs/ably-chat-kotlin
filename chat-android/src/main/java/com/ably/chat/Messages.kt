@@ -239,6 +239,8 @@ internal class DefaultMessages(
      */
     private val messagesChannelName = "$roomId::\$chat::\$chatMessages"
 
+    override val featureName: String = "messages"
+
     override val channel = realtimeChannels.get(messagesChannelName, ChatChannelOptions())
 
     override val contributor: ContributesToRoomLifecycle = this

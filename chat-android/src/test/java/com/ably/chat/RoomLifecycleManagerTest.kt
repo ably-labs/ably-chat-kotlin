@@ -2,6 +2,8 @@ package com.ably.chat
 
 import com.ably.utils.atomicCoroutineScope
 import com.ably.utils.createRoomFeatureMocks
+import com.ably.utils.setState
+import io.ably.lib.realtime.ChannelState
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
 import io.mockk.coEvery
@@ -208,9 +210,69 @@ class RoomLifecycleManagerTest {
         }
     }
 
-    // All of the following tests cover sub-spec points under CHA-RL1h
+    // All of the following tests cover sub-spec points under CHA-RL1h ( channel attach failure )
     @Test
-    fun `(CHA-RL1h1) If a one of the contributors fails to attach, attach call must throw an ErrorInfo`() = runTest {
+    fun `(CHA-RL1h1) If a one of the contributors fails to attach (failed state), attach call must throw an ErrorInfo`() = runTest {
+        val status = spyk<DefaultStatus>()
+
+        mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
+        coEvery { any<io.ably.lib.realtime.Channel>().attachCoroutine() } coAnswers {
+            val channel = firstArg<io.ably.lib.realtime.Channel>()
+            if ("typing" in channel.name) {
+                // Throw error for typing contributor, likely to throw because it uses different channel
+                val error = ErrorInfo("error attaching channel ${channel.name}", 500)
+                channel.setState(ChannelState.failed, error)
+                throw AblyException.fromErrorInfo(error)
+            }
+            Unit
+        }
+
+        val contributors = createRoomFeatureMocks("1234")
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, contributors), recordPrivateCalls = true)
+
+        val result = kotlin.runCatching { roomLifecycle.attach() }
+
+        Assert.assertTrue(result.isFailure)
+        Assert.assertEquals(RoomLifecycle.Failed, status.current)
+
+        val exception = result.exceptionOrNull() as AblyException
+
+        Assert.assertEquals(
+            "failed to attach typing feature, error attaching channel 1234::\$chat::\$typingIndicators",
+            exception.errorInfo.message,
+        )
+        Assert.assertEquals(ErrorCodes.TypingAttachmentFailed.errorCode, exception.errorInfo.code)
+        Assert.assertEquals(500, exception.errorInfo.statusCode)
+    }
+
+    @Test
+    fun `(CHA-RL1h1) If a one of the contributors fails to attach (suspended state), attach call must throw an ErrorInfo`() = runTest {
+        val status = spyk<DefaultStatus>()
+
+        mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
+        coEvery { any<io.ably.lib.realtime.Channel>().attachCoroutine() } coAnswers {
+            val channel = firstArg<io.ably.lib.realtime.Channel>()
+            if ("reactions" in channel.name) {
+                // Throw error for typing contributor, likely to throw because it uses different channel
+                channel.setState(ChannelState.suspended)
+                throw AblyException.fromErrorInfo(ErrorInfo("error attaching channel ${channel.name}", 500))
+            }
+            Unit
+        }
+
+        val contributors = createRoomFeatureMocks("1234")
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, contributors), recordPrivateCalls = true)
+
+        val result = kotlin.runCatching { roomLifecycle.attach() }
+
+        Assert.assertTrue(result.isFailure)
+        Assert.assertEquals(RoomLifecycle.Suspended, status.current)
+
+        val exception = result.exceptionOrNull() as AblyException
+
+        Assert.assertEquals("failed to attach reactions feature", exception.errorInfo.message)
+        Assert.assertEquals(ErrorCodes.ReactionsAttachmentFailed.errorCode, exception.errorInfo.code)
+        Assert.assertEquals(500, exception.errorInfo.statusCode)
     }
 
     @Test

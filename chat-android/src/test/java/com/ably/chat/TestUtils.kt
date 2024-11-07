@@ -65,7 +65,7 @@ suspend fun assertWaiter(timeoutInMs: Long = 10000, block: () -> Boolean) {
     }
 }
 
-fun Any.setPrivateField(name: String, value: Any) {
+fun Any.setPrivateField(name: String, value: Any?) {
     val valueField = javaClass.getDeclaredField(name)
     valueField.isAccessible = true
     return valueField.set(this, value)

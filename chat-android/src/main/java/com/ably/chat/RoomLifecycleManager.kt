@@ -19,6 +19,11 @@ import io.ably.lib.realtime.Channel as AblyRealtimeChannel
  */
 interface ContributesToRoomLifecycle : EmitsDiscontinuities, HandlesDiscontinuity {
     /**
+     * Name of the feature
+     */
+    val featureName: String
+
+    /**
      * Gets the channel on which the feature operates. This promise is never
      * rejected except in the case where room initialization is canceled.
      */
@@ -80,10 +85,14 @@ class DefaultRoomAttachmentResult : RoomAttachmentResult {
     override val failedFeature: ResolvedContributor?
         get() = _failedFeature
 
-    override val exception: AblyException = AblyException.fromErrorInfo(
-        _error
-            ?: ErrorInfo("unknown error in attach", ErrorCodes.RoomLifecycleError.errorCode, 500),
-    )
+    override val exception: AblyException
+        get() = AblyException.fromErrorInfo(
+            _error
+                ?: ErrorInfo(
+                    "unknown error in attach for ${failedFeature?.contributor?.featureName} feature",
+                    500, ErrorCodes.RoomLifecycleError.errorCode,
+                ),
+        )
 
     override val status: RoomLifecycle
         get() = _status
@@ -205,7 +214,7 @@ class RoomLifecycleManager
                     val failedFeature = attachmentResult.failedFeature
                     if (failedFeature == null) {
                         AblyException.fromErrorInfo(
-                            ErrorInfo("no failed feature in doRetry", ErrorCodes.RoomLifecycleError.errorCode, 500),
+                            ErrorInfo("no failed feature in doRetry", 500, ErrorCodes.RoomLifecycleError.errorCode),
                         )
                     }
                     // No need to catch errors, rather they should propagate to caller method
@@ -239,7 +248,7 @@ class RoomLifecycleManager
         contributor.channel.once(ChannelState.failed) {
             val exception = AblyException.fromErrorInfo(
                 it.reason
-                    ?: ErrorInfo("unknown error in _doRetry", ErrorCodes.RoomLifecycleError.errorCode, 500),
+                    ?: ErrorInfo("unknown error in _doRetry", 500, ErrorCodes.RoomLifecycleError.errorCode),
             )
             continuation.resumeWithException(exception)
         }
@@ -295,7 +304,7 @@ class RoomLifecycleManager
             if (attachResult.status === RoomLifecycle.Suspended) {
                 if (attachResult.failedFeature == null) {
                     AblyException.fromErrorInfo(
-                        ErrorInfo("no failed feature in attach", ErrorCodes.RoomLifecycleError.errorCode, 500),
+                        ErrorInfo("no failed feature in attach", 500, ErrorCodes.RoomLifecycleError.errorCode),
                     )
                 }
                 attachResult.failedFeature?.let {
@@ -327,23 +336,27 @@ class RoomLifecycleManager
             } catch (ex: Throwable) {
                 attachResult._failedFeature = feature
                 attachResult._error = ErrorInfo(
-                    "failed to attach feature",
-                    feature.contributor.attachmentErrorCode.errorCode,
+                    "failed to attach ${feature.contributor.featureName} feature${feature.channel.errorMessage}",
                     500,
+                    feature.contributor.attachmentErrorCode.errorCode,
                 )
 
                 // The current feature should be in one of two states, it will be either suspended or failed
                 // If it's in suspended, we wind down the other channels and wait for the reattach
                 // If it's failed, we can fail the entire room
                 when (feature.channel.state) {
-                    ChannelState.suspended -> attachResult._status = RoomLifecycle.Suspended
-                    ChannelState.failed -> attachResult._status = RoomLifecycle.Failed
+                    ChannelState.suspended -> {
+                        attachResult._status = RoomLifecycle.Suspended
+                    }
+                    ChannelState.failed -> {
+                        attachResult._status = RoomLifecycle.Failed
+                    }
                     else -> {
                         attachResult._status = RoomLifecycle.Failed
                         attachResult._error = ErrorInfo(
-                            "unexpected channel state in doAttach ${feature.channel.state}",
-                            ErrorCodes.RoomLifecycleError.errorCode,
+                            "unexpected channel state in doAttach ${feature.channel.state}${feature.channel.errorMessage}",
                             500,
+                            feature.contributor.attachmentErrorCode.errorCode,
                         )
                     }
                 }
@@ -422,8 +435,8 @@ class RoomLifecycleManager
                     ) {
                         val contributorError = ErrorInfo(
                             "failed to detach feature",
-                            contributor.contributor.detachmentErrorCode.errorCode,
                             500,
+                            contributor.contributor.detachmentErrorCode.errorCode,
                         )
                         _status.setStatus(RoomLifecycle.Failed, contributorError)
                         throw AblyException.fromErrorInfo(throwable, contributorError)
