@@ -1,10 +1,11 @@
 package com.ably.chat
 
-import io.ably.annotation.Experimental
 import java.util.concurrent.PriorityBlockingQueue
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 
 /**
@@ -34,7 +35,7 @@ class AtomicCoroutineScope(private val scope: CoroutineScope = CoroutineScope(Di
 
     private val jobs: PriorityBlockingQueue<Job> = PriorityBlockingQueue() // Accessed from both sequentialScope and async method
     private var isRunning = false // Only accessed from sequentialScope
-    private var queueCounter = 0 // Only accessed from synchronized async method
+    private var queueCounter = 0 // Only accessed from synchronized method
 
     /**
      * @param priority Defines priority for the operation execution.
@@ -62,7 +63,7 @@ class AtomicCoroutineScope(private val scope: CoroutineScope = CoroutineScope(Di
     }
 
     private suspend fun safeExecute(job: Job) {
-        runCatching {
+        try {
             scope.launch {
                 try {
                     val result = job.coroutineBlock(this)
@@ -71,12 +72,23 @@ class AtomicCoroutineScope(private val scope: CoroutineScope = CoroutineScope(Di
                     job.deferredResult.completeExceptionally(t)
                 }
             }.join()
-        }.onFailure {
-            job.deferredResult.completeExceptionally(it)
+        } catch (t: Throwable) {
+            job.deferredResult.completeExceptionally(t)
         }
     }
 
-    @Experimental
     val finishedProcessing: Boolean
         get() = jobs.isEmpty() && !isRunning
+
+    val pendingJobCount: Int
+        get() = jobs.count()
+
+    /**
+     * Cancels ongoing and pending operations with given error.
+     */
+    @Synchronized
+    fun cancel(message: String?, cause: Throwable? = null) {
+        queueCounter = 0
+        sequentialScope.coroutineContext.cancelChildren(CancellationException(message, cause))
+    }
 }

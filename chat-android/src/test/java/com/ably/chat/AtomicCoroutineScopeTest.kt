@@ -248,4 +248,41 @@ class AtomicCoroutineScopeTest {
         }
         Assert.assertTrue(atomicCoroutineScope.finishedProcessing)
     }
+
+    @Test
+    fun `should cancel current+pending operations once scope is cancelled and continue performing new operations`() = runTest {
+        val atomicCoroutineScope = AtomicCoroutineScope()
+        val results = mutableListOf<CompletableDeferred<Unit>>()
+        repeat(10) {
+            results.add(
+                atomicCoroutineScope.async {
+                    delay(10000)
+                },
+            )
+        }
+        Assert.assertFalse(atomicCoroutineScope.finishedProcessing)
+        Assert.assertEquals(9, atomicCoroutineScope.pendingJobCount)
+
+        // Cancelling scope should cancel current job and other queued jobs
+        atomicCoroutineScope.cancel("scope cancelled externally")
+        assertWaiter { atomicCoroutineScope.finishedProcessing }
+        Assert.assertEquals(0, atomicCoroutineScope.pendingJobCount)
+
+        for (result in results) {
+            val result1 = kotlin.runCatching { result.await() }
+            Assert.assertTrue(result1.isFailure)
+            Assert.assertEquals("scope cancelled externally", result1.exceptionOrNull()!!.message)
+        }
+
+        // Should process new job
+        val deferredResult3 = atomicCoroutineScope.async {
+            delay(200)
+            return@async "Operation Success!"
+        }
+        Assert.assertFalse(atomicCoroutineScope.finishedProcessing)
+
+        val result3 = deferredResult3.await()
+        assertWaiter { atomicCoroutineScope.finishedProcessing }
+        Assert.assertEquals("Operation Success!", result3)
+    }
 }
