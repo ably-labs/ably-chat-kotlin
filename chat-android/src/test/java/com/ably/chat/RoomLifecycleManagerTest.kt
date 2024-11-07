@@ -94,12 +94,12 @@ class RoomLifecycleManagerTest {
         // Release op started from separate coroutine
         launch { roomLifecycle.release() }
         assertWaiter { !roomLifecycle.atomicCoroutineScope().finishedProcessing }
-        Assert.assertEquals(0, roomLifecycle.atomicCoroutineScope().queuedJobs) // no queued jobs, one job running
+        Assert.assertEquals(0, roomLifecycle.atomicCoroutineScope().pendingJobCount) // no queued jobs, one job running
         assertWaiter { status.current == RoomLifecycle.Releasing }
 
         // Attach op started from separate coroutine
         val roomAttachOpDeferred = async(SupervisorJob()) { roomLifecycle.attach() }
-        assertWaiter { roomLifecycle.atomicCoroutineScope().queuedJobs == 1 } // attach op queued
+        assertWaiter { roomLifecycle.atomicCoroutineScope().pendingJobCount == 1 } // attach op queued
         Assert.assertEquals(RoomLifecycle.Releasing, status.current)
 
         // Finish release op, so ATTACH op can start
