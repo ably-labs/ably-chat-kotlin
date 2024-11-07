@@ -11,6 +11,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.justRun
 import io.mockk.mockkStatic
+import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineName
@@ -19,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -74,7 +76,7 @@ class RoomLifecycleManagerTest {
     }
 
     @Test
-    fun `(CHA-RL1d) Attach op should wait for existing operation as per (CHA-RL7)`() = runTest {
+    fun `(CHA-RL1d, CHA-RL1j) Attach op should wait for existing operation as per (CHA-RL7)`() = runTest {
         val status = spyk<DefaultStatus>()
         Assert.assertEquals(RoomLifecycle.Initializing, status.current)
 
@@ -276,7 +278,41 @@ class RoomLifecycleManagerTest {
     }
 
     @Test
-    fun `(CHA-RL1h3) When room enters suspended state, it should enter recovery loop`() = runTest {
+    fun `(CHA-RL1h3) When room enters suspended state (CHA-RL1h2), it should enter recovery loop as per (CHA-RL5)`() = runTest {
+        val status = spyk<DefaultStatus>()
+
+        mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
+        coEvery { any<io.ably.lib.realtime.Channel>().attachCoroutine() } coAnswers {
+            val channel = firstArg<io.ably.lib.realtime.Channel>()
+            if ("reactions" in channel.name) {
+                // Throw error for typing contributor, likely to throw because it uses different channel
+                channel.setState(ChannelState.suspended)
+                throw AblyException.fromErrorInfo(ErrorInfo("error attaching channel ${channel.name}", 500))
+            }
+            Unit
+        }
+
+        val contributors = createRoomFeatureMocks("1234")
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, contributors), recordPrivateCalls = true)
+
+        val resolvedContributor = slot<ResolvedContributor>()
+
+        // Behaviour for CHA-RL5 will be tested as a part of sub spec for the same
+        coEvery { roomLifecycle["doRetry"](capture(resolvedContributor)) } coAnswers {
+            delay(1000)
+        }
+
+        val result = kotlin.runCatching { roomLifecycle.attach() }
+        assertWaiter { !roomLifecycle.atomicCoroutineScope().finishedProcessing }
+
+        Assert.assertTrue(result.isFailure)
+        Assert.assertEquals(RoomLifecycle.Suspended, status.current)
+
+        assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
+
+        coVerify(exactly = 1) {
+            roomLifecycle["doRetry"](resolvedContributor.captured)
+        }
     }
 
     @Test
