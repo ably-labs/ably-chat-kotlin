@@ -348,6 +348,14 @@ class RoomLifecycleManagerTest {
 
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing } // Wait for channels detach
 
+        coVerify {
+            roomLifecycle invokeNoArgs "runDownChannelsOnFailedAttach"
+        }
+
+        coVerify(exactly = 1) {
+            roomLifecycle["doChannelWindDown"](any<ResolvedContributor>())
+        }
+
         Assert.assertEquals("1234::\$chat::\$chatMessages", detachedChannels[0].name)
         Assert.assertEquals("1234::\$chat::\$chatMessages", detachedChannels[1].name)
         Assert.assertEquals("1234::\$chat::\$chatMessages", detachedChannels[2].name)
@@ -356,5 +364,52 @@ class RoomLifecycleManagerTest {
 
     @Test
     fun `(CHA-RL1h6) When room enters failed state, when CHA-RL1h5 fails to detach, op will be repeated till all channels are detached`() = runTest {
+        val status = spyk<DefaultStatus>()
+
+        mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
+        coEvery { any<io.ably.lib.realtime.Channel>().attachCoroutine() } coAnswers {
+            val channel = firstArg<io.ably.lib.realtime.Channel>()
+            if ("typing" in channel.name) {
+                // Throw error for typing contributor, likely to throw because it uses different channel
+                val error = ErrorInfo("error attaching channel ${channel.name}", 500)
+                channel.setState(ChannelState.failed, error)
+                throw AblyException.fromErrorInfo(error)
+            }
+            Unit
+        }
+
+        var failDetachTimes = 5
+        val detachedChannels = mutableListOf<io.ably.lib.realtime.Channel>()
+        coEvery { any<io.ably.lib.realtime.Channel>().detachCoroutine() } coAnswers {
+            if (--failDetachTimes >= 0) {
+                throw Exception("failed to detach channel")
+            }
+            detachedChannels.add(firstArg())
+        }
+
+        val contributors = createRoomFeatureMocks("1234")
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, contributors), recordPrivateCalls = true)
+
+        val result = kotlin.runCatching { roomLifecycle.attach() }
+        Assert.assertFalse(roomLifecycle.atomicCoroutineScope().finishedProcessing) // Internal channels detach in progress
+
+        Assert.assertTrue(result.isFailure)
+        Assert.assertEquals(RoomLifecycle.Failed, status.current)
+
+        assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing } // Wait for channels detach
+
+        coVerify {
+            roomLifecycle invokeNoArgs "runDownChannelsOnFailedAttach"
+        }
+
+        // Channel detach success on 6th call
+        coVerify(exactly = 6) {
+            roomLifecycle["doChannelWindDown"](any<ResolvedContributor>())
+        }
+
+        Assert.assertEquals("1234::\$chat::\$chatMessages", detachedChannels[0].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", detachedChannels[1].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", detachedChannels[2].name)
+        Assert.assertEquals("1234::\$chat::\$reactions", detachedChannels[3].name)
     }
 }
