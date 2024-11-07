@@ -212,7 +212,37 @@ class RoomLifecycleManagerTest {
 
     // All of the following tests cover sub-spec points under CHA-RL1h ( channel attach failure )
     @Test
-    fun `(CHA-RL1h1) If a one of the contributors fails to attach (failed state), attach call must throw an ErrorInfo`() = runTest {
+    fun `(CHA-RL1h1, CHA-RL1h2) If a one of the contributors fails to attach (enters suspended state), attach throws related error and room enters suspended state`() = runTest {
+        val status = spyk<DefaultStatus>()
+
+        mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
+        coEvery { any<io.ably.lib.realtime.Channel>().attachCoroutine() } coAnswers {
+            val channel = firstArg<io.ably.lib.realtime.Channel>()
+            if ("reactions" in channel.name) {
+                // Throw error for typing contributor, likely to throw because it uses different channel
+                channel.setState(ChannelState.suspended)
+                throw AblyException.fromErrorInfo(ErrorInfo("error attaching channel ${channel.name}", 500))
+            }
+            Unit
+        }
+
+        val contributors = createRoomFeatureMocks("1234")
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, contributors), recordPrivateCalls = true)
+
+        val result = kotlin.runCatching { roomLifecycle.attach() }
+
+        Assert.assertTrue(result.isFailure)
+        Assert.assertEquals(RoomLifecycle.Suspended, status.current)
+
+        val exception = result.exceptionOrNull() as AblyException
+
+        Assert.assertEquals("failed to attach reactions feature", exception.errorInfo.message)
+        Assert.assertEquals(ErrorCodes.ReactionsAttachmentFailed.errorCode, exception.errorInfo.code)
+        Assert.assertEquals(500, exception.errorInfo.statusCode)
+    }
+
+    @Test
+    fun `(CHA-RL1h1, CHA-RL1h4) If a one of the contributors fails to attach (enters failed state), attach throws related error and room enters failed state`() = runTest {
         val status = spyk<DefaultStatus>()
 
         mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
@@ -246,45 +276,7 @@ class RoomLifecycleManagerTest {
     }
 
     @Test
-    fun `(CHA-RL1h1) If a one of the contributors fails to attach (suspended state), attach call must throw an ErrorInfo`() = runTest {
-        val status = spyk<DefaultStatus>()
-
-        mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
-        coEvery { any<io.ably.lib.realtime.Channel>().attachCoroutine() } coAnswers {
-            val channel = firstArg<io.ably.lib.realtime.Channel>()
-            if ("reactions" in channel.name) {
-                // Throw error for typing contributor, likely to throw because it uses different channel
-                channel.setState(ChannelState.suspended)
-                throw AblyException.fromErrorInfo(ErrorInfo("error attaching channel ${channel.name}", 500))
-            }
-            Unit
-        }
-
-        val contributors = createRoomFeatureMocks("1234")
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, contributors), recordPrivateCalls = true)
-
-        val result = kotlin.runCatching { roomLifecycle.attach() }
-
-        Assert.assertTrue(result.isFailure)
-        Assert.assertEquals(RoomLifecycle.Suspended, status.current)
-
-        val exception = result.exceptionOrNull() as AblyException
-
-        Assert.assertEquals("failed to attach reactions feature", exception.errorInfo.message)
-        Assert.assertEquals(ErrorCodes.ReactionsAttachmentFailed.errorCode, exception.errorInfo.code)
-        Assert.assertEquals(500, exception.errorInfo.statusCode)
-    }
-
-    @Test
-    fun `(CHA-RL1h2) If a one of the contributors enters suspended, room status becomes suspended`() = runTest {
-    }
-
-    @Test
-    fun `(CHA-RL1h3) When room enters suspended state, corresponding error code should be thrown and enter recovery loop`() = runTest {
-    }
-
-    @Test
-    fun `(CHA-RL1h4) If a one of the contributors enters failed state, room status becomes failed, corresponding error code should be thrown`() = runTest {
+    fun `(CHA-RL1h3) When room enters suspended state, it should enter recovery loop`() = runTest {
     }
 
     @Test
