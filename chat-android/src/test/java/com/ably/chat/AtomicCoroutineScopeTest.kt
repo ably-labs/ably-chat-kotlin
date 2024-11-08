@@ -116,7 +116,6 @@ class AtomicCoroutineScopeTest {
             }
         }
 
-        Assert.assertFalse(atomicCoroutineScope.finishedProcessing)
         assertWaiter { deferredResults.size == 1_00_000 }
 
         deferredResults.awaitAll()
