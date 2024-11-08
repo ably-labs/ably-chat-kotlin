@@ -18,22 +18,20 @@ class AtomicCoroutineScope(private val scope: CoroutineScope = CoroutineScope(Di
 
     private val sequentialScope: CoroutineScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1))
 
-    private class Job(
+    private class Job<T : Any>(
         private val priority: Int,
-        val coroutineBlock: suspend CoroutineScope.() -> Any,
-        val deferredResult: CompletableDeferred<Any>,
+        val coroutineBlock: suspend CoroutineScope.() -> T,
+        val deferredResult: CompletableDeferred<T>,
         val queuedPriority: Int,
-    ) :
-        Comparable<Job> {
-        override fun compareTo(other: Job): Int {
-            if (this.priority == other.priority) {
-                return this.queuedPriority.compareTo(other.queuedPriority)
-            }
-            return this.priority.compareTo(other.priority)
+    ) : Comparable<Job<*>> {
+        override fun compareTo(other: Job<*>) = when {
+            this.priority == other.priority -> this.queuedPriority.compareTo(other.queuedPriority)
+            else -> this.priority.compareTo(other.priority)
         }
     }
 
-    private val jobs: PriorityBlockingQueue<Job> = PriorityBlockingQueue() // Accessed from both sequentialScope and async method
+    // Handles jobs of any type
+    private val jobs: PriorityBlockingQueue<Job<*>> = PriorityBlockingQueue() // Accessed from both sequentialScope and async method
     private var isRunning = false // Only accessed from sequentialScope
     private var queueCounter = 0 // Only accessed from synchronized method
 
@@ -41,15 +39,15 @@ class AtomicCoroutineScope(private val scope: CoroutineScope = CoroutineScope(Di
         get() = jobs.isEmpty() && !isRunning
 
     val pendingJobCount: Int
-        get() = jobs.count()
+        get() = jobs.size
 
     /**
      * Defines priority for the operation execution and
      * executes given coroutineBlock mutually exclusive under given scope.
      */
     @Synchronized
-    fun <T : Any>async(priority: Int = 0, coroutineBlock: suspend CoroutineScope.() -> T): CompletableDeferred<T> {
-        val deferredResult = CompletableDeferred<Any>()
+    fun <T : Any> async(priority: Int = 0, coroutineBlock: suspend CoroutineScope.() -> T): CompletableDeferred<T> {
+        val deferredResult = CompletableDeferred<T>()
         jobs.add(Job(priority, coroutineBlock, deferredResult, queueCounter++))
         sequentialScope.launch {
             if (!isRunning) {
@@ -63,12 +61,10 @@ class AtomicCoroutineScope(private val scope: CoroutineScope = CoroutineScope(Di
                 isRunning = false
             }
         }
-
-        @Suppress("UNCHECKED_CAST")
-        return deferredResult as CompletableDeferred<T>
+        return deferredResult
     }
 
-    private suspend fun safeExecute(job: Job) {
+    private suspend fun <T : Any> safeExecute(job: Job<T>) {
         try {
             scope.launch {
                 try {
