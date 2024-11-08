@@ -72,6 +72,8 @@ internal class DefaultOccupancy(
 
     override val detachmentErrorCode: ErrorCodes = ErrorCodes.OccupancyDetachmentFailed
 
+    private val discontinuityEmitter = DiscontinuityEmitter()
+
     override fun subscribe(listener: Occupancy.Listener): Subscription {
         TODO("Not yet implemented")
     }
@@ -79,8 +81,6 @@ internal class DefaultOccupancy(
     override suspend fun get(): OccupancyEvent {
         TODO("Not yet implemented")
     }
-
-    private val discontinuityEmitter = DiscontinuityEmitter()
 
     override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
         discontinuityEmitter.on(listener)

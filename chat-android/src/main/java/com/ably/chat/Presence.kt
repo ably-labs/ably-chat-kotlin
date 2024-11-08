@@ -142,6 +142,8 @@ internal class DefaultPresence(
 
     override val detachmentErrorCode: ErrorCodes = ErrorCodes.PresenceDetachmentFailed
 
+    private val discontinuityEmitter = DiscontinuityEmitter()
+
     override suspend fun get(params: List<Params>): List<PresenceMember> {
         TODO("Not yet implemented")
     }
@@ -165,8 +167,6 @@ internal class DefaultPresence(
     override fun subscribe(listener: Presence.Listener): Subscription {
         TODO("Not yet implemented")
     }
-
-    private val discontinuityEmitter = DiscontinuityEmitter()
 
     override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
         discontinuityEmitter.on(listener)

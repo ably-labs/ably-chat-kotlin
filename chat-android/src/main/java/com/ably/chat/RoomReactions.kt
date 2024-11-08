@@ -2,10 +2,10 @@
 
 package com.ably.chat
 
-import io.ably.lib.types.ErrorInfo
 import com.google.gson.JsonObject
 import io.ably.lib.realtime.AblyRealtime
 import io.ably.lib.types.AblyException
+import io.ably.lib.types.ErrorInfo
 import io.ably.lib.types.MessageExtras
 import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
@@ -119,6 +119,8 @@ internal class DefaultRoomReactions(
 
     override val detachmentErrorCode: ErrorCodes = ErrorCodes.ReactionsDetachmentFailed
 
+    private val discontinuityEmitter = DiscontinuityEmitter()
+
     // (CHA-ER3) Ephemeral room reactions are sent to Ably via the Realtime connection via a send method.
     // (CHA-ER3a) Reactions are sent on the channel using a message in a particular format - see spec for format.
     override suspend fun send(params: SendReactionParams) {
@@ -160,8 +162,6 @@ internal class DefaultRoomReactions(
         channel.subscribe(RoomReactionEventType.Reaction.eventName, messageListener)
         return Subscription { channel.unsubscribe(RoomReactionEventType.Reaction.eventName, messageListener) }
     }
-
-    private val discontinuityEmitter = DiscontinuityEmitter()
 
     override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
         discontinuityEmitter.on(listener)

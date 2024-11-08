@@ -247,6 +247,8 @@ internal class DefaultMessages(
 
     override val detachmentErrorCode: ErrorCodes = ErrorCodes.MessagesDetachmentFailed
 
+    private val discontinuityEmitter = DiscontinuityEmitter()
+
     init {
         channelStateListener = ChannelStateListener {
             if (!it.resumed) updateChannelSerialsAfterDiscontinuity()
@@ -300,8 +302,6 @@ internal class DefaultMessages(
     override suspend fun get(options: QueryOptions): PaginatedResult<Message> = chatApi.getMessages(roomId, options)
 
     override suspend fun send(params: SendMessageParams): Message = chatApi.sendMessage(roomId, params)
-
-    private val discontinuityEmitter = DiscontinuityEmitter()
 
     override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
         discontinuityEmitter.on(listener)

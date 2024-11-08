@@ -91,6 +91,8 @@ internal class DefaultTyping(
 
     override val detachmentErrorCode: ErrorCodes = ErrorCodes.TypingDetachmentFailed
 
+    private val discontinuityEmitter = DiscontinuityEmitter()
+
     override fun subscribe(listener: Typing.Listener): Subscription {
         TODO("Not yet implemented")
     }
@@ -106,8 +108,6 @@ internal class DefaultTyping(
     override suspend fun stop() {
         TODO("Not yet implemented")
     }
-
-    private val discontinuityEmitter = DiscontinuityEmitter()
 
     override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
         discontinuityEmitter.on(listener)
