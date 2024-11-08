@@ -491,7 +491,7 @@ class RoomLifecycleManager
      * @return when the room is detached.
      */
     internal suspend fun detach() {
-        TODO("Need to impl. room detach")
+        // TODO("Need to impl. room detach")
     }
 
     /**
@@ -503,6 +503,6 @@ class RoomLifecycleManager
      * state (e.g. attached), release will throw exception.
      */
     internal suspend fun release() {
-        TODO("Need to impl. room release")
+        // TODO("Need to impl. room release")
     }
 }

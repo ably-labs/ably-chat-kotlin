@@ -18,9 +18,7 @@ import io.mockk.mockk
 import io.mockk.spyk
 import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
-fun RoomLifecycleManager.atomicCoroutineScope(): AtomicCoroutineScope {
-    return getPrivateField("atomicCoroutineScope")
-}
+fun RoomLifecycleManager.atomicCoroutineScope(): AtomicCoroutineScope = getPrivateField("atomicCoroutineScope")
 
 fun AblyRealtimeChannel.setState(state: ChannelState, errorInfo: ErrorInfo? = null) {
     this.state = state

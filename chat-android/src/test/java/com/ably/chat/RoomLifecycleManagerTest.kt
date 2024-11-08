@@ -213,6 +213,7 @@ class RoomLifecycleManagerTest {
     }
 
     // All of the following tests cover sub-spec points under CHA-RL1h ( channel attach failure )
+    @Suppress("MaximumLineLength")
     @Test
     fun `(CHA-RL1h1, CHA-RL1h2) If a one of the contributors fails to attach (enters suspended state), attach throws related error and room enters suspended state`() = runTest {
         val status = spyk<DefaultStatus>()
@@ -225,7 +226,6 @@ class RoomLifecycleManagerTest {
                 channel.setState(ChannelState.suspended)
                 throw AblyException.fromErrorInfo(ErrorInfo("error attaching channel ${channel.name}", 500))
             }
-            Unit
         }
 
         val contributors = createRoomFeatureMocks("1234")
@@ -243,6 +243,7 @@ class RoomLifecycleManagerTest {
         Assert.assertEquals(500, exception.errorInfo.statusCode)
     }
 
+    @Suppress("MaximumLineLength")
     @Test
     fun `(CHA-RL1h1, CHA-RL1h4) If a one of the contributors fails to attach (enters failed state), attach throws related error and room enters failed state`() = runTest {
         val status = spyk<DefaultStatus>()
@@ -256,7 +257,6 @@ class RoomLifecycleManagerTest {
                 channel.setState(ChannelState.failed, error)
                 throw AblyException.fromErrorInfo(error)
             }
-            Unit
         }
 
         val contributors = createRoomFeatureMocks("1234")
@@ -289,7 +289,6 @@ class RoomLifecycleManagerTest {
                 channel.setState(ChannelState.suspended)
                 throw AblyException.fromErrorInfo(ErrorInfo("error attaching channel ${channel.name}", 500))
             }
-            Unit
         }
 
         val contributors = createRoomFeatureMocks("1234")
@@ -329,7 +328,6 @@ class RoomLifecycleManagerTest {
                 channel.setState(ChannelState.failed, error)
                 throw AblyException.fromErrorInfo(error)
             }
-            Unit
         }
 
         val detachedChannels = mutableListOf<io.ably.lib.realtime.Channel>()
@@ -362,6 +360,7 @@ class RoomLifecycleManagerTest {
         Assert.assertEquals("1234::\$chat::\$reactions", detachedChannels[3].name)
     }
 
+    @Suppress("MaximumLineLength")
     @Test
     fun `(CHA-RL1h6) When room enters failed state, when CHA-RL1h5 fails to detach, op will be repeated till all channels are detached`() = runTest {
         val status = spyk<DefaultStatus>()
@@ -375,7 +374,6 @@ class RoomLifecycleManagerTest {
                 channel.setState(ChannelState.failed, error)
                 throw AblyException.fromErrorInfo(error)
             }
-            Unit
         }
 
         var failDetachTimes = 5
