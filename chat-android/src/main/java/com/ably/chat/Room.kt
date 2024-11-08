@@ -1,6 +1,7 @@
 @file:Suppress("StringLiteralDuplication", "NotImplementedDeclaration")
 
 package com.ably.chat
+
 import io.ably.lib.util.Log.LogHandler
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
@@ -124,7 +125,8 @@ internal class DefaultRoom(
 
     override val reactions = DefaultRoomReactions(
         roomId = roomId,
-        realtimeClient = realtimeClient,
+        clientId = realtimeClient.auth.clientId,
+        realtimeChannels = realtimeClient.channels,
     )
 
     override val occupancy = DefaultOccupancy(

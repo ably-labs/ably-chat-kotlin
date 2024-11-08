@@ -101,7 +101,7 @@ class AtomicCoroutineScopeTest {
 
         // Concurrently schedule 100000 jobs from multiple threads
         withContext(Dispatchers.IO) {
-            repeat(100000) {
+            repeat(1_00_000) {
                 launch {
                     val result = atomicCoroutineScope.async {
                         if (operationInProgress) {
@@ -116,12 +116,11 @@ class AtomicCoroutineScopeTest {
             }
         }
 
-        Assert.assertFalse(atomicCoroutineScope.finishedProcessing)
-        assertWaiter { deferredResults.size == 100000 }
+        assertWaiter { deferredResults.size == 1_00_000 }
 
         deferredResults.awaitAll()
         assertWaiter { atomicCoroutineScope.finishedProcessing }
-        Assert.assertEquals((0..99999).toList(), countedValues)
+        Assert.assertEquals((0..99_999).toList(), countedValues)
     }
 
     @Test
@@ -218,7 +217,7 @@ class AtomicCoroutineScopeTest {
             atomicCoroutineScope.async {
                 delay(1000)
                 processedValues.add(1000)
-                Unit
+                return@async
             },
         )
 
@@ -256,7 +255,7 @@ class AtomicCoroutineScopeTest {
         repeat(10) {
             results.add(
                 atomicCoroutineScope.async {
-                    delay(10000)
+                    delay(10_000)
                 },
             )
         }

@@ -35,6 +35,6 @@ fun createRoomFeatureMocks(roomId: String = "1234"): List<ResolvedContributor> {
     val presenceContributor = spyk(DefaultPresence(messagesContributor), recordPrivateCalls = true)
     val occupancyContributor = spyk(DefaultOccupancy(messagesContributor), recordPrivateCalls = true)
     val typingContributor = spyk(DefaultTyping(roomId, realtimeClient), recordPrivateCalls = true)
-    val reactionsContributor = spyk(DefaultRoomReactions(roomId, realtimeClient), recordPrivateCalls = true)
+    val reactionsContributor = spyk(DefaultRoomReactions(roomId, "client1", realtimeClient.channels), recordPrivateCalls = true)
     return listOf(messagesContributor, presenceContributor, occupancyContributor, typingContributor, reactionsContributor)
 }

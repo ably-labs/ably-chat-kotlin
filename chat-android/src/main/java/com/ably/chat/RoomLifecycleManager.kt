@@ -42,6 +42,22 @@ interface ContributesToRoomLifecycle : EmitsDiscontinuities, HandlesDiscontinuit
     val detachmentErrorCode: ErrorCodes
 }
 
+abstract class ContributesToRoomLifecycleImpl : ContributesToRoomLifecycle {
+
+    private val discontinuityEmitter = DiscontinuityEmitter()
+
+    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
+        discontinuityEmitter.on(listener)
+        return Subscription {
+            discontinuityEmitter.off(listener)
+        }
+    }
+
+    override fun discontinuityDetected(reason: ErrorInfo?) {
+        discontinuityEmitter.emit("discontinuity", reason)
+    }
+}
+
 /**
  * This interface represents a feature that contributes to the room lifecycle and
  * exposes its channel directly. Objects of this type are created by awaiting the
@@ -78,27 +94,29 @@ interface RoomAttachmentResult : NewRoomStatus {
 }
 
 class DefaultRoomAttachmentResult : RoomAttachmentResult {
-    internal var _failedFeature: ResolvedContributor? = null
-    internal var _status: RoomLifecycle = RoomLifecycle.Attached
-    internal var _error: ErrorInfo? = null
+    internal var statusField: RoomLifecycle = RoomLifecycle.Attached
+    override val status: RoomLifecycle
+        get() = statusField
 
+    internal var failedFeatureField: ResolvedContributor? = null
     override val failedFeature: ResolvedContributor?
-        get() = _failedFeature
+        get() = failedFeatureField
+
+    internal var errorField: ErrorInfo? = null
+    override val error: ErrorInfo?
+        get() = errorField
+
+    internal var throwable: Throwable? = null
 
     override val exception: AblyException
-        get() = AblyException.fromErrorInfo(
-            _error
-                ?: ErrorInfo(
-                    "unknown error in attach for ${failedFeature?.contributor?.featureName} feature",
-                    500, ErrorCodes.RoomLifecycleError.errorCode,
-                ),
-        )
-
-    override val status: RoomLifecycle
-        get() = _status
-
-    override val error: ErrorInfo?
-        get() = _error
+        get() {
+            val errorInfo = errorField
+                ?: ErrorInfo("unknown error in attach", HttpStatusCodes.InternalServerError, ErrorCodes.RoomLifecycleError.errorCode)
+            throwable?.let {
+                return AblyException.fromErrorInfo(throwable, errorInfo)
+            }
+            return AblyException.fromErrorInfo(errorInfo)
+        }
 }
 
 /**
@@ -153,6 +171,11 @@ class RoomLifecycleManager
      */
     private val _firstAttachesCompleted = mutableMapOf<ResolvedContributor, Boolean>()
 
+    /**
+     * Retry duration in milliseconds, used by internal doRetry and runDownChannelsOnFailedAttach methods
+     */
+    private val _retryDurationInMs: Long = 250
+
     init {
         if (_status.current != RoomLifecycle.Attached) {
             _operationInProgress = true
@@ -183,6 +206,7 @@ class RoomLifecycleManager
      * @param contributor The contributor that has entered a suspended state.
      * @returns Returns when the room is attached, or the room enters a failed state.
      */
+    @SuppressWarnings("CognitiveComplexMethod")
     private suspend fun doRetry(contributor: ResolvedContributor) {
         // Handle the channel wind-down for other channels
         var result = kotlin.runCatching { doChannelWindDown(contributor) }
@@ -191,7 +215,7 @@ class RoomLifecycleManager
             if (this._status.current === RoomLifecycle.Failed) {
                 error("room is in a failed state")
             }
-            delay(250)
+            delay(_retryDurationInMs)
             result = kotlin.runCatching { doChannelWindDown(contributor) }
         }
 
@@ -214,7 +238,11 @@ class RoomLifecycleManager
                     val failedFeature = attachmentResult.failedFeature
                     if (failedFeature == null) {
                         AblyException.fromErrorInfo(
-                            ErrorInfo("no failed feature in doRetry", 500, ErrorCodes.RoomLifecycleError.errorCode),
+                            ErrorInfo(
+                                "no failed feature in doRetry",
+                                HttpStatusCodes.InternalServerError,
+                                ErrorCodes.RoomLifecycleError.errorCode,
+                            ),
                         )
                     }
                     // No need to catch errors, rather they should propagate to caller method
@@ -248,7 +276,7 @@ class RoomLifecycleManager
         contributor.channel.once(ChannelState.failed) {
             val exception = AblyException.fromErrorInfo(
                 it.reason
-                    ?: ErrorInfo("unknown error in _doRetry", 500, ErrorCodes.RoomLifecycleError.errorCode),
+                    ?: ErrorInfo("unknown error in _doRetry", HttpStatusCodes.InternalServerError, ErrorCodes.RoomLifecycleError.errorCode),
             )
             continuation.resumeWithException(exception)
         }
@@ -263,6 +291,7 @@ class RoomLifecycleManager
      * If a channel enters the failed state, we reject and then begin to wind down the other channels.
      * Spec: CHA-RL1
      */
+    @SuppressWarnings("ThrowsCount")
     internal suspend fun attach() {
         val deferredAttach = atomicCoroutineScope.async(LifecycleOperationPrecedence.AttachOrDetach.priority) { // CHA-RL1d
             when (_status.current) {
@@ -271,7 +300,7 @@ class RoomLifecycleManager
                     throw AblyException.fromErrorInfo(
                         ErrorInfo(
                             "unable to attach room; room is releasing",
-                            500,
+                            HttpStatusCodes.InternalServerError,
                             ErrorCodes.RoomIsReleasing.errorCode,
                         ),
                     )
@@ -279,7 +308,7 @@ class RoomLifecycleManager
                     throw AblyException.fromErrorInfo(
                         ErrorInfo(
                             "unable to attach room; room is released",
-                            500,
+                            HttpStatusCodes.InternalServerError,
                             ErrorCodes.RoomIsReleased.errorCode,
                         ),
                     )
@@ -306,7 +335,11 @@ class RoomLifecycleManager
             if (attachResult.status === RoomLifecycle.Suspended) {
                 if (attachResult.failedFeature == null) {
                     AblyException.fromErrorInfo(
-                        ErrorInfo("no failed feature in attach", 500, ErrorCodes.RoomLifecycleError.errorCode),
+                        ErrorInfo(
+                            "no failed feature in attach",
+                            HttpStatusCodes.InternalServerError,
+                            ErrorCodes.RoomLifecycleError.errorCode,
+                        ),
                     )
                 }
                 attachResult.failedFeature?.let {
@@ -337,10 +370,11 @@ class RoomLifecycleManager
                 feature.channel.attachCoroutine()
                 _firstAttachesCompleted[feature] = true
             } catch (ex: Throwable) { // CHA-RL1h - handle channel attach failure
-                attachResult._failedFeature = feature
-                attachResult._error = ErrorInfo(
+                attachResult.throwable = ex
+                attachResult.failedFeatureField = feature
+                attachResult.errorField = ErrorInfo(
                     "failed to attach ${feature.contributor.featureName} feature${feature.channel.errorMessage}",
-                    500,
+                    HttpStatusCodes.InternalServerError,
                     feature.contributor.attachmentErrorCode.errorCode,
                 )
 
@@ -348,18 +382,14 @@ class RoomLifecycleManager
                 // If it's in suspended, we wind down the other channels and wait for the reattach
                 // If it's failed, we can fail the entire room
                 when (feature.channel.state) {
-                    ChannelState.suspended -> {
-                        attachResult._status = RoomLifecycle.Suspended
-                    }
-                    ChannelState.failed -> {
-                        attachResult._status = RoomLifecycle.Failed
-                    }
+                    ChannelState.suspended -> attachResult.statusField = RoomLifecycle.Suspended
+                    ChannelState.failed -> attachResult.statusField = RoomLifecycle.Failed
                     else -> {
-                        attachResult._status = RoomLifecycle.Failed
-                        attachResult._error = ErrorInfo(
+                        attachResult.statusField = RoomLifecycle.Failed
+                        attachResult.errorField = ErrorInfo(
                             "unexpected channel state in doAttach ${feature.channel.state}${feature.channel.errorMessage}",
-                            500,
-                            feature.contributor.attachmentErrorCode.errorCode,
+                            HttpStatusCodes.InternalServerError,
+                            ErrorCodes.RoomLifecycleError.errorCode,
                         )
                     }
                 }
@@ -395,7 +425,7 @@ class RoomLifecycleManager
         while (channelWindDown.isFailure) { // CHA-RL1h6 - repeat until all channels are detached
             // Something went wrong during the wind down. After a short delay, to give others a turn, we should run down
             // again until we reach a suitable conclusion.
-            delay(250)
+            delay(_retryDurationInMs)
             channelWindDown = kotlin.runCatching { doChannelWindDown() }
         }
     }
@@ -408,6 +438,7 @@ class RoomLifecycleManager
      * @returns Success/Failure when all channels are detached or at least one of them fails.
      *
      */
+    @SuppressWarnings("CognitiveComplexMethod", "ComplexCondition")
     private suspend fun doChannelWindDown(except: ResolvedContributor? = null) = coroutineScope {
         _contributors.map { contributor: ResolvedContributor ->
             async {
@@ -417,12 +448,12 @@ class RoomLifecycleManager
                     return@async
                 }
                 // If the room's already in the failed state, or it's releasing, we should not detach a failed channel
-                if (
-                    (
+                if ((
                         _status.current === RoomLifecycle.Failed ||
                             _status.current === RoomLifecycle.Releasing ||
                             _status.current === RoomLifecycle.Released
-                        ) && contributor.channel.state === ChannelState.failed
+                        ) &&
+                    contributor.channel.state === ChannelState.failed
                 ) {
                     return@async
                 }
@@ -439,7 +470,7 @@ class RoomLifecycleManager
                     ) {
                         val contributorError = ErrorInfo(
                             "failed to detach feature",
-                            500,
+                            HttpStatusCodes.InternalServerError,
                             contributor.contributor.detachmentErrorCode.errorCode,
                         )
                         _status.setStatus(RoomLifecycle.Failed, contributorError)

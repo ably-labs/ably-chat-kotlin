@@ -54,7 +54,7 @@ fun mockOccupancyApiResponse(realtimeClientMock: RealtimeClient, response: JsonE
     }
 }
 
-suspend fun assertWaiter(timeoutInMs: Long = 10000, block: () -> Boolean) {
+suspend fun assertWaiter(timeoutInMs: Long = 10_000, block: () -> Boolean) {
     withContext(Dispatchers.Default) {
         withTimeout(timeoutInMs) {
             do {

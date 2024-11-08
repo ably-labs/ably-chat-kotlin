@@ -125,7 +125,7 @@ class RoomLifecycleManagerTest {
     fun `(CHA-RL1e) Attach op should transition room into ATTACHING state`() = runTest {
         val status = spyk<DefaultStatus>()
         val roomStatusChanges = mutableListOf<RoomStatusChange>()
-        status.on {
+        status.onChange {
             roomStatusChanges.add(it)
         }
         val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, emptyList()))
@@ -382,7 +382,7 @@ class RoomLifecycleManagerTest {
         val detachedChannels = mutableListOf<io.ably.lib.realtime.Channel>()
         coEvery { any<io.ably.lib.realtime.Channel>().detachCoroutine() } coAnswers {
             if (--failDetachTimes >= 0) {
-                throw Exception("failed to detach channel")
+                error("failed to detach channel")
             }
             detachedChannels.add(firstArg())
         }

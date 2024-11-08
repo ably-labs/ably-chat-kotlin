@@ -225,7 +225,7 @@ internal class DefaultMessages(
     private val roomId: String,
     realtimeChannels: AblyRealtime.Channels,
     private val chatApi: ChatApi,
-) : Messages, ContributesToRoomLifecycle, ResolvedContributor {
+) : Messages, ContributesToRoomLifecycleImpl(), ResolvedContributor {
 
     private var listeners: Map<Messages.Listener, DeferredValue<String>> = emptyMap()
 
@@ -302,19 +302,6 @@ internal class DefaultMessages(
     override suspend fun get(options: QueryOptions): PaginatedResult<Message> = chatApi.getMessages(roomId, options)
 
     override suspend fun send(params: SendMessageParams): Message = chatApi.sendMessage(roomId, params)
-
-    private val discontinuityEmitter = DiscontinuityEmitter()
-
-    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
-        discontinuityEmitter.on(listener)
-        return Subscription {
-            discontinuityEmitter.off(listener)
-        }
-    }
-
-    override fun discontinuityDetected(reason: ErrorInfo?) {
-        discontinuityEmitter.emit("discontinuity", reason)
-    }
 
     fun release() {
         channel.off(channelStateListener)
