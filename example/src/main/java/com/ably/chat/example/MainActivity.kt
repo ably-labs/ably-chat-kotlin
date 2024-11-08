@@ -37,6 +37,7 @@ import com.ably.chat.ChatClient
 import com.ably.chat.Message
 import com.ably.chat.RealtimeClient
 import com.ably.chat.SendMessageParams
+import com.ably.chat.SendReactionParams
 import com.ably.chat.example.ui.theme.AblyChatExampleTheme
 import io.ably.lib.types.ClientOptions
 import java.util.UUID
@@ -72,6 +73,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@SuppressWarnings("LongMethod")
 @Composable
 fun Chat(chatClient: ChatClient, modifier: Modifier = Modifier) {
     var messageText by remember { mutableStateOf(TextFieldValue("")) }
@@ -79,9 +81,21 @@ fun Chat(chatClient: ChatClient, modifier: Modifier = Modifier) {
     var messages by remember { mutableStateOf(listOf<Message>()) }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    var receivedReactions by remember { mutableStateOf<List<String>>(listOf()) }
 
     val roomId = "my-room"
     val room = chatClient.rooms.get(roomId)
+
+    DisposableEffect(Unit) {
+        coroutineScope.launch {
+            room.attach()
+        }
+        onDispose {
+            coroutineScope.launch {
+                room.detach()
+            }
+        }
+    }
 
     DisposableEffect(Unit) {
         val subscription = room.messages.subscribe {
@@ -94,6 +108,16 @@ fun Chat(chatClient: ChatClient, modifier: Modifier = Modifier) {
         coroutineScope.launch {
             messages = subscription.getPreviousMessages().items.reversed()
             if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+        }
+
+        onDispose {
+            subscription.unsubscribe()
+        }
+    }
+
+    DisposableEffect(Unit) {
+        val subscription = room.reactions.subscribe {
+            receivedReactions += it.type
         }
 
         onDispose {
@@ -119,17 +143,26 @@ fun Chat(chatClient: ChatClient, modifier: Modifier = Modifier) {
             sending = sending,
             messageInput = messageText,
             onMessageChange = { messageText = it },
-        ) {
-            sending = true
-            coroutineScope.launch {
-                room.messages.send(
-                    SendMessageParams(
-                        text = messageText.text,
-                    ),
-                )
-                messageText = TextFieldValue("")
-                sending = false
-            }
+            onSendClick = {
+                sending = true
+                coroutineScope.launch {
+                    room.messages.send(
+                        SendMessageParams(
+                            text = messageText.text,
+                        ),
+                    )
+                    messageText = TextFieldValue("")
+                    sending = false
+                }
+            },
+            onReactionClick = {
+                coroutineScope.launch {
+                    room.reactions.send(SendReactionParams(type = "\uD83D\uDC4D"))
+                }
+            },
+        )
+        if (receivedReactions.isNotEmpty()) {
+            Text("Received reactions: ${receivedReactions.joinToString()}", modifier = Modifier.padding(16.dp))
         }
     }
 }
@@ -164,6 +197,7 @@ fun ChatInputField(
     messageInput: TextFieldValue,
     onMessageChange: (TextFieldValue) -> Unit,
     onSendClick: () -> Unit,
+    onReactionClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -181,8 +215,14 @@ fun ChatInputField(
                 .background(Color.White),
             placeholder = { Text("Type a message...") },
         )
-        Button(enabled = !sending, onClick = onSendClick) {
-            Text("Send")
+        if (messageInput.text.isNotEmpty()) {
+            Button(enabled = !sending, onClick = onSendClick) {
+                Text("Send")
+            }
+        } else {
+            Button(onClick = onReactionClick) {
+                Text("\uD83D\uDC4D")
+            }
         }
     }
 }
@@ -214,6 +254,7 @@ fun ChatInputPreview() {
             messageInput = TextFieldValue(""),
             onMessageChange = {},
             onSendClick = {},
+            onReactionClick = {},
         )
     }
 }

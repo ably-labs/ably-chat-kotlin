@@ -7,6 +7,7 @@ ably = "1.2.44"
 junit = "4.13.2"
 agp = "8.5.2"
 detekt = "1.23.6"
+konfetti-compose = "2.0.4"
 kotlin = "2.0.10"
 androidx-test = "1.6.1"
 androidx-junit = "1.2.1"
@@ -43,6 +44,7 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 
+konfetti-compose = { module = "nl.dionsegijn:konfetti-compose", version.ref = "konfetti-compose" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 
 coroutine-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutine" }
