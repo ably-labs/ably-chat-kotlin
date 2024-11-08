@@ -2,6 +2,11 @@
 
 package com.ably.chat
 
+import com.google.gson.JsonObject
+import io.ably.lib.realtime.AblyRealtime
+import io.ably.lib.types.AblyException
+import io.ably.lib.types.ErrorInfo
+import io.ably.lib.types.MessageExtras
 import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
 /**
@@ -100,12 +105,13 @@ data class SendReactionParams(
 
 internal class DefaultRoomReactions(
     roomId: String,
-    private val realtimeClient: RealtimeClient,
+    private val clientId: String,
+    realtimeChannels: AblyRealtime.Channels,
 ) : RoomReactions, ContributesToRoomLifecycle, ResolvedContributor {
 
     private val roomReactionsChannelName = "$roomId::\$chat::\$reactions"
 
-    override val channel: AblyRealtimeChannel = realtimeClient.channels.get(roomReactionsChannelName, ChatChannelOptions())
+    override val channel: AblyRealtimeChannel = realtimeChannels.get(roomReactionsChannelName, ChatChannelOptions())
 
     override val contributor: ContributesToRoomLifecycle = this
 
@@ -113,12 +119,46 @@ internal class DefaultRoomReactions(
 
     override val detachmentErrorCode: ErrorCodes = ErrorCodes.ReactionsDetachmentFailed
 
+    // (CHA-ER3) Ephemeral room reactions are sent to Ably via the Realtime connection via a send method.
+    // (CHA-ER3a) Reactions are sent on the channel using a message in a particular format - see spec for format.
     override suspend fun send(params: SendReactionParams) {
-        TODO("Not yet implemented")
+        val pubSubMessage = PubSubMessage().apply {
+            name = RoomReactionEventType.Reaction.eventName
+            data = JsonObject().apply {
+                addProperty("type", params.type)
+                params.metadata?.let { add("metadata", it.toJson()) }
+            }
+            params.headers?.let {
+                extras = MessageExtras(
+                    JsonObject().apply {
+                        add("headers", it.toJson())
+                    },
+                )
+            }
+        }
+        channel.publishCoroutine(pubSubMessage)
     }
 
     override fun subscribe(listener: RoomReactions.Listener): Subscription {
-        TODO("Not yet implemented")
+        val messageListener = PubSubMessageListener {
+            val pubSubMessage = it ?: throw AblyException.fromErrorInfo(
+                ErrorInfo("Got empty pubsub channel message", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest.errorCode),
+            )
+            val data = pubSubMessage.data as? JsonObject ?: throw AblyException.fromErrorInfo(
+                ErrorInfo("Unrecognized Pub/Sub channel's message for `roomReaction` event", HttpStatusCodes.InternalServerError),
+            )
+            val reaction = Reaction(
+                type = data.requireString("type"),
+                createdAt = pubSubMessage.timestamp,
+                clientId = pubSubMessage.clientId,
+                metadata = data.get("metadata")?.toMap() ?: mapOf(),
+                headers = pubSubMessage.extras?.asJsonObject()?.get("headers")?.toMap() ?: mapOf(),
+                isSelf = pubSubMessage.clientId == clientId,
+            )
+            listener.onReaction(reaction)
+        }
+        channel.subscribe(RoomReactionEventType.Reaction.eventName, messageListener)
+        return Subscription { channel.unsubscribe(RoomReactionEventType.Reaction.eventName, messageListener) }
     }
 
     override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
