@@ -163,7 +163,7 @@ data class RoomStatusChange(
     val error: ErrorInfo? = null,
 )
 
-open class RoomStatusEvenEmitter : EventEmitter<RoomLifecycle, RoomStatus.Listener>() {
+class RoomStatusEventEmitter : EventEmitter<RoomLifecycle, RoomStatus.Listener>() {
 
     override fun apply(listener: RoomStatus.Listener?, event: RoomLifecycle?, vararg args: Any?) {
         try {
@@ -174,7 +174,7 @@ open class RoomStatusEvenEmitter : EventEmitter<RoomLifecycle, RoomStatus.Listen
     }
 }
 
-class DefaultStatus(private val logger: LogHandler? = null) : InternalRoomStatus, RoomStatusEvenEmitter() {
+class DefaultStatus(private val logger: LogHandler?) : InternalRoomStatus {
 
     private val _logger = logger
 
@@ -186,17 +186,18 @@ class DefaultStatus(private val logger: LogHandler? = null) : InternalRoomStatus
     override val error: ErrorInfo?
         get() = _error
 
-    private val internalEmitter = RoomStatusEvenEmitter()
+    private val externalEmitter = RoomStatusEventEmitter()
+    private val internalEmitter = RoomStatusEventEmitter()
 
     override fun onChange(listener: RoomStatus.Listener): Subscription {
-        this.on(listener)
+        externalEmitter.on(listener)
         return Subscription {
-            this.off(listener)
+            externalEmitter.off(listener)
         }
     }
 
     override fun offAll() {
-        this.offAll()
+        externalEmitter.off()
     }
 
     override fun onChangeOnce(listener: RoomStatus.Listener) {
@@ -205,10 +206,10 @@ class DefaultStatus(private val logger: LogHandler? = null) : InternalRoomStatus
 
     override fun setStatus(params: NewRoomStatus) {
         val change = RoomStatusChange(params.status, current, params.error)
-        this._state = change.current
-        this._error = change.error
-        this.internalEmitter.emit(change.current, change)
-        this.emit(change.current, change)
+        _state = change.current
+        _error = change.error
+        internalEmitter.emit(change.current, change)
+        externalEmitter.emit(change.current, change)
     }
 
     fun setStatus(status: RoomLifecycle, error: ErrorInfo? = null) {

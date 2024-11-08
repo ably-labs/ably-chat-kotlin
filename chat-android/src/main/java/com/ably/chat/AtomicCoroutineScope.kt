@@ -37,9 +37,15 @@ class AtomicCoroutineScope(private val scope: CoroutineScope = CoroutineScope(Di
     private var isRunning = false // Only accessed from sequentialScope
     private var queueCounter = 0 // Only accessed from synchronized method
 
+    val finishedProcessing: Boolean
+        get() = jobs.isEmpty() && !isRunning
+
+    val pendingJobCount: Int
+        get() = jobs.count()
+
     /**
-     * @param priority Defines priority for the operation execution.
-     * @param coroutineBlock Suspended function that needs to be executed mutually exclusive under given scope.
+     * Defines priority for the operation execution and
+     * executes given coroutineBlock mutually exclusive under given scope.
      */
     @Synchronized
     fun <T : Any>async(priority: Int = 0, coroutineBlock: suspend CoroutineScope.() -> T): CompletableDeferred<T> {
@@ -76,12 +82,6 @@ class AtomicCoroutineScope(private val scope: CoroutineScope = CoroutineScope(Di
             job.deferredResult.completeExceptionally(t)
         }
     }
-
-    val finishedProcessing: Boolean
-        get() = jobs.isEmpty() && !isRunning
-
-    val pendingJobCount: Int
-        get() = jobs.count()
 
     /**
      * Cancels ongoing and pending operations with given error.
