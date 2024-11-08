@@ -490,8 +490,65 @@ class RoomLifecycleManager
      * If the room is in the process of detaching, this will wait for the detachment to complete.
      * @return when the room is detached.
      */
+    @Suppress("ThrowsCount")
     internal suspend fun detach() {
-        // TODO("Need to impl. room detach")
+        val deferredDetach = atomicCoroutineScope.async(LifecycleOperationPrecedence.AttachOrDetach.priority) {
+            // If we're already detached, this is a no-op
+            if (_status.current === RoomLifecycle.Detached) {
+                return@async
+            }
+            // If the room is released, we can't detach
+            if (_status.current === RoomLifecycle.Released) {
+                throw AblyException.fromErrorInfo(
+                    ErrorInfo(
+                        "unable to detach room; room is released",
+                        HttpStatusCodes.InternalServerError,
+                        ErrorCodes.RoomIsReleased.errorCode,
+                    ),
+                )
+            }
+
+            // If the room is releasing, we can't detach
+            if (_status.current === RoomLifecycle.Releasing) {
+                throw AblyException.fromErrorInfo(
+                    ErrorInfo(
+                        "unable to detach room; room is releasing",
+                        HttpStatusCodes.InternalServerError,
+                        ErrorCodes.RoomIsReleasing.errorCode,
+                    ),
+                )
+            }
+
+            // If we're in failed, we should not attempt to detach
+            if (_status.current === RoomLifecycle.Failed) {
+                throw AblyException.fromErrorInfo(
+                    ErrorInfo(
+                        "unable to detach room; room has failed",
+                        HttpStatusCodes.InternalServerError,
+                        ErrorCodes.RoomInFailedState.errorCode,
+                    ),
+                )
+            }
+
+            // We force the room status to be detaching
+            _operationInProgress = true
+            clearAllTransientDetachTimeouts()
+            _status.setStatus(RoomLifecycle.Detaching)
+
+            // We now perform an all-channel wind down.
+            // We keep trying until we reach a suitable conclusion.
+            return@async doDetach()
+        }
+        return deferredDetach.await()
+    }
+
+    /**
+     * Perform a detach.
+     *
+     * If detaching a channel fails, we should retry until every channel is either in the detached state, or in the failed state.
+     */
+    private suspend fun doDetach() {
+        // TODO - Need to implement do detach operation
     }
 
     /**
