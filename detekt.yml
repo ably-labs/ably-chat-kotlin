@@ -99,7 +99,7 @@ complexity:
       - 'with'
   LabeledExpression:
     active: true
-    ignoredLabels: [ ]
+    ignoredLabels: [ 'async' ]
   LargeClass:
     active: true
     threshold: 600
@@ -952,7 +952,7 @@ style:
   UnderscoresInNumericLiterals:
     active: true
     acceptableLength: 4
-    allowNonStandardGrouping: false
+    allowNonStandardGrouping: true
   UnnecessaryAbstractClass:
     active: false
   UnnecessaryAnnotationUseSiteTarget:
