@@ -261,12 +261,13 @@ class RoomLifecycleManager
      * If a channel enters the suspended state, then we reject, but we will retry after a short delay as is the case
      * in the core SDK.
      * If a channel enters the failed state, we reject and then begin to wind down the other channels.
+     * Spec: CHA-RL1
      */
     internal suspend fun attach() {
-        val deferredAttach = atomicCoroutineScope.async(LifecycleOperationPrecedence.AttachOrDetach.priority) {
+        val deferredAttach = atomicCoroutineScope.async(LifecycleOperationPrecedence.AttachOrDetach.priority) { // CHA-RL1d
             when (_status.current) {
-                RoomLifecycle.Attached -> return@async
-                RoomLifecycle.Releasing ->
+                RoomLifecycle.Attached -> return@async // CHA-RL1a
+                RoomLifecycle.Releasing -> // CHA-RL1b
                     throw AblyException.fromErrorInfo(
                         ErrorInfo(
                             "unable to attach room; room is releasing",
@@ -274,7 +275,7 @@ class RoomLifecycleManager
                             ErrorCodes.RoomIsReleasing.errorCode,
                         ),
                     )
-                RoomLifecycle.Released ->
+                RoomLifecycle.Released -> // CHA-RL1c
                     throw AblyException.fromErrorInfo(
                         ErrorInfo(
                             "unable to attach room; room is released",
@@ -288,19 +289,20 @@ class RoomLifecycleManager
             // At this point, we force the room status to be attaching
             clearAllTransientDetachTimeouts()
             _operationInProgress = true
-            _status.setStatus(RoomLifecycle.Attaching)
+            _status.setStatus(RoomLifecycle.Attaching) // CHA-RL1e
 
             val attachResult = doAttach()
 
-            // If we're in a failed state, then we should wind down all the channels, eventually
+            // CHA-RL1h4 - If we're in a failed state, then we should wind down all the channels, eventually
             if (attachResult.status === RoomLifecycle.Failed) {
+                // CHA-RL1h5 - detach all remaining channels
                 atomicCoroutineScope.async(LifecycleOperationPrecedence.Internal.priority) {
                     runDownChannelsOnFailedAttach()
                 }
-                throw attachResult.exception
+                throw attachResult.exception // CHA-RL1h1
             }
 
-            // If we're in suspended, then this attach should fail, but we'll retry after a short delay async
+            // CHA-RL1h1, CHA-RL1h2 - If we're in suspended, then this attach should fail, but we'll retry after a short delay async
             if (attachResult.status === RoomLifecycle.Suspended) {
                 if (attachResult.failedFeature == null) {
                     AblyException.fromErrorInfo(
@@ -308,11 +310,12 @@ class RoomLifecycleManager
                     )
                 }
                 attachResult.failedFeature?.let {
+                    // CHA-RL1h3 - Enter recovery for failed room feature/contributor
                     atomicCoroutineScope.async(LifecycleOperationPrecedence.Internal.priority) {
                         doRetry(it)
                     }
                 }
-                throw attachResult.exception
+                throw attachResult.exception // CHA-RL1h1
             }
 
             // We attached, finally!
@@ -325,15 +328,15 @@ class RoomLifecycleManager
      *
      * Attaches each feature channel with rollback on channel attach failure.
      * This method is re-usable and can be called as a part of internal room operations.
-     *
+     * Spec: CHA-RL1f, CHA-RL1g, CHA-RL1h
      */
     private suspend fun doAttach(): RoomAttachmentResult {
         val attachResult = DefaultRoomAttachmentResult()
-        for (feature in _contributors) {
+        for (feature in _contributors) { // CHA-RL1f - attach each feature sequentially
             try {
                 feature.channel.attachCoroutine()
                 _firstAttachesCompleted[feature] = true
-            } catch (ex: Throwable) {
+            } catch (ex: Throwable) { // CHA-RL1h - handle channel attach failure
                 attachResult._failedFeature = feature
                 attachResult._error = ErrorInfo(
                     "failed to attach ${feature.contributor.featureName} feature${feature.channel.errorMessage}",
@@ -368,7 +371,7 @@ class RoomLifecycleManager
             }
         }
 
-        // We successfully attached all the channels - set our status to attached, start listening changes in channel status
+        // CHA-RL1g, We successfully attached all the channels - set our status to attached, start listening changes in channel status
         this._status.setStatus(attachResult)
         this._operationInProgress = false
 
@@ -382,14 +385,14 @@ class RoomLifecycleManager
 
     /**
      * If we've failed to attach, then we're in the failed state and all that is left to do is to detach all the channels.
-     *
+     * Spec: CHA-RL1h5, CHA-RL1h6
      * @returns Returns only when all channels are detached. Doesn't throw exception.
      */
     private suspend fun runDownChannelsOnFailedAttach() {
         // At this point, we have control over the channel lifecycle, so we can hold onto it until things are resolved
         // Keep trying to detach the channels until they're all detached.
         var channelWindDown = kotlin.runCatching { doChannelWindDown() }
-        while (channelWindDown.isFailure) {
+        while (channelWindDown.isFailure) { // CHA-RL1h6 - repeat until all channels are detached
             // Something went wrong during the wind down. After a short delay, to give others a turn, we should run down
             // again until we reach a suitable conclusion.
             delay(250)
@@ -400,9 +403,10 @@ class RoomLifecycleManager
     /**
      * Detach all features except the one exception provided.
      * If the room is in a failed state, then all channels should either reach the failed state or be detached.
-     *
+     * Spec: CHA-RL1h5
      * @param except The contributor to exclude from the detachment.
      * @returns Success/Failure when all channels are detached or at least one of them fails.
+     *
      */
     private suspend fun doChannelWindDown(except: ResolvedContributor? = null) = coroutineScope {
         _contributors.map { contributor: ResolvedContributor ->

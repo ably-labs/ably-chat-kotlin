@@ -38,7 +38,7 @@ class RoomLifecycleManagerTest {
         val status = spyk<DefaultStatus>().apply {
             setStatus(RoomLifecycle.Attached)
         }
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, emptyList()))
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, createRoomFeatureMocks()))
         val result = kotlin.runCatching { roomLifecycle.attach() }
         Assert.assertTrue(result.isSuccess)
     }
@@ -48,7 +48,7 @@ class RoomLifecycleManagerTest {
         val status = spyk<DefaultStatus>().apply {
             setStatus(RoomLifecycle.Releasing)
         }
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, emptyList()))
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, createRoomFeatureMocks()))
         val exception = Assert.assertThrows(AblyException::class.java) {
             runBlocking {
                 roomLifecycle.attach()
@@ -76,11 +76,11 @@ class RoomLifecycleManagerTest {
     }
 
     @Test
-    fun `(CHA-RL1d, CHA-RL1j) Attach op should wait for existing operation as per (CHA-RL7)`() = runTest {
+    fun `(CHA-RL1d) Attach op should wait for existing operation as per (CHA-RL7)`() = runTest {
         val status = spyk<DefaultStatus>()
         Assert.assertEquals(RoomLifecycle.Initializing, status.current)
 
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, emptyList()))
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, status, createRoomFeatureMocks()))
 
         val roomReleased = Channel<Boolean>()
         coEvery {
