@@ -548,7 +548,32 @@ class RoomLifecycleManager
      * If detaching a channel fails, we should retry until every channel is either in the detached state, or in the failed state.
      */
     private suspend fun doDetach() {
-        // TODO - Need to implement do detach operation
+        var channelWindDown = kotlin.runCatching { doChannelWindDown() }
+        var failedError: AblyException? = null
+        while (channelWindDown.isFailure) {
+            val err = channelWindDown.exceptionOrNull()
+            if (err is AblyException && err.errorInfo?.code != -1 && failedError == null) {
+                failedError = err
+            }
+            delay(_retryDurationInMs)
+            channelWindDown = kotlin.runCatching { doChannelWindDown() }
+        }
+
+        // If we aren't in the failed state, then we're detached
+        if (_status.current !== RoomLifecycle.Failed) {
+            _status.setStatus(RoomLifecycle.Detached)
+            return
+        }
+
+        // If we're in the failed state, then we need to throw the error
+        throw failedError
+            ?: AblyException.fromErrorInfo(
+                ErrorInfo(
+                    "unknown error in _doDetach",
+                    HttpStatusCodes.InternalServerError,
+                    ErrorCodes.RoomLifecycleError.errorCode,
+                ),
+            )
     }
 
     /**
