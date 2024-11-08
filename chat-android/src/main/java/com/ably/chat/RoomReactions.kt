@@ -107,7 +107,7 @@ internal class DefaultRoomReactions(
     roomId: String,
     private val clientId: String,
     realtimeChannels: AblyRealtime.Channels,
-) : RoomReactions, ContributesToRoomLifecycle, ResolvedContributor {
+) : RoomReactions, ContributesToRoomLifecycleImpl(), ResolvedContributor {
 
     private val roomReactionsChannelName = "$roomId::\$chat::\$reactions"
 
@@ -118,8 +118,6 @@ internal class DefaultRoomReactions(
     override val attachmentErrorCode: ErrorCodes = ErrorCodes.ReactionsAttachmentFailed
 
     override val detachmentErrorCode: ErrorCodes = ErrorCodes.ReactionsDetachmentFailed
-
-    private val discontinuityEmitter = DiscontinuityEmitter()
 
     // (CHA-ER3) Ephemeral room reactions are sent to Ably via the Realtime connection via a send method.
     // (CHA-ER3a) Reactions are sent on the channel using a message in a particular format - see spec for format.
@@ -161,16 +159,5 @@ internal class DefaultRoomReactions(
         }
         channel.subscribe(RoomReactionEventType.Reaction.eventName, messageListener)
         return Subscription { channel.unsubscribe(RoomReactionEventType.Reaction.eventName, messageListener) }
-    }
-
-    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
-        discontinuityEmitter.on(listener)
-        return Subscription {
-            discontinuityEmitter.off(listener)
-        }
-    }
-
-    override fun discontinuityDetected(reason: ErrorInfo?) {
-        discontinuityEmitter.emit("discontinuity", reason)
     }
 }

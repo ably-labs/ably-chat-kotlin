@@ -132,7 +132,7 @@ data class PresenceEvent(
 
 internal class DefaultPresence(
     private val messages: Messages,
-) : Presence, ContributesToRoomLifecycle, ResolvedContributor {
+) : Presence, ContributesToRoomLifecycleImpl(), ResolvedContributor {
 
     override val channel = messages.channel
 
@@ -141,8 +141,6 @@ internal class DefaultPresence(
     override val attachmentErrorCode: ErrorCodes = ErrorCodes.PresenceAttachmentFailed
 
     override val detachmentErrorCode: ErrorCodes = ErrorCodes.PresenceDetachmentFailed
-
-    private val discontinuityEmitter = DiscontinuityEmitter()
 
     override suspend fun get(params: List<Params>): List<PresenceMember> {
         TODO("Not yet implemented")
@@ -166,16 +164,5 @@ internal class DefaultPresence(
 
     override fun subscribe(listener: Presence.Listener): Subscription {
         TODO("Not yet implemented")
-    }
-
-    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
-        discontinuityEmitter.on(listener)
-        return Subscription {
-            discontinuityEmitter.off(listener)
-        }
-    }
-
-    override fun discontinuityDetected(reason: ErrorInfo?) {
-        discontinuityEmitter.emit("discontinuity", reason)
     }
 }
