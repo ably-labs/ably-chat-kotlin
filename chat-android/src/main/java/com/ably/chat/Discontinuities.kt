@@ -44,7 +44,7 @@ interface EmitsDiscontinuities {
     }
 }
 
-open class DiscontinuityEmitter : EventEmitter<String, EmitsDiscontinuities.Listener>() {
+class DiscontinuityEmitter : EventEmitter<String, EmitsDiscontinuities.Listener>() {
     override fun apply(listener: EmitsDiscontinuities.Listener?, event: String?, vararg args: Any?) {
         try {
             listener?.discontinuityEmitted(args[0] as? ErrorInfo?)
