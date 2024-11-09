@@ -2,6 +2,7 @@ package com.ably.chat
 
 import java.util.concurrent.PriorityBlockingQueue
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -66,7 +67,8 @@ class AtomicCoroutineScope(private val scope: CoroutineScope = CoroutineScope(Di
 
     private suspend fun <T : Any> safeExecute(job: Job<T>) {
         try {
-            scope.launch {
+            // Appends coroutineContext to cancel current/pending jobs when AtomicCoroutineScope is cancelled
+            scope.launch(coroutineContext) {
                 try {
                     val result = job.coroutineBlock(this)
                     job.deferredResult.complete(result)
@@ -81,6 +83,7 @@ class AtomicCoroutineScope(private val scope: CoroutineScope = CoroutineScope(Di
 
     /**
      * Cancels ongoing and pending operations with given error.
+     * See [Coroutine cancellation](https://kt.academy/article/cc-cancellation#cancellation-in-a-coroutine-scope) for more information.
      */
     @Synchronized
     fun cancel(message: String?, cause: Throwable? = null) {
