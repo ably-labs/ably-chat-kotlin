@@ -20,6 +20,7 @@ gson = "2.11.0"
 mockk = "1.13.12"
 coroutine = "1.8.1"
 build-config = "5.4.0"
+ktor = "3.0.1"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -50,9 +51,15 @@ mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 coroutine-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutine" }
 coroutine-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutine" }
 
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+
+[bundles]
+ktor-client = ["ktor-client-core", "ktor-client-cio"]
+
 [plugins]
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt"}
-android-kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+android-kotlin = { id = "org.jetbrains.kotlin.android", version = "2.0.21" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
