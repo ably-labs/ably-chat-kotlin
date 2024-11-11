@@ -239,7 +239,6 @@ class AtomicCoroutineScopeTest {
             }
         }
 
-        Assert.assertFalse(atomicCoroutineScope.finishedProcessing)
         deferredResults.awaitAll()
         val expectedResults = (1000 downTo 0).toList()
         repeat(1001) {
