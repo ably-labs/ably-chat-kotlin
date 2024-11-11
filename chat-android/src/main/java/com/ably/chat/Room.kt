@@ -2,6 +2,7 @@
 
 package com.ably.chat
 
+import io.ably.lib.types.ErrorInfo
 import io.ably.lib.util.Log.LogHandler
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
@@ -57,19 +58,36 @@ interface Room {
     val occupancy: Occupancy
 
     /**
-     * (CHA-RS2)
-     * Returns an object that can be used to observe the status of the room.
-     *
-     * @returns The status observable.
-     */
-    val status: RoomStatus
-
-    /**
      * Returns the room options.
      *
      * @returns A copy of the options used to create the room.
      */
     val options: RoomOptions
+
+    /**
+     * (CHA-RS2)
+     * The current status of the room.
+     *
+     * @returns The current status.
+     */
+    val status: RoomStatus
+
+    /**
+     * The current error, if any, that caused the room to enter the current status.
+     */
+    val error: ErrorInfo?
+
+    /**
+     * Registers a listener that will be called whenever the room status changes.
+     * @param listener The function to call when the status changes.
+     * @returns An object that can be used to unregister the listener.
+     */
+    fun onStatusChange(listener: RoomLifecycle.Listener): Subscription
+
+    /**
+     * Removes all listeners that were added by the `onStatusChange` method.
+     */
+    fun offAllStatusChange()
 
     /**
      * Attaches to the room to receive events in realtime.
@@ -98,7 +116,6 @@ internal class DefaultRoom(
 ) : Room {
 
     private val _logger = logger
-    override val status = DefaultStatus(logger)
 
     /**
      * RoomScope is a crucial part of the Room lifecycle. It manages sequential and atomic operations.
@@ -132,8 +149,17 @@ internal class DefaultRoom(
     override val occupancy = DefaultOccupancy(
         messages = messages,
     )
-
     private var _lifecycleManager: RoomLifecycleManager? = null
+
+    private val _statusLifecycle = DefaultRoomLifecycle(logger)
+    internal val statusLifecycle: DefaultRoomLifecycle
+        get() = _statusLifecycle
+
+    override val status: RoomStatus
+        get() = _statusLifecycle.status
+
+    override val error: ErrorInfo?
+        get() = _statusLifecycle.error
 
     init {
         /**
@@ -143,7 +169,7 @@ internal class DefaultRoom(
          * Currently, all features are initialized by default.
          */
         val features = listOf(messages, presence, typing, reactions, occupancy)
-        _lifecycleManager = RoomLifecycleManager(roomScope, status, features, _logger)
+        _lifecycleManager = RoomLifecycleManager(roomScope, _statusLifecycle, features, _logger)
         /**
          * TODO
          * Make sure previous release op. for same was a success.
@@ -151,7 +177,13 @@ internal class DefaultRoom(
          * Once this is a success, set room to initialized, if not set it to failed and throw error.
          * Note that impl. can change based on recent proposed changes to chat-room-lifecycle DR.
          */
-        this.status.setStatus(RoomLifecycle.Initialized)
+        this._statusLifecycle.setStatus(RoomStatus.Initialized)
+    }
+
+    override fun onStatusChange(listener: RoomLifecycle.Listener): Subscription = _statusLifecycle.onChange(listener)
+
+    override fun offAllStatusChange() {
+        _statusLifecycle.offAll()
     }
 
     override suspend fun attach() {

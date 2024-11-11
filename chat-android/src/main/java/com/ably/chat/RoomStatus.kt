@@ -6,81 +6,10 @@ import io.ably.lib.util.Log
 import io.ably.lib.util.Log.LogHandler
 
 /**
- * Represents the status of a Room.
- */
-interface RoomStatus {
-    /**
-     * (CHA-RS2a)
-     * The current status of the room.
-     */
-    val current: RoomLifecycle
-
-    /**
-     * (CHA-RS2b)
-     * The current error, if any, that caused the room to enter the current status.
-     */
-    val error: ErrorInfo?
-
-    /**
-     * Registers a listener that will be called whenever the room status changes.
-     * @param listener The function to call when the status changes.
-     * @returns An object that can be used to unregister the listener.
-     */
-    fun onChange(listener: Listener): Subscription
-
-    /**
-     * An interface for listening to changes for the room status
-     */
-    fun interface Listener {
-        /**
-         * A function that can be called when the room status changes.
-         * @param change The change in status.
-         */
-        fun roomStatusChanged(change: RoomStatusChange)
-    }
-
-    /**
-     * Removes all listeners that were added by the `onChange` method.
-     */
-    fun offAll()
-}
-
-/**
- * A new room status that can be set.
- */
-interface NewRoomStatus {
-    /**
-     * The new status of the room.
-     */
-    val status: RoomLifecycle
-
-    /**
-     * An error that provides a reason why the room has
-     * entered the new status, if applicable.
-     */
-    val error: ErrorInfo?
-}
-
-interface InternalRoomStatus : RoomStatus {
-    /**
-     * Registers a listener that will be called once when the room status changes.
-     * @param listener The function to call when the status changes.
-     */
-    fun onChangeOnce(listener: RoomStatus.Listener)
-
-    /**
-     * Sets the status of the room.
-     *
-     * @param params The new status of the room.
-     */
-    fun setStatus(params: NewRoomStatus)
-}
-
-/**
  * (CHA-RS1)
  * The different states that a room can be in throughout its lifecycle.
  */
-enum class RoomLifecycle(val stateName: String) {
+enum class RoomStatus(val stateName: String) {
     /**
      * The library is currently initializing the room.
      */
@@ -149,12 +78,12 @@ data class RoomStatusChange(
     /**
      * The new status of the room.
      */
-    val current: RoomLifecycle,
+    val current: RoomStatus,
 
     /**
      * The previous status of the room.
      */
-    val previous: RoomLifecycle,
+    val previous: RoomStatus,
 
     /**
      * An error that provides a reason why the room has
@@ -163,9 +92,85 @@ data class RoomStatusChange(
     val error: ErrorInfo? = null,
 )
 
-class RoomStatusEventEmitter : EventEmitter<RoomLifecycle, RoomStatus.Listener>() {
+/**
+ * Represents the status of a Room.
+ */
+interface RoomLifecycle {
+    /**
+     * (CHA-RS2a)
+     * The current status of the room.
+     */
+    val status: RoomStatus
 
-    override fun apply(listener: RoomStatus.Listener?, event: RoomLifecycle?, vararg args: Any?) {
+    /**
+     * (CHA-RS2b)
+     * The current error, if any, that caused the room to enter the current status.
+     */
+    val error: ErrorInfo?
+
+    /**
+     * Registers a listener that will be called whenever the room status changes.
+     * @param listener The function to call when the status changes.
+     * @returns An object that can be used to unregister the listener.
+     */
+    fun onChange(listener: Listener): Subscription
+
+    /**
+     * An interface for listening to changes for the room status
+     */
+    fun interface Listener {
+        /**
+         * A function that can be called when the room status changes.
+         * @param change The change in status.
+         */
+        fun roomStatusChanged(change: RoomStatusChange)
+    }
+
+    /**
+     * Removes all listeners that were added by the `onChange` method.
+     */
+    fun offAll()
+}
+
+/**
+ * A new room status that can be set.
+ */
+interface NewRoomStatus {
+    /**
+     * The new status of the room.
+     */
+    val status: RoomStatus
+
+    /**
+     * An error that provides a reason why the room has
+     * entered the new status, if applicable.
+     */
+    val error: ErrorInfo?
+}
+
+/**
+ * An internal interface for the status of a room, which can be used to separate critical
+ * internal functionality from user listeners.
+ * @internal
+ */
+interface InternalRoomLifecycle : RoomLifecycle {
+    /**
+     * Registers a listener that will be called once when the room status changes.
+     * @param listener The function to call when the status changes.
+     */
+    fun onChangeOnce(listener: RoomLifecycle.Listener)
+
+    /**
+     * Sets the status of the room.
+     *
+     * @param params The new status of the room.
+     */
+    fun setStatus(params: NewRoomStatus)
+}
+
+class RoomStatusEventEmitter : EventEmitter<RoomStatus, RoomLifecycle.Listener>() {
+
+    override fun apply(listener: RoomLifecycle.Listener?, event: RoomStatus?, vararg args: Any?) {
         try {
             listener?.roomStatusChanged(args[0] as RoomStatusChange)
         } catch (t: Throwable) {
@@ -174,13 +179,12 @@ class RoomStatusEventEmitter : EventEmitter<RoomLifecycle, RoomStatus.Listener>(
     }
 }
 
-class DefaultStatus(private val logger: LogHandler? = null) : InternalRoomStatus {
+class DefaultRoomLifecycle(private val logger: LogHandler? = null) : InternalRoomLifecycle {
 
     private val _logger = logger
-
-    private var _state = RoomLifecycle.Initializing
-    override val current: RoomLifecycle
-        get() = _state
+    private var _status = RoomStatus.Initializing
+    override val status: RoomStatus
+        get() = _status
 
     private var _error: ErrorInfo? = null
     override val error: ErrorInfo?
@@ -189,7 +193,7 @@ class DefaultStatus(private val logger: LogHandler? = null) : InternalRoomStatus
     private val externalEmitter = RoomStatusEventEmitter()
     private val internalEmitter = RoomStatusEventEmitter()
 
-    override fun onChange(listener: RoomStatus.Listener): Subscription {
+    override fun onChange(listener: RoomLifecycle.Listener): Subscription {
         externalEmitter.on(listener)
         return Subscription {
             externalEmitter.off(listener)
@@ -200,21 +204,21 @@ class DefaultStatus(private val logger: LogHandler? = null) : InternalRoomStatus
         externalEmitter.off()
     }
 
-    override fun onChangeOnce(listener: RoomStatus.Listener) {
+    override fun onChangeOnce(listener: RoomLifecycle.Listener) {
         internalEmitter.once(listener)
     }
 
     override fun setStatus(params: NewRoomStatus) {
-        val change = RoomStatusChange(params.status, current, params.error)
-        _state = change.current
+        val change = RoomStatusChange(params.status, _status, params.error)
+        _status = change.current
         _error = change.error
         internalEmitter.emit(change.current, change)
         externalEmitter.emit(change.current, change)
     }
 
-    fun setStatus(status: RoomLifecycle, error: ErrorInfo? = null) {
+    fun setStatus(status: RoomStatus, error: ErrorInfo? = null) {
         val newStatus = object : NewRoomStatus {
-            override val status: RoomLifecycle = status
+            override val status: RoomStatus = status
             override val error: ErrorInfo? = error
         }
         this.setStatus(newStatus)
