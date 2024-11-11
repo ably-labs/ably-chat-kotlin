@@ -332,6 +332,7 @@ class RoomLifecycleManagerTest {
 
         val detachedChannels = mutableListOf<io.ably.lib.realtime.Channel>()
         coEvery { any<io.ably.lib.realtime.Channel>().detachCoroutine() } coAnswers {
+            delay(200)
             detachedChannels.add(firstArg())
         }
 
@@ -379,6 +380,7 @@ class RoomLifecycleManagerTest {
         var failDetachTimes = 5
         val detachedChannels = mutableListOf<io.ably.lib.realtime.Channel>()
         coEvery { any<io.ably.lib.realtime.Channel>().detachCoroutine() } coAnswers {
+            delay(200)
             if (--failDetachTimes >= 0) {
                 error("failed to detach channel")
             }
