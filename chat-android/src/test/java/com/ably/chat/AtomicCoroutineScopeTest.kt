@@ -29,7 +29,7 @@ class AtomicCoroutineScopeTest {
             delay(3000)
             return@async "Operation Success!"
         }
-        Assert.assertFalse(atomicCoroutineScope.finishedProcessing)
+        assertWaiter { !atomicCoroutineScope.finishedProcessing }
         val result = deferredResult.await()
         assertWaiter { atomicCoroutineScope.finishedProcessing }
         Assert.assertEquals("Operation Success!", result)
@@ -46,7 +46,7 @@ class AtomicCoroutineScopeTest {
             delay(2000)
             return@async "Operation Success!"
         }
-        Assert.assertFalse(atomicCoroutineScope.finishedProcessing)
+        assertWaiter { !atomicCoroutineScope.finishedProcessing }
 
         val ex = Assert.assertThrows(AblyException::class.java) {
             runBlocking {
@@ -80,7 +80,7 @@ class AtomicCoroutineScopeTest {
             }
             deferredResults.add(result)
         }
-        Assert.assertFalse(atomicCoroutineScope.finishedProcessing)
+        assertWaiter { !atomicCoroutineScope.finishedProcessing }
 
         val results = deferredResults.awaitAll()
         assertWaiter { atomicCoroutineScope.finishedProcessing }
@@ -151,7 +151,7 @@ class AtomicCoroutineScopeTest {
             }
             deferredResults.add(result)
         }
-        Assert.assertFalse(atomicCoroutineScope.finishedProcessing)
+        assertWaiter { !atomicCoroutineScope.finishedProcessing }
 
         val results = deferredResults.awaitAll()
         repeat(10) {
@@ -159,7 +159,7 @@ class AtomicCoroutineScopeTest {
             Assert.assertEquals("roomId", contextNames[it])
             Assert.assertThat(contexts[it], containsString("Dispatchers.Default.limitedParallelism(1)"))
         }
-        Assert.assertTrue(atomicCoroutineScope.finishedProcessing)
+        assertWaiter { atomicCoroutineScope.finishedProcessing }
     }
 
     @Test
@@ -201,7 +201,7 @@ class AtomicCoroutineScopeTest {
             Assert.assertEquals(expectedResults[it], results[it])
             Assert.assertThat(contexts[it], containsString("Dispatchers.Default"))
         }
-        Assert.assertTrue(atomicCoroutineScope.finishedProcessing)
+        assertWaiter { atomicCoroutineScope.finishedProcessing }
     }
 
     @Test
@@ -244,7 +244,7 @@ class AtomicCoroutineScopeTest {
         repeat(1001) {
             Assert.assertEquals(expectedResults[it], processedValues[it])
         }
-        Assert.assertTrue(atomicCoroutineScope.finishedProcessing)
+        assertWaiter { atomicCoroutineScope.finishedProcessing }
     }
 
     @Test
@@ -258,7 +258,7 @@ class AtomicCoroutineScopeTest {
                 },
             )
         }
-        Assert.assertFalse(atomicCoroutineScope.finishedProcessing)
+        assertWaiter { !atomicCoroutineScope.finishedProcessing }
         Assert.assertEquals(9, atomicCoroutineScope.pendingJobCount)
 
         // Cancelling scope should cancel current job and other queued jobs
@@ -277,7 +277,7 @@ class AtomicCoroutineScopeTest {
             delay(200)
             return@async "Operation Success!"
         }
-        Assert.assertFalse(atomicCoroutineScope.finishedProcessing)
+        assertWaiter { !atomicCoroutineScope.finishedProcessing }
 
         val result3 = deferredResult3.await()
         assertWaiter { atomicCoroutineScope.finishedProcessing }
