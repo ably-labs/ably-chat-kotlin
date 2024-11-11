@@ -990,7 +990,7 @@ style:
       - 'Preview'
   UnusedPrivateProperty:
     active: true
-    allowedNames: '_|ignored|expected|serialVersionUID'
+    allowedNames: '_|ignored|expected|serialVersionUID|_firstAttachesCompleted|_logger'
   UseAnyOrNoneInsteadOfFind:
     active: false
   UseArrayLiteralsInAnnotations:
