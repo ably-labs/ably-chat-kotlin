@@ -498,11 +498,11 @@ class RoomLifecycleManager(
     internal suspend fun detach() {
         val deferredDetach = atomicCoroutineScope.async(LifecycleOperationPrecedence.AttachOrDetach.priority) {
             // If we're already detached, this is a no-op
-            if (_status.current === RoomLifecycle.Detached) {
+            if (_statusLifecycle.status === RoomStatus.Detached) {
                 return@async
             }
             // If the room is released, we can't detach
-            if (_status.current === RoomLifecycle.Released) {
+            if (_statusLifecycle.status === RoomStatus.Released) {
                 throw AblyException.fromErrorInfo(
                     ErrorInfo(
                         "unable to detach room; room is released",
@@ -513,7 +513,7 @@ class RoomLifecycleManager(
             }
 
             // If the room is releasing, we can't detach
-            if (_status.current === RoomLifecycle.Releasing) {
+            if (_statusLifecycle.status === RoomStatus.Releasing) {
                 throw AblyException.fromErrorInfo(
                     ErrorInfo(
                         "unable to detach room; room is releasing",
@@ -524,7 +524,7 @@ class RoomLifecycleManager(
             }
 
             // If we're in failed, we should not attempt to detach
-            if (_status.current === RoomLifecycle.Failed) {
+            if (_statusLifecycle.status === RoomStatus.Failed) {
                 throw AblyException.fromErrorInfo(
                     ErrorInfo(
                         "unable to detach room; room has failed",
@@ -537,7 +537,7 @@ class RoomLifecycleManager(
             // We force the room status to be detaching
             _operationInProgress = true
             clearAllTransientDetachTimeouts()
-            _status.setStatus(RoomLifecycle.Detaching)
+            _statusLifecycle.setStatus(RoomStatus.Detaching)
 
             // We now perform an all-channel wind down.
             // We keep trying until we reach a suitable conclusion.
@@ -564,8 +564,8 @@ class RoomLifecycleManager(
         }
 
         // If we aren't in the failed state, then we're detached
-        if (_status.current !== RoomLifecycle.Failed) {
-            _status.setStatus(RoomLifecycle.Detached)
+        if (_statusLifecycle.status !== RoomStatus.Failed) {
+            _statusLifecycle.setStatus(RoomStatus.Detached)
             return
         }
 
