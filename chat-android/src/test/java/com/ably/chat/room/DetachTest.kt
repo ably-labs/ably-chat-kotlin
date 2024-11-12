@@ -242,7 +242,7 @@ class DetachTest {
             exception.errorInfo.message,
         )
         Assert.assertEquals(ErrorCodes.TypingDetachmentFailed.errorCode, exception.errorInfo.code)
-        Assert.assertEquals(500, exception.errorInfo.statusCode)
+        Assert.assertEquals(HttpStatusCodes.InternalServerError, exception.errorInfo.statusCode)
 
         // The same ErrorInfo must accompany the FAILED room status
         Assert.assertSame(statusLifecycle.error, exception.errorInfo)
@@ -252,5 +252,55 @@ class DetachTest {
             roomLifecycle["doChannelWindDown"](any<ResolvedContributor>())
         }
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
+    }
+
+    @Suppress("MaximumLineLength")
+    @Test
+    fun `(CHA-RL2h2) If multiple contributors fails to detach (enters failed state), then failed status should be emitted only once`() = runTest {
+        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val failedRoomEvents = mutableListOf<RoomStatusChange>()
+        statusLifecycle.onChange {
+            if (it.current == RoomStatus.Failed) {
+                failedRoomEvents.add(it)
+            }
+        }
+
+        mockkStatic(io.ably.lib.realtime.Channel::detachCoroutine)
+        coEvery { any<io.ably.lib.realtime.Channel>().detachCoroutine() } coAnswers {
+            val channel = firstArg<io.ably.lib.realtime.Channel>()
+            if ("typing" in channel.name) {
+                val error = ErrorInfo("error detaching channel ${channel.name}", 500)
+                channel.setState(ChannelState.failed, error)
+                throw AblyException.fromErrorInfo(error)
+            }
+
+            if ("reactions" in channel.name) {
+                val error = ErrorInfo("error detaching channel ${channel.name}", 500)
+                channel.setState(ChannelState.failed, error)
+                throw AblyException.fromErrorInfo(error)
+            }
+        }
+
+        val contributors = createRoomFeatureMocks("1234")
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors), recordPrivateCalls = true)
+
+        val result = kotlin.runCatching { roomLifecycle.detach() }
+
+        Assert.assertTrue(result.isFailure)
+        Assert.assertEquals(RoomStatus.Failed, statusLifecycle.status)
+        assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
+
+        Assert.assertEquals(1, failedRoomEvents.size)
+        Assert.assertEquals(RoomStatus.Detaching, failedRoomEvents[0].previous)
+        Assert.assertEquals(RoomStatus.Failed, failedRoomEvents[0].current)
+
+        // Emit error for the first failed contributor
+        val error = failedRoomEvents[0].error as ErrorInfo
+        Assert.assertEquals(
+            "failed to detach typing feature, error detaching channel 1234::\$chat::\$typingIndicators",
+            error.message,
+        )
+        Assert.assertEquals(ErrorCodes.TypingDetachmentFailed.errorCode, error.code)
+        Assert.assertEquals(HttpStatusCodes.InternalServerError, error.statusCode)
     }
 }
