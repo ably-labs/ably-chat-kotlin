@@ -176,6 +176,11 @@ class RoomLifecycleManager(
     private val _firstAttachesCompleted = mutableMapOf<ResolvedContributor, Boolean>()
 
     /**
+     * Are we in the process of releasing the room?
+     */
+    private var _releaseInProgress = false
+
+    /**
      * Retry duration in milliseconds, used by internal doRetry and runDownChannelsOnFailedAttach methods
      */
     private val _retryDurationInMs: Long = 250
@@ -589,6 +594,57 @@ class RoomLifecycleManager(
      * state (e.g. attached), release will throw exception.
      */
     internal suspend fun release() {
-        // TODO("Need to impl. room release")
+        val deferredRelease = atomicCoroutineScope.async(LifecycleOperationPrecedence.Release.priority) { // CHA-RL2i
+            // If we're already released, this is a no-op
+            if (_statusLifecycle.status === RoomStatus.Released) {
+                return@async
+            }
+
+            // If we're already detached, then we can transition to released immediately
+            if (_statusLifecycle.status === RoomStatus.Detached) {
+                _statusLifecycle.setStatus(RoomStatus.Released)
+                return@async
+            }
+
+            // If we're in the process of releasing, we should wait for it to complete
+            if (_releaseInProgress) {
+                return@async listenToRoomRelease()
+            }
+
+            // We force the room status to be releasing
+            clearAllTransientDetachTimeouts()
+            _operationInProgress = true
+            _releaseInProgress = true
+            _statusLifecycle.setStatus(RoomStatus.Releasing)
+
+            // Do the release until it completes
+            return@async releaseChannels()
+        }
+        deferredRelease.await()
+    }
+
+    private suspend fun listenToRoomRelease() = suspendCancellableCoroutine { continuation ->
+        _statusLifecycle.onChangeOnce {
+            if (it.current == RoomStatus.Released) {
+                continuation.resume(Unit)
+            } else {
+                val err = AblyException.fromErrorInfo(
+                    ErrorInfo(
+                        "failed to release room; existing attempt failed${it.errorMessage}",
+                        HttpStatusCodes.InternalServerError,
+                        ErrorCodes.PreviousOperationFailed.errorCode,
+                    ),
+                )
+                continuation.resumeWithException(err)
+            }
+        }
+    }
+
+    /**
+     *  Releases the room by detaching all channels. If the release operation fails, we wait
+     *  a short period and then try again.
+     */
+    private suspend fun releaseChannels() {
+        // TODO("need to be implemented")
     }
 }
