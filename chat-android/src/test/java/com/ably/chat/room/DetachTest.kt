@@ -27,6 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -302,5 +303,42 @@ class DetachTest {
         )
         Assert.assertEquals(ErrorCodes.TypingDetachmentFailed.errorCode, error.code)
         Assert.assertEquals(HttpStatusCodes.InternalServerError, error.statusCode)
+    }
+
+    @Suppress("MaximumLineLength")
+    @Test
+    fun `(CHA-RL2h3) If channel fails to detach entering another state (ATTACHED), detach will be retried until finally detached`() = runTest {
+        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val roomEvents = mutableListOf<RoomStatusChange>()
+        statusLifecycle.onChange {
+            roomEvents.add(it)
+        }
+
+        mockkStatic(io.ably.lib.realtime.Channel::detachCoroutine)
+        var failDetachTimes = 5
+        coEvery { any<io.ably.lib.realtime.Channel>().detachCoroutine() } coAnswers {
+            val channel = firstArg<io.ably.lib.realtime.Channel>()
+            delay(200)
+            if (--failDetachTimes >= 0) {
+                channel.setState(ChannelState.attached)
+                error("failed to detach channel")
+            }
+        }
+
+        val contributors = createRoomFeatureMocks("1234")
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors), recordPrivateCalls = true)
+
+        val result = kotlin.runCatching { roomLifecycle.detach() }
+        Assert.assertTrue(result.isSuccess)
+        Assert.assertEquals(RoomStatus.Detached, statusLifecycle.status)
+        assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
+
+        Assert.assertEquals(0, roomEvents.filter { it.current == RoomStatus.Failed }.size) // Zero failed room status events emitted
+        Assert.assertEquals(1, roomEvents.filter { it.current == RoomStatus.Detached }.size) // Only one detach event received
+
+        // Channel detach success on 6th call
+        coVerify(exactly = 6) {
+            roomLifecycle["doChannelWindDown"](any<ResolvedContributor>())
+        }
     }
 }
