@@ -12,6 +12,7 @@ import com.ably.utils.atomicCoroutineScope
 import com.ably.utils.createRoomFeatureMocks
 import io.ably.lib.types.AblyException
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.justRun
 import io.mockk.mockkStatic
 import io.mockk.spyk
@@ -19,6 +20,10 @@ import io.mockk.verify
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert
@@ -146,5 +151,51 @@ class DetachTest {
         Assert.assertEquals("1234::\$chat::\$reactions", capturedChannels[4].name)
 
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
+    }
+
+    @Test
+    fun `(CHA-RL2i) Detach op should wait for existing operation as per (CHA-RL7)`() = runTest {
+        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        Assert.assertEquals(RoomStatus.Initializing, statusLifecycle.status)
+
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks()))
+
+        val roomReleased = Channel<Boolean>()
+        coEvery {
+            roomLifecycle.release()
+        } coAnswers {
+            roomLifecycle.atomicCoroutineScope().async {
+                statusLifecycle.setStatus(RoomStatus.Releasing)
+                roomReleased.receive()
+                statusLifecycle.setStatus(RoomStatus.Released)
+            }
+        }
+
+        // Release op started from separate coroutine
+        launch { roomLifecycle.release() }
+        assertWaiter { !roomLifecycle.atomicCoroutineScope().finishedProcessing }
+        Assert.assertEquals(0, roomLifecycle.atomicCoroutineScope().pendingJobCount) // no queued jobs, one job running
+        assertWaiter { statusLifecycle.status == RoomStatus.Releasing }
+
+        // Detach op started from separate coroutine
+        val roomDetachOpDeferred = async(SupervisorJob()) { roomLifecycle.detach() }
+        assertWaiter { roomLifecycle.atomicCoroutineScope().pendingJobCount == 1 } // detach op queued
+        Assert.assertEquals(RoomStatus.Releasing, statusLifecycle.status)
+
+        // Finish release op, so DETACH op can start
+        roomReleased.send(true)
+        assertWaiter { statusLifecycle.status == RoomStatus.Released }
+
+        val result = kotlin.runCatching { roomDetachOpDeferred.await() }
+        assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
+
+        Assert.assertTrue(result.isFailure)
+        val exception = result.exceptionOrNull() as AblyException
+
+        Assert.assertEquals("unable to detach room; room is released", exception.errorInfo.message)
+        Assert.assertEquals(ErrorCodes.RoomIsReleased.errorCode, exception.errorInfo.code)
+        Assert.assertEquals(HttpStatusCodes.InternalServerError, exception.errorInfo.statusCode)
+
+        coVerify { roomLifecycle.release() }
     }
 }
