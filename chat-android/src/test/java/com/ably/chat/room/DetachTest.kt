@@ -5,11 +5,17 @@ import com.ably.chat.ErrorCodes
 import com.ably.chat.HttpStatusCodes
 import com.ably.chat.RoomLifecycleManager
 import com.ably.chat.RoomStatus
+import com.ably.chat.RoomStatusChange
 import com.ably.chat.assertWaiter
+import com.ably.chat.detachCoroutine
 import com.ably.utils.atomicCoroutineScope
 import com.ably.utils.createRoomFeatureMocks
 import io.ably.lib.types.AblyException
+import io.mockk.coEvery
+import io.mockk.justRun
+import io.mockk.mockkStatic
 import io.mockk.spyk
+import io.mockk.verify
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -85,6 +91,60 @@ class DetachTest {
         Assert.assertEquals("unable to detach room; room has failed", exception.errorInfo.message)
         Assert.assertEquals(ErrorCodes.RoomInFailedState.errorCode, exception.errorInfo.code)
         Assert.assertEquals(HttpStatusCodes.InternalServerError, exception.errorInfo.statusCode)
+        assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
+    }
+
+    @Test
+    fun `(CHA-RL2e) Detach op should transition room into DETACHING state, transient timeouts should be cleared`() = runTest {
+        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val roomStatusChanges = mutableListOf<RoomStatusChange>()
+        statusLifecycle.onChange {
+            roomStatusChanges.add(it)
+        }
+
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, emptyList()), recordPrivateCalls = true)
+        justRun { roomLifecycle invokeNoArgs "clearAllTransientDetachTimeouts" }
+
+        roomLifecycle.detach()
+        Assert.assertEquals(RoomStatus.Detaching, roomStatusChanges[0].current)
+        Assert.assertEquals(RoomStatus.Detached, roomStatusChanges[1].current)
+
+        assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
+
+        verify(exactly = 1) {
+            roomLifecycle invokeNoArgs "clearAllTransientDetachTimeouts"
+        }
+    }
+
+    @Suppress("MaximumLineLength")
+    @Test
+    fun `(CHA-RL2f, CHA-RL2g) Detach op should detach each contributor channel sequentially and room should be considered DETACHED`() = runTest {
+        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+
+        mockkStatic(io.ably.lib.realtime.Channel::detachCoroutine)
+        val capturedChannels = mutableListOf<io.ably.lib.realtime.Channel>()
+        coEvery { any<io.ably.lib.realtime.Channel>().detachCoroutine() } coAnswers {
+            capturedChannels.add(firstArg())
+        }
+
+        val contributors = createRoomFeatureMocks()
+        Assert.assertEquals(5, contributors.size)
+
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors))
+        val result = kotlin.runCatching { roomLifecycle.detach() }
+        Assert.assertTrue(result.isSuccess)
+        Assert.assertEquals(RoomStatus.Detached, statusLifecycle.status)
+
+        Assert.assertEquals(5, capturedChannels.size)
+        repeat(5) {
+            Assert.assertEquals(contributors[it].channel.name, capturedChannels[it].name)
+        }
+        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[0].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[1].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[2].name)
+        Assert.assertEquals("1234::\$chat::\$typingIndicators", capturedChannels[3].name)
+        Assert.assertEquals("1234::\$chat::\$reactions", capturedChannels[4].name)
+
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
     }
 }
