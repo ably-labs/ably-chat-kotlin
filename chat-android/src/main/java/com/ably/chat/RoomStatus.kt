@@ -209,18 +209,14 @@ class DefaultRoomLifecycle(private val logger: LogHandler? = null) : InternalRoo
     }
 
     override fun setStatus(params: NewRoomStatus) {
-        val change = RoomStatusChange(params.status, _status, params.error)
+        setStatus(params.status, params.error)
+    }
+
+    internal fun setStatus(status: RoomStatus, error: ErrorInfo? = null) {
+        val change = RoomStatusChange(status, _status, error)
         _status = change.current
         _error = change.error
         internalEmitter.emit(change.current, change)
         externalEmitter.emit(change.current, change)
-    }
-
-    fun setStatus(status: RoomStatus, error: ErrorInfo? = null) {
-        val newStatus = object : NewRoomStatus {
-            override val status: RoomStatus = status
-            override val error: ErrorInfo? = error
-        }
-        this.setStatus(newStatus)
     }
 }

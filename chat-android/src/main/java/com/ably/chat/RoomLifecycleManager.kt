@@ -492,7 +492,6 @@ class RoomLifecycleManager(
      * Detaches the room. If the room is already detached, this is a no-op.
      * If one of the channels fails to detach, the room status will be set to failed.
      * If the room is in the process of detaching, this will wait for the detachment to complete.
-     * @return when the room is detached.
      */
     @Suppress("ThrowsCount")
     internal suspend fun detach() {
@@ -553,11 +552,11 @@ class RoomLifecycleManager(
      */
     private suspend fun doDetach() {
         var channelWindDown = kotlin.runCatching { doChannelWindDown() }
-        var failedError: AblyException? = null
+        var channelFailedError: AblyException? = null
         while (channelWindDown.isFailure) {
             val err = channelWindDown.exceptionOrNull()
-            if (err is AblyException && err.errorInfo?.code != -1 && failedError == null) {
-                failedError = err
+            if (err is AblyException && err.errorInfo?.code != -1 && channelFailedError == null) {
+                channelFailedError = err
             }
             delay(_retryDurationInMs)
             channelWindDown = kotlin.runCatching { doChannelWindDown() }
@@ -570,7 +569,7 @@ class RoomLifecycleManager(
         }
 
         // If we're in the failed state, then we need to throw the error
-        throw failedError
+        throw channelFailedError
             ?: AblyException.fromErrorInfo(
                 ErrorInfo(
                     "unknown error in _doDetach",
