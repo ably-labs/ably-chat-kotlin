@@ -3,6 +3,7 @@ package com.ably.chat.room
 import com.ably.chat.DefaultRoomLifecycle
 import com.ably.chat.ErrorCodes
 import com.ably.chat.HttpStatusCodes
+import com.ably.chat.ResolvedContributor
 import com.ably.chat.RoomLifecycleManager
 import com.ably.chat.RoomStatus
 import com.ably.chat.RoomStatusChange
@@ -10,7 +11,10 @@ import com.ably.chat.assertWaiter
 import com.ably.chat.detachCoroutine
 import com.ably.utils.atomicCoroutineScope
 import com.ably.utils.createRoomFeatureMocks
+import com.ably.utils.setState
+import io.ably.lib.realtime.ChannelState
 import io.ably.lib.types.AblyException
+import io.ably.lib.types.ErrorInfo
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.justRun
@@ -197,5 +201,56 @@ class DetachTest {
         Assert.assertEquals(HttpStatusCodes.InternalServerError, exception.errorInfo.statusCode)
 
         coVerify { roomLifecycle.release() }
+    }
+
+    // All of the following tests cover sub-spec points under CHA-RL2h ( channel detach failure )
+    @Suppress("MaximumLineLength")
+    @Test
+    fun `(CHA-RL2h1) If a one of the contributors fails to detach (enters failed state), then room enters failed state, detach op continues for other contributors`() = runTest {
+        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+
+        mockkStatic(io.ably.lib.realtime.Channel::detachCoroutine)
+        // Fail detach for both typing and reactions, should capture error for first failed contributor
+        coEvery { any<io.ably.lib.realtime.Channel>().detachCoroutine() } coAnswers {
+            val channel = firstArg<io.ably.lib.realtime.Channel>()
+            if ("typing" in channel.name) { // Throw error for typing contributor
+                val error = ErrorInfo("error detaching channel ${channel.name}", 500)
+                channel.setState(ChannelState.failed, error)
+                throw AblyException.fromErrorInfo(error)
+            }
+
+            if ("reactions" in channel.name) { // Throw error for reactions contributor
+                val error = ErrorInfo("error detaching channel ${channel.name}", 500)
+                channel.setState(ChannelState.failed, error)
+                throw AblyException.fromErrorInfo(error)
+            }
+        }
+
+        val contributors = createRoomFeatureMocks("1234")
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors), recordPrivateCalls = true)
+
+        val result = kotlin.runCatching { roomLifecycle.detach() }
+
+        Assert.assertTrue(result.isFailure)
+        Assert.assertEquals(RoomStatus.Failed, statusLifecycle.status)
+
+        val exception = result.exceptionOrNull() as AblyException
+
+        // ErrorInfo for the first failed contributor
+        Assert.assertEquals(
+            "failed to detach typing feature, error detaching channel 1234::\$chat::\$typingIndicators",
+            exception.errorInfo.message,
+        )
+        Assert.assertEquals(ErrorCodes.TypingDetachmentFailed.errorCode, exception.errorInfo.code)
+        Assert.assertEquals(500, exception.errorInfo.statusCode)
+
+        // The same ErrorInfo must accompany the FAILED room status
+        Assert.assertSame(statusLifecycle.error, exception.errorInfo)
+
+        // First fail for typing, second fail for reactions, third is a success
+        coVerify(exactly = 3) {
+            roomLifecycle["doChannelWindDown"](any<ResolvedContributor>())
+        }
+        assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
     }
 }

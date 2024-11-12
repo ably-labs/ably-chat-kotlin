@@ -473,7 +473,7 @@ class RoomLifecycleManager(
                         _statusLifecycle.status !== RoomStatus.Released
                     ) {
                         val contributorError = ErrorInfo(
-                            "failed to detach feature",
+                            "failed to detach ${contributor.contributor.featureName} feature${contributor.channel.errorMessage}",
                             HttpStatusCodes.InternalServerError,
                             contributor.contributor.detachmentErrorCode.errorCode,
                         )
