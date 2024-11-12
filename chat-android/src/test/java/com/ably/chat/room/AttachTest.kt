@@ -1,5 +1,15 @@
-package com.ably.chat
+package com.ably.chat.room
 
+import com.ably.chat.DefaultRoomLifecycle
+import com.ably.chat.ErrorCodes
+import com.ably.chat.ResolvedContributor
+import com.ably.chat.RoomLifecycleManager
+import com.ably.chat.RoomStatus
+import com.ably.chat.RoomStatusChange
+import com.ably.chat.assertWaiter
+import com.ably.chat.attachCoroutine
+import com.ably.chat.detachCoroutine
+import com.ably.chat.setPrivateField
 import com.ably.utils.atomicCoroutineScope
 import com.ably.utils.createRoomFeatureMocks
 import com.ably.utils.setState
@@ -27,7 +37,10 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert
 import org.junit.Test
 
-class RoomLifecycleManagerTest {
+/**
+ * Spec: CHA-RL1
+ */
+class AttachTest {
 
     private val roomScope = CoroutineScope(
         Dispatchers.Default.limitedParallelism(1) + CoroutineName("roomId"),
