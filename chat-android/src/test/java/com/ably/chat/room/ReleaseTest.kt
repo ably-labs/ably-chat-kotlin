@@ -52,4 +52,23 @@ class ReleaseTest {
         Assert.assertEquals(RoomStatus.Released, states[0].current)
         Assert.assertEquals(RoomStatus.Detached, states[0].previous)
     }
+
+    @Test
+    fun `(CHA-RL3j) If room is in initialized state, room is immediately transitioned to released`() = runTest {
+        val statusLifecycle = spyk<DefaultRoomLifecycle>().apply {
+            setStatus(RoomStatus.Initialized)
+        }
+        val states = mutableListOf<RoomStatusChange>()
+        statusLifecycle.onChange {
+            states.add(it)
+        }
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks()))
+
+        val result = kotlin.runCatching { roomLifecycle.release() }
+        Assert.assertTrue(result.isSuccess)
+        assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
+        Assert.assertEquals(1, states.size)
+        Assert.assertEquals(RoomStatus.Released, states[0].current)
+        Assert.assertEquals(RoomStatus.Initialized, states[0].previous)
+    }
 }
