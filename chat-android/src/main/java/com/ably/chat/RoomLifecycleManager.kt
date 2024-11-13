@@ -645,6 +645,39 @@ class RoomLifecycleManager(
      *  a short period and then try again.
      */
     private suspend fun releaseChannels() {
-        // TODO("need to be implemented")
+        var contributorsReleased = kotlin.runCatching { doRelease() }
+        while (contributorsReleased.isFailure) {
+            // Wait a short period and then try again
+            delay(_retryDurationInMs)
+            contributorsReleased = kotlin.runCatching { doRelease() }
+        }
+    }
+
+    /**
+     * Performs the release operation. This will detach all channels in the room that aren't
+     * already detached or in the failed state.
+     */
+    @Suppress("RethrowCaughtException")
+    private suspend fun doRelease() = coroutineScope {
+        _contributors.map { contributor: ResolvedContributor ->
+            async {
+                // Failed channels, we can ignore
+                if (contributor.channel.state == ChannelState.failed) {
+                    return@async
+                }
+                // Detached channels, we can ignore
+                if (contributor.channel.state == ChannelState.detached) {
+                    return@async
+                }
+                try {
+                    contributor.channel.detachCoroutine()
+                } catch (ex: Throwable) {
+                    // TODO - log error here before rethrowing
+                    throw ex
+                }
+            }
+        }.awaitAll()
+        _releaseInProgress = false
+        _statusLifecycle.setStatus(RoomStatus.Released)
     }
 }
