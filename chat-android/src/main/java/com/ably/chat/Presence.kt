@@ -31,7 +31,8 @@ interface Presence : EmitsDiscontinuities {
     /**
      *  Method to get list of the current online users and returns the latest presence messages associated to it.
      *  @param {Ably.RealtimePresenceParams} params - Parameters that control how the presence set is retrieved.
-     *  @returns {List<PresenceMessage>} or upon failure, the promise will throw [[Ably.ErrorInfo]] object which explains the error.
+     *  @throws {@link io.ably.lib.types.AblyException} object which explains the error.
+     *  @returns {List<PresenceMessage>}
      */
     suspend fun get(waitForSync: Boolean = true, clientId: String? = null, connectionId: String? = null): List<PresenceMember>
 
@@ -45,21 +46,21 @@ interface Presence : EmitsDiscontinuities {
     /**
      * Method to join room presence, will emit an enter event to all subscribers. Repeat calls will trigger more enter events.
      * @param {PresenceData} data - The users data, a JSON serializable object that will be sent to all subscribers.
-     * @returns {Promise<void>} or upon failure, the promise will be rejected with an {@link ErrorInfo} object which explains the error.
+     * @throws {@link io.ably.lib.types.AblyException} object which explains the error.
      */
     suspend fun enter(data: PresenceData? = null)
 
     /**
      * Method to update room presence, will emit an update event to all subscribers. If the user is not present, it will be treated as a join event.
      * @param {PresenceData} data - The users data, a JSON serializable object that will be sent to all subscribers.
-     * @returns {Promise<void>} or upon failure, the promise will be rejected with an {@link ErrorInfo} object which explains the error.
+     * @throws {@link io.ably.lib.types.AblyException} object which explains the error.
      */
     suspend fun update(data: PresenceData? = null)
 
     /**
      * Method to leave room presence, will emit a leave event to all subscribers. If the user is not present, it will be treated as a no-op.
      * @param {PresenceData} data - The users data, a JSON serializable object that will be sent to all subscribers.
-     * @returns {Promise<void>} or upon failure, the promise will be rejected with an {@link ErrorInfo} object which explains the error.
+     * @throws {@link io.ably.lib.types.AblyException} object which explains the error.
      */
     suspend fun leave(data: PresenceData? = null)
 
