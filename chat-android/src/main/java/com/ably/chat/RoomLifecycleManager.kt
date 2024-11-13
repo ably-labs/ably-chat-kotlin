@@ -601,7 +601,9 @@ class RoomLifecycleManager(
             }
 
             // If we're already detached, then we can transition to released immediately
-            if (_statusLifecycle.status === RoomStatus.Detached) {
+            if (_statusLifecycle.status === RoomStatus.Detached ||
+                _statusLifecycle.status === RoomStatus.Initialized
+            ) {
                 _statusLifecycle.setStatus(RoomStatus.Released)
                 return@async
             }
