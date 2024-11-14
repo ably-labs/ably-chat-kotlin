@@ -3,10 +3,14 @@ package com.ably.chat
 import com.google.gson.JsonElement
 import io.ably.lib.realtime.Channel
 import io.ably.lib.realtime.CompletionListener
+import io.ably.lib.realtime.Presence.GET_CLIENTID
+import io.ably.lib.realtime.Presence.GET_CONNECTIONID
+import io.ably.lib.realtime.Presence.GET_WAITFORSYNC
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ChannelOptions
 import io.ably.lib.types.ErrorInfo
 import io.ably.lib.types.Param
+import io.ably.lib.types.PresenceMessage
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -57,16 +61,21 @@ suspend fun Channel.publishCoroutine(message: PubSubMessage) = suspendCoroutine 
     )
 }
 
-suspend fun PubSubPresence.getCoroutine(param: Param) = withContext(Dispatchers.IO) {
-    get(param)
-}
-
 @Suppress("SpreadOperator")
-suspend fun PubSubPresence.getCoroutine(params: List<Param>) = withContext(Dispatchers.IO) {
-    get(*params.toTypedArray())
+suspend fun PubSubPresence.getCoroutine(
+    waitForSync: Boolean = true,
+    clientId: String? = null,
+    connectionId: String? = null,
+): List<PresenceMessage> = withContext(Dispatchers.IO) {
+    val params = buildList {
+        if (waitForSync) add(Param(GET_WAITFORSYNC, true))
+        clientId?.let { add(Param(GET_CLIENTID, it)) }
+        connectionId?.let { add(Param(GET_CONNECTIONID, it)) }
+    }
+    get(*params.toTypedArray()).asList()
 }
 
-suspend fun PubSubPresence.enterClientCoroutine(clientId: String, data: JsonElement?) = suspendCancellableCoroutine { continuation ->
+suspend fun PubSubPresence.enterClientCoroutine(clientId: String, data: JsonElement? = null) = suspendCancellableCoroutine { continuation ->
     enterClient(
         clientId,
         data,
@@ -82,23 +91,24 @@ suspend fun PubSubPresence.enterClientCoroutine(clientId: String, data: JsonElem
     )
 }
 
-suspend fun PubSubPresence.updateClientCoroutine(clientId: String, data: JsonElement?) = suspendCancellableCoroutine { continuation ->
-    updateClient(
-        clientId,
-        data,
-        object : CompletionListener {
-            override fun onSuccess() {
-                continuation.resume(Unit)
-            }
+suspend fun PubSubPresence.updateClientCoroutine(clientId: String, data: JsonElement? = null) =
+    suspendCancellableCoroutine { continuation ->
+        updateClient(
+            clientId,
+            data,
+            object : CompletionListener {
+                override fun onSuccess() {
+                    continuation.resume(Unit)
+                }
 
-            override fun onError(reason: ErrorInfo?) {
-                continuation.resumeWithException(AblyException.fromErrorInfo(reason))
-            }
-        },
-    )
-}
+                override fun onError(reason: ErrorInfo?) {
+                    continuation.resumeWithException(AblyException.fromErrorInfo(reason))
+                }
+            },
+        )
+    }
 
-suspend fun PubSubPresence.leaveClientCoroutine(clientId: String, data: JsonElement?) = suspendCancellableCoroutine { continuation ->
+suspend fun PubSubPresence.leaveClientCoroutine(clientId: String, data: JsonElement? = null) = suspendCancellableCoroutine { continuation ->
     leaveClient(
         clientId,
         data,

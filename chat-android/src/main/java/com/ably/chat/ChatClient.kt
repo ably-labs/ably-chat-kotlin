@@ -62,6 +62,7 @@ internal class DefaultChatClient(
         chatApi = chatApi,
         clientOptions = clientOptions,
         clientId = clientId,
+        logger = logger,
     )
 
     override val connection: Connection

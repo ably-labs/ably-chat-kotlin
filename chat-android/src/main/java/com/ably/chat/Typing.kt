@@ -3,16 +3,31 @@
 package com.ably.chat
 
 import io.ably.lib.realtime.Channel
+import io.ably.lib.types.AblyException
+import io.ably.lib.types.ErrorInfo
+import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.math.min
+import kotlin.math.pow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
 
 /**
  * base retry interval, we double it each time
  */
-const val PRESENCE_GET_RETRY_INTERVAL_MS = 1500
+const val PRESENCE_GET_RETRY_INTERVAL_MS: Long = 1500
 
 /**
  * max retry interval
  */
-const val PRESENCE_GET_RETRY_MAX_INTERVAL_MS = 30_000
+const val PRESENCE_GET_RETRY_MAX_INTERVAL_MS: Long = 30_000
 
 /**
  *  max num of retries
@@ -77,30 +92,130 @@ data class TypingEvent(val currentlyTyping: Set<String>)
 
 internal class DefaultTyping(
     roomId: String,
-    private val realtimeClient: RealtimeClient,
+    realtimeClient: RealtimeClient,
+    private val clientId: String,
+    private val options: TypingOptions?,
+    private val logger: Logger,
 ) : Typing {
     private val typingIndicatorsChannelName = "$roomId::\$chat::\$typingIndicators"
 
-    override val channel: Channel
-        get() = realtimeClient.channels.get(typingIndicatorsChannelName, ChatChannelOptions())
+    private val typingScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1) + SupervisorJob())
+
+    private val eventBus = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    override val channel: Channel = realtimeClient.channels.get(typingIndicatorsChannelName, ChatChannelOptions())
+
+    private var typingJob: Job? = null
+
+    private val listeners: MutableList<Typing.Listener> = CopyOnWriteArrayList()
+
+    private var lastTyping: Set<String> = setOf()
+
+    init {
+        typingScope.launch {
+            eventBus.collect {
+                processEvent()
+            }
+        }
+
+        channel.presence.subscribe {
+            if (it.clientId == null) {
+                logger.error("unable to handle typing event; no clientId", staticContext = mapOf("member" to it.toString()))
+            } else {
+                eventBus.tryEmit(Unit)
+            }
+        }
+    }
 
     override fun subscribe(listener: Typing.Listener): Subscription {
-        TODO("Not yet implemented")
+        logger.trace("DefaultTyping.subscribe()")
+        listeners.add(listener)
+        return Subscription {
+            logger.trace("DefaultTyping.unsubscribe()")
+            listeners.remove(listener)
+        }
     }
 
     override suspend fun get(): Set<String> {
-        TODO("Not yet implemented")
+        logger.trace("DefaultTyping.get()")
+        return channel.presence.getCoroutine().map { it.clientId }.toSet()
     }
 
     override suspend fun start() {
-        TODO("Not yet implemented")
+        logger.trace("DefaultTyping.start()")
+
+        typingScope.launch {
+            // If the user is already typing, reset the timer
+            if (typingJob != null) {
+                logger.debug("DefaultTyping.start(); already typing, resetting timer")
+                typingJob?.cancel()
+                startTypingTimer()
+            } else {
+                startTypingTimer()
+                channel.presence.enterClientCoroutine(clientId)
+            }
+        }.join()
     }
 
     override suspend fun stop() {
-        TODO("Not yet implemented")
+        logger.trace("DefaultTyping.stop()")
+        typingScope.launch {
+            typingJob?.cancel()
+            channel.presence.leaveClientCoroutine(clientId)
+        }.join()
     }
 
     override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
         TODO("Not yet implemented")
+    }
+
+    fun release() {
+        typingScope.cancel()
+    }
+
+    private fun startTypingTimer() {
+        val timeout = options?.timeoutMs ?: throw AblyException.fromErrorInfo(
+            ErrorInfo(
+                "Typing options hasn't been initialized",
+                ErrorCodes.BadRequest,
+            ),
+        )
+        logger.trace("DefaultTyping.startTypingTimer()")
+        typingJob = typingScope.launch {
+            delay(timeout)
+            logger.debug("DefaultTyping.startTypingTimer(); timeout expired")
+            stop()
+        }
+    }
+
+    private suspend fun processEvent() {
+        var numRetries = 0
+        while (numRetries <= PRESENCE_GET_MAX_RETRIES) {
+            try {
+                val currentlyTyping = get()
+                emit(currentlyTyping)
+                return // Exit if successful
+            } catch (e: Exception) {
+                numRetries++
+                val delayDuration = min(
+                    PRESENCE_GET_RETRY_MAX_INTERVAL_MS,
+                    PRESENCE_GET_RETRY_INTERVAL_MS * 2.0.pow(numRetries).toLong(),
+                )
+                logger.debug("Retrying in $delayDuration ms... (Attempt $numRetries of $PRESENCE_GET_MAX_RETRIES)", e)
+                delay(delayDuration)
+            }
+        }
+        logger.error("Failed to get members after $PRESENCE_GET_MAX_RETRIES retries")
+    }
+
+    private fun emit(currentlyTyping: Set<String>) {
+        if (lastTyping == currentlyTyping) return
+        lastTyping = currentlyTyping
+        listeners.forEach {
+            it.onEvent(TypingEvent(currentlyTyping))
+        }
     }
 }
