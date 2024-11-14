@@ -126,4 +126,46 @@ class ReleaseTest {
 
         coVerify { roomLifecycle.release() }
     }
+
+    @Test
+    fun `(CHA-RL3k) Release op should wait for existing operation as per (CHA-RL7)`() = runTest {
+        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        Assert.assertEquals(RoomStatus.Initializing, statusLifecycle.status)
+
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks()))
+
+        val roomAttached = Channel<Boolean>()
+        coEvery {
+            roomLifecycle.attach()
+        } coAnswers {
+            roomLifecycle.atomicCoroutineScope().async {
+                statusLifecycle.setStatus(RoomStatus.Attaching)
+                roomAttached.receive()
+                statusLifecycle.setStatus(RoomStatus.Attached)
+            }
+        }
+
+        // ATTACH op started from separate coroutine
+        launch { roomLifecycle.attach() }
+        assertWaiter { !roomLifecycle.atomicCoroutineScope().finishedProcessing }
+        Assert.assertEquals(0, roomLifecycle.atomicCoroutineScope().pendingJobCount) // no queued jobs, one job running
+        assertWaiter { statusLifecycle.status == RoomStatus.Attaching }
+
+        // Release op started from separate coroutine
+        val roomReleaseOpDeferred = async { roomLifecycle.release() }
+        assertWaiter { roomLifecycle.atomicCoroutineScope().pendingJobCount == 1 } // release op queued
+        Assert.assertEquals(RoomStatus.Attaching, statusLifecycle.status)
+
+        // Finish room ATTACH
+        roomAttached.send(true)
+        assertWaiter { statusLifecycle.status == RoomStatus.Attached }
+
+        val result = kotlin.runCatching { roomReleaseOpDeferred.await() }
+        Assert.assertTrue(roomLifecycle.atomicCoroutineScope().finishedProcessing)
+
+        Assert.assertTrue(result.isSuccess)
+        Assert.assertEquals(RoomStatus.Released, statusLifecycle.status)
+
+        coVerify { roomLifecycle.attach() }
+    }
 }
