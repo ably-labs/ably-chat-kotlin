@@ -258,6 +258,46 @@ class ReleaseTest {
 
     @Test
     fun `(CHA-RL3g) Release op continues till all contributors enters either DETACHED or FAILED state`() = runTest {
+        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+
+        mockkStatic(io.ably.lib.realtime.Channel::detachCoroutine)
+        var failDetachTimes = 5
+        val capturedChannels = mutableListOf<io.ably.lib.realtime.Channel>()
+        coEvery { any<io.ably.lib.realtime.Channel>().detachCoroutine() } coAnswers {
+            delay(200)
+            val channel = firstArg<io.ably.lib.realtime.Channel>()
+            if (--failDetachTimes >= 0) {
+                channel.setState(listOf(ChannelState.attached, ChannelState.suspended).random())
+                error("failed to detach channel")
+            }
+            channel.setState(listOf(ChannelState.detached, ChannelState.failed).random())
+            capturedChannels.add(channel)
+        }
+
+        val contributors = createRoomFeatureMocks()
+        Assert.assertEquals(5, contributors.size)
+
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors), recordPrivateCalls = true)
+        val result = kotlin.runCatching { roomLifecycle.release() }
+        Assert.assertTrue(result.isSuccess)
+        Assert.assertEquals(RoomStatus.Released, statusLifecycle.status)
+
+        Assert.assertEquals(5, capturedChannels.size)
+        repeat(5) {
+            Assert.assertEquals(contributors[it].channel.name, capturedChannels[it].name)
+        }
+        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[0].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[1].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[2].name)
+        Assert.assertEquals("1234::\$chat::\$typingIndicators", capturedChannels[3].name)
+        Assert.assertEquals("1234::\$chat::\$reactions", capturedChannels[4].name)
+
+        assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
+
+        // Channel release success on 6th call
+        coVerify(exactly = 6) {
+            roomLifecycle invokeNoArgs "doRelease"
+        }
     }
 
     @Test
