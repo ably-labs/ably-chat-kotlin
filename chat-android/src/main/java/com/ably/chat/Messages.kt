@@ -223,9 +223,11 @@ internal class DefaultMessagesSubscription(
 
 internal class DefaultMessages(
     private val roomId: String,
-    realtimeChannels: AblyRealtime.Channels,
+    private val realtimeChannels: AblyRealtime.Channels,
     private val chatApi: ChatApi,
 ) : Messages, ContributesToRoomLifecycleImpl(), ResolvedContributor {
+
+    override val featureName: String = "messages"
 
     private var listeners: Map<Messages.Listener, DeferredValue<String>> = emptyMap()
 
@@ -238,8 +240,6 @@ internal class DefaultMessages(
      * the channel name for the chat messages channel.
      */
     private val messagesChannelName = "$roomId::\$chat::\$chatMessages"
-
-    override val featureName: String = "messages"
 
     override val channel = realtimeChannels.get(messagesChannelName, ChatChannelOptions())
 
@@ -302,10 +302,6 @@ internal class DefaultMessages(
     override suspend fun get(options: QueryOptions): PaginatedResult<Message> = chatApi.getMessages(roomId, options)
 
     override suspend fun send(params: SendMessageParams): Message = chatApi.sendMessage(roomId, params)
-
-    fun release() {
-        channel.off(channelStateListener)
-    }
 
     /**
      * Associate deferred channel serial value with the current channel's serial
@@ -370,6 +366,10 @@ internal class DefaultMessages(
                 if (it.value.completed) deferredChannelSerial else it.value
             }
         }
+    }
+
+    override fun release() {
+        realtimeChannels.release(channel.name)
     }
 }
 

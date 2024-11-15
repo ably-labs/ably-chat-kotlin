@@ -106,13 +106,14 @@ data class SendReactionParams(
 internal class DefaultRoomReactions(
     roomId: String,
     private val clientId: String,
-    realtimeChannels: AblyRealtime.Channels,
+    private val realtimeChannels: AblyRealtime.Channels,
 ) : RoomReactions, ContributesToRoomLifecycleImpl(), ResolvedContributor {
+
+    override val featureName = "reactions"
 
     private val roomReactionsChannelName = "$roomId::\$chat::\$reactions"
 
     override val channel: AblyRealtimeChannel = realtimeChannels.get(roomReactionsChannelName, ChatChannelOptions())
-    override val featureName = "reactions"
 
     override val contributor: ContributesToRoomLifecycle = this
 
@@ -160,5 +161,9 @@ internal class DefaultRoomReactions(
         }
         channel.subscribe(RoomReactionEventType.Reaction.eventName, messageListener)
         return Subscription { channel.unsubscribe(RoomReactionEventType.Reaction.eventName, messageListener) }
+    }
+
+    override fun release() {
+        realtimeChannels.release(channel.name)
     }
 }

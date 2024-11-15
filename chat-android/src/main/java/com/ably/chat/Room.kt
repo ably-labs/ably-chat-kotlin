@@ -105,6 +105,11 @@ interface Room {
      * Detaches from the room to stop receiving events in realtime.
      */
     suspend fun detach()
+
+    /**
+     * Releases the room, underlying channels are removed from the core SDK to prevent leakage.
+     */
+    suspend fun release()
 }
 
 internal class DefaultRoom(
@@ -199,7 +204,7 @@ internal class DefaultRoom(
         reactions.channel.detachCoroutine()
     }
 
-    fun release() {
-        messages.release()
+    override suspend fun release() {
+        _lifecycleManager?.release()
     }
 }

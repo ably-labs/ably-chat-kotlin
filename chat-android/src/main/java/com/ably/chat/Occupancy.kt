@@ -80,4 +80,8 @@ internal class DefaultOccupancy(
     override suspend fun get(): OccupancyEvent {
         TODO("Not yet implemented")
     }
+
+    override fun release() {
+        // No need to do anything, since it uses same channel as messages
+    }
 }

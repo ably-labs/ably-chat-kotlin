@@ -72,9 +72,7 @@ internal class DefaultRooms(
     }
 
     override suspend fun release(roomId: String) {
-        synchronized(this) {
-            val room = roomIdToRoom.remove(roomId)
-            room?.release()
-        }
+        val room = roomIdToRoom.remove(roomId)
+        room?.release()
     }
 }
