@@ -43,6 +43,7 @@ interface ContributesToRoomLifecycle : EmitsDiscontinuities, HandlesDiscontinuit
 
     /**
      * Underlying Realtime feature channel is removed from the core SDK to prevent leakage.
+     * Spec: CHA-RL3h
      */
     fun release()
 }
@@ -182,6 +183,8 @@ class RoomLifecycleManager(
 
     /**
      * Are we in the process of releasing the room?
+     * This property along with related impl. might be removed based on https://github.com/ably/ably-chat-js/issues/399
+     * Spec: CHA-RL3c
      */
     private var _releaseInProgress = false
 
@@ -597,15 +600,16 @@ class RoomLifecycleManager(
      *
      * @returns Returns when the room is released. If a channel detaches into a non-terminated
      * state (e.g. attached), release will throw exception.
+     * Spec: CHA-RL3
      */
     internal suspend fun release() {
-        val deferredRelease = atomicCoroutineScope.async(LifecycleOperationPrecedence.Release.priority) { // CHA-RL2i
-            // If we're already released, this is a no-op
+        val deferredRelease = atomicCoroutineScope.async(LifecycleOperationPrecedence.Release.priority) { // CHA-RL3k
+            // CHA-RL3a - If we're already released, this is a no-op
             if (_statusLifecycle.status === RoomStatus.Released) {
                 return@async
             }
 
-            // If we're already detached, then we can transition to released immediately
+            // CHA-RL3b, CHA-RL3j - If we're already detached or initialized, then we can transition to released immediately
             if (_statusLifecycle.status === RoomStatus.Detached ||
                 _statusLifecycle.status === RoomStatus.Initialized
             ) {
@@ -613,18 +617,20 @@ class RoomLifecycleManager(
                 return@async
             }
 
-            // If we're in the process of releasing, we should wait for it to complete
+            // CHA-RL3c - If we're in the process of releasing, we should wait for it to complete
+            // This might be removed in the future based on https://github.com/ably/ably-chat-js/issues/399
             if (_releaseInProgress) {
                 return@async listenToRoomRelease()
             }
 
-            // We force the room status to be releasing
+            // CHA-RL3l - We force the room status to be releasing.
+            // Any transient disconnect timeouts shall be cleared.
             clearAllTransientDetachTimeouts()
             _operationInProgress = true
             _releaseInProgress = true
             _statusLifecycle.setStatus(RoomStatus.Releasing)
 
-            // Do the release until it completes
+            // CHA-RL3f - Do the release until it completes
             return@async releaseChannels()
         }
         deferredRelease.await()
@@ -650,6 +656,7 @@ class RoomLifecycleManager(
     /**
      *  Releases the room by detaching all channels. If the release operation fails, we wait
      *  a short period and then try again.
+     *  Spec: CHA-RL3f, CHA-RL3d
      */
     private suspend fun releaseChannels() {
         var contributorsReleased = kotlin.runCatching { doRelease() }
@@ -663,12 +670,13 @@ class RoomLifecycleManager(
     /**
      * Performs the release operation. This will detach all channels in the room that aren't
      * already detached or in the failed state.
+     * Spec: CHA-RL3d, CHA-RL3g
      */
     @Suppress("RethrowCaughtException")
     private suspend fun doRelease() = coroutineScope {
         _contributors.map { contributor: ResolvedContributor ->
             async {
-                // Failed channels, we can ignore
+                // CHA-RL3e - Failed channels, we can ignore
                 if (contributor.channel.state == ChannelState.failed) {
                     return@async
                 }
@@ -684,10 +692,12 @@ class RoomLifecycleManager(
                 }
             }
         }.awaitAll()
+
+        // CHA-RL3h - underlying Realtime Channels are released from the core SDK prevent leakage
         _contributors.forEach {
             it.contributor.release()
         }
         _releaseInProgress = false
-        _statusLifecycle.setStatus(RoomStatus.Released)
+        _statusLifecycle.setStatus(RoomStatus.Released) // CHA-RL3g
     }
 }
