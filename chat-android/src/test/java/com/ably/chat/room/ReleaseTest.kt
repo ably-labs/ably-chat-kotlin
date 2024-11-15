@@ -12,6 +12,7 @@ import com.ably.utils.setState
 import io.ably.lib.realtime.ChannelState
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.justRun
 import io.mockk.mockkStatic
 import io.mockk.spyk
@@ -302,6 +303,46 @@ class ReleaseTest {
 
     @Test
     fun `(CHA-RL3h) Upon channel release, underlying Realtime Channels are released from the core SDK prevent leakage`() = runTest {
+        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+
+        mockkStatic(io.ably.lib.realtime.Channel::detachCoroutine)
+        coEvery { any<io.ably.lib.realtime.Channel>().detachCoroutine() } coAnswers {
+            val channel = firstArg<io.ably.lib.realtime.Channel>()
+            channel.setState(ChannelState.detached)
+        }
+
+        val contributors = createRoomFeatureMocks()
+        Assert.assertEquals(5, contributors.size)
+
+        val releasedChannels = mutableListOf<io.ably.lib.realtime.Channel>()
+        for (contributor in contributors) {
+            every { contributor.contributor.release() } answers {
+                releasedChannels.add(contributor.channel)
+            }
+        }
+
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors))
+        val result = kotlin.runCatching { roomLifecycle.release() }
+        Assert.assertTrue(result.isSuccess)
+        Assert.assertEquals(RoomStatus.Released, statusLifecycle.status)
+
+        Assert.assertEquals(5, releasedChannels.size)
+        repeat(5) {
+            Assert.assertEquals(contributors[it].channel.name, releasedChannels[it].name)
+        }
+        Assert.assertEquals("1234::\$chat::\$chatMessages", releasedChannels[0].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", releasedChannels[1].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", releasedChannels[2].name)
+        Assert.assertEquals("1234::\$chat::\$typingIndicators", releasedChannels[3].name)
+        Assert.assertEquals("1234::\$chat::\$reactions", releasedChannels[4].name)
+
+        assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
+
+        for (contributor in contributors) {
+            verify(exactly = 1) {
+                contributor.contributor.release()
+            }
+        }
     }
 
     @Test
