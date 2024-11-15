@@ -107,4 +107,8 @@ internal class DefaultTyping(
     override suspend fun stop() {
         TODO("Not yet implemented")
     }
+
+    override fun release() {
+        realtimeClient.channels.release(channel.name)
+    }
 }

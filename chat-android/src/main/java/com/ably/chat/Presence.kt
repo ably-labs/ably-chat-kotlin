@@ -167,4 +167,8 @@ internal class DefaultPresence(
     override fun subscribe(listener: Presence.Listener): Subscription {
         TODO("Not yet implemented")
     }
+
+    override fun release() {
+        // No need to do anything, since it uses same channel as messages
+    }
 }

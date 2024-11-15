@@ -40,6 +40,11 @@ interface ContributesToRoomLifecycle : EmitsDiscontinuities, HandlesDiscontinuit
      * @returns The error that should be used when the feature fails to detach.
      */
     val detachmentErrorCode: ErrorCodes
+
+    /**
+     * Underlying Realtime feature channel is removed from the core SDK to prevent leakage.
+     */
+    fun release()
 }
 
 abstract class ContributesToRoomLifecycleImpl : ContributesToRoomLifecycle {
@@ -679,6 +684,9 @@ class RoomLifecycleManager(
                 }
             }
         }.awaitAll()
+        _contributors.forEach {
+            it.contributor.release()
+        }
         _releaseInProgress = false
         _statusLifecycle.setStatus(RoomStatus.Released)
     }
