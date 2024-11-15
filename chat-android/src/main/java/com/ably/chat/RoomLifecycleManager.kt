@@ -287,15 +287,36 @@ class RoomLifecycleManager(
     }
 
     private suspend fun listenToChannelAttachOrFailure(contributor: ResolvedContributor) = suspendCancellableCoroutine { continuation ->
+        val resumeIfAttached = {
+            if (continuation.isActive) {
+                continuation.resume(Unit)
+            }
+        }
         contributor.channel.once(ChannelState.attached) {
-            continuation.resume(Unit)
+            resumeIfAttached()
+        }
+        if (contributor.channel.state == ChannelState.attached) { // Just being on the safer side, check if channel got into ATTACHED state
+            resumeIfAttached()
+        }
+
+        val resumeWithExceptionIfFailed = { reason: ErrorInfo? ->
+            if (continuation.isActive) {
+                val exception = AblyException.fromErrorInfo(
+                    reason
+                        ?: ErrorInfo(
+                            "unknown error in _doRetry",
+                            HttpStatusCodes.InternalServerError,
+                            ErrorCodes.RoomLifecycleError.errorCode,
+                        ),
+                )
+                continuation.resumeWithException(exception)
+            }
         }
         contributor.channel.once(ChannelState.failed) {
-            val exception = AblyException.fromErrorInfo(
-                it.reason
-                    ?: ErrorInfo("unknown error in _doRetry", HttpStatusCodes.InternalServerError, ErrorCodes.RoomLifecycleError.errorCode),
-            )
-            continuation.resumeWithException(exception)
+            resumeWithExceptionIfFailed(it.reason)
+        }
+        if (contributor.channel.state == ChannelState.failed) { // Just being on the safer side, check if channel got into FAILED state
+            resumeWithExceptionIfFailed(contributor.channel.reason)
         }
     }
 
