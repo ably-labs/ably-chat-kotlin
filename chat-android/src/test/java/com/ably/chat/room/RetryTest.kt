@@ -1,6 +1,83 @@
 package com.ably.chat.room
 
+import com.ably.chat.DefaultRoomLifecycle
+import com.ably.chat.RoomLifecycleManager
+import com.ably.chat.RoomStatus
+import com.ably.chat.assertWaiter
+import com.ably.chat.attachCoroutine
+import com.ably.chat.detachCoroutine
+import com.ably.utils.atomicCoroutineScope
+import com.ably.utils.createRoomFeatureMocks
+import com.ably.utils.retry
+import com.ably.utils.setState
+import io.ably.lib.realtime.ChannelState
+import io.mockk.coEvery
+import io.mockk.coJustRun
+import io.mockk.mockkStatic
+import io.mockk.spyk
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert
+import org.junit.Test
+
 /**
  * Spec: CHA-RL5
  */
-class RetryTest
+class RetryTest {
+    private val roomScope = CoroutineScope(
+        Dispatchers.Default.limitedParallelism(1) + CoroutineName("roomId"),
+    )
+
+    @Test
+    fun `(CHA-RL5a) Retry detaches all contributors except the one that's provided (based on underlying channel CHA-RL5a)`() = runTest {
+        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+
+        mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
+        coJustRun { any<io.ably.lib.realtime.Channel>().attachCoroutine() }
+
+        val capturedDetachedChannels = mutableListOf<io.ably.lib.realtime.Channel>()
+        coEvery { any<io.ably.lib.realtime.Channel>().detachCoroutine() } coAnswers {
+            capturedDetachedChannels.add(firstArg())
+        }
+
+        val contributors = createRoomFeatureMocks()
+        Assert.assertEquals(5, contributors.size)
+        val messagesContributor = contributors.first { it.contributor.featureName == "messages" }
+        messagesContributor.channel.setState(ChannelState.attached)
+
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors))
+
+        val result = kotlin.runCatching { roomLifecycle.retry(messagesContributor) }
+        Assert.assertTrue(result.isSuccess)
+        Assert.assertEquals(RoomStatus.Attached, statusLifecycle.status)
+
+        Assert.assertEquals(2, capturedDetachedChannels.size)
+
+        Assert.assertEquals("1234::\$chat::\$typingIndicators", capturedDetachedChannels[0].name)
+        Assert.assertEquals("1234::\$chat::\$reactions", capturedDetachedChannels[1].name)
+
+        assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
+    }
+
+    @Suppress("MaximumLineLength")
+    @Test
+    fun `(CHA-RL5c) If one of the contributor channel goes into failed state during Retry, then the room enters failed state and retry operation stops`() = runTest {
+    }
+
+    @Suppress("MaximumLineLength")
+    @Test
+    fun `(CHA-RL5d) If all contributor channels goes into detached (except one provided in suspended state), provided contributor starts attach operation and waits for ATTACHED or FAILED state`() = runTest {
+    }
+
+    @Suppress("MaximumLineLength")
+    @Test
+    fun `(CHA-RL5e) If, during the CHA-RL5d wait, the contributor channel becomes failed, then the room enters failed state and retry operation stops`() = runTest {
+    }
+
+    @Suppress("MaximumLineLength")
+    @Test
+    fun `(CHA-RL5f) If, during the CHA-RL5d wait, the contributor channel becomes ATTACHED, then attach operation continues for other contributors as per CHA-RL1e`() = runTest {
+    }
+}

@@ -6,6 +6,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
@@ -76,4 +77,12 @@ fun <T>Any.getPrivateField(name: String): T {
     valueField.isAccessible = true
     @Suppress("UNCHECKED_CAST")
     return valueField.get(this) as T
+}
+
+suspend fun <T>Any.invokePrivateSuspendMethod(methodName: String, vararg args: Any?) = suspendCancellableCoroutine<T> { cont ->
+    val suspendMethod = javaClass.declaredMethods.find { it.name == methodName }
+    suspendMethod?.let {
+        it.isAccessible = true
+        it.invoke(this, *args, cont)
+    }
 }

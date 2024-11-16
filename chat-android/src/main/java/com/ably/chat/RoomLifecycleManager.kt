@@ -222,6 +222,7 @@ class RoomLifecycleManager(
      *
      * @param contributor The contributor that has entered a suspended state.
      * @returns Returns when the room is attached, or the room enters a failed state.
+     * Spec: CHA-RL5
      */
     @SuppressWarnings("CognitiveComplexMethod")
     private suspend fun doRetry(contributor: ResolvedContributor) {
@@ -230,7 +231,7 @@ class RoomLifecycleManager(
         while (result.isFailure) {
             // If in doing the wind down, we've entered failed state, then it's game over anyway
             if (this._statusLifecycle.status === RoomStatus.Failed) {
-                error("room is in a failed state")
+                throw result.exceptionOrNull() ?: IllegalStateException("room is in a failed state")
             }
             delay(_retryDurationInMs)
             result = kotlin.runCatching { doChannelWindDown(contributor) }
@@ -277,6 +278,7 @@ class RoomLifecycleManager(
         // Otherwise, wait for our suspended contributor channel to re-attach and try again
         try {
             listenToChannelAttachOrFailure(contributor)
+            delay(_retryDurationInMs) // Let other channels get into ATTACHING state
             // Attach successful
             return doAttachWithRetry()
         } catch (ex: AblyException) {
@@ -482,7 +484,7 @@ class RoomLifecycleManager(
             async {
                 // If its the contributor we want to wait for a conclusion on, then we should not detach it
                 // Unless we're in a failed state, in which case we should detach it
-                if (contributor === except && _statusLifecycle.status !== RoomStatus.Failed) {
+                if (contributor.channel === except?.channel && _statusLifecycle.status !== RoomStatus.Failed) {
                     return@async
                 }
                 // If the room's already in the failed state, or it's releasing, we should not detach a failed channel
