@@ -194,9 +194,6 @@ class RoomLifecycleManager(
     private val _retryDurationInMs: Long = 250
 
     init {
-        if (_statusLifecycle.status != RoomStatus.Attached) {
-            _operationInProgress = true
-        }
         // TODO - [CHA-RL4] set up room monitoring here
     }
 
@@ -205,7 +202,7 @@ class RoomLifecycleManager(
      * as a failed channel or suspension.
      */
     private fun clearAllTransientDetachTimeouts() {
-        // This will be implemented as a part of channel detach
+        // This will be implemented as a part of room lifecycle monitoring
     }
 
     /**
@@ -226,10 +223,10 @@ class RoomLifecycleManager(
      */
     @SuppressWarnings("CognitiveComplexMethod")
     private suspend fun doRetry(contributor: ResolvedContributor) {
-        // Handle the channel wind-down for other channels
+        // CHA-RL5a - Handle the channel wind-down for other channels
         var result = kotlin.runCatching { doChannelWindDown(contributor) }
         while (result.isFailure) {
-            // If in doing the wind down, we've entered failed state, then it's game over anyway
+            // CHA-RL5c - If in doing the wind down, we've entered failed state, then it's game over anyway
             if (this._statusLifecycle.status === RoomStatus.Failed) {
                 throw result.exceptionOrNull() ?: IllegalStateException("room is in a failed state")
             }
@@ -243,7 +240,7 @@ class RoomLifecycleManager(
                 _statusLifecycle.setStatus(RoomStatus.Attaching)
                 val attachmentResult = doAttach()
 
-                // If we're in failed, then we should wind down all the channels, eventually - but we're done here
+                // CHA-RL5c - If we're in failed, then we should wind down all the channels, eventually - but we're done here
                 if (attachmentResult.status === RoomStatus.Failed) {
                     atomicCoroutineScope.async(LifecycleOperationPrecedence.Internal.priority) {
                         runDownChannelsOnFailedAttach()
@@ -275,20 +272,24 @@ class RoomLifecycleManager(
             return doAttachWithRetry()
         }
 
-        // Otherwise, wait for our suspended contributor channel to re-attach and try again
+        // CHA-RL5d - Otherwise, wait for our suspended contributor channel to re-attach and try again
         try {
             listenToChannelAttachOrFailure(contributor)
             delay(_retryDurationInMs) // Let other channels get into ATTACHING state
             // Attach successful
             return doAttachWithRetry()
         } catch (ex: AblyException) {
-            // Channel attach failed
+            // CHA-RL5c - Channel attach failed
             _statusLifecycle.setStatus(RoomStatus.Failed, ex.errorInfo)
             throw ex
         }
     }
 
+    /**
+     * CHA-RL5f, CHA-RL5e
+     */
     private suspend fun listenToChannelAttachOrFailure(contributor: ResolvedContributor) = suspendCancellableCoroutine { continuation ->
+        // CHA-RL5f
         val resumeIfAttached = {
             if (continuation.isActive) {
                 continuation.resume(Unit)
@@ -301,6 +302,7 @@ class RoomLifecycleManager(
             resumeIfAttached()
         }
 
+        // CHA-RL5e
         val resumeWithExceptionIfFailed = { reason: ErrorInfo? ->
             if (continuation.isActive) {
                 val exception = AblyException.fromErrorInfo(
@@ -482,7 +484,7 @@ class RoomLifecycleManager(
     private suspend fun doChannelWindDown(except: ResolvedContributor? = null) = coroutineScope {
         _contributors.map { contributor: ResolvedContributor ->
             async {
-                // If its the contributor we want to wait for a conclusion on, then we should not detach it
+                // CHA-RL5a1 - If its the contributor we want to wait for a conclusion on, then we should not detach it
                 // Unless we're in a failed state, in which case we should detach it
                 if (contributor.channel === except?.channel && _statusLifecycle.status !== RoomStatus.Failed) {
                     return@async
