@@ -7,6 +7,7 @@ import com.ably.chat.DefaultOccupancy
 import com.ably.chat.DefaultPresence
 import com.ably.chat.DefaultRoomReactions
 import com.ably.chat.DefaultTyping
+import com.ably.chat.LifecycleOperationPrecedence
 import com.ably.chat.ResolvedContributor
 import com.ably.chat.RoomLifecycleManager
 import com.ably.chat.getPrivateField
@@ -23,6 +24,12 @@ fun RoomLifecycleManager.atomicCoroutineScope(): AtomicCoroutineScope = getPriva
 
 suspend fun RoomLifecycleManager.retry(exceptContributor: ResolvedContributor) =
     invokePrivateSuspendMethod<Unit>("doRetry", exceptContributor)
+
+suspend fun RoomLifecycleManager.atomicRetry(exceptContributor: ResolvedContributor) {
+    atomicCoroutineScope().async(LifecycleOperationPrecedence.Internal.priority) {
+        retry(exceptContributor)
+    }.await()
+}
 
 fun AblyRealtimeChannel.setState(state: ChannelState, errorInfo: ErrorInfo? = null) {
     this.state = state
