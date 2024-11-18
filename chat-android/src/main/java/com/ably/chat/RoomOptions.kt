@@ -1,8 +1,5 @@
 package com.ably.chat
 
-import io.ably.lib.types.AblyException
-import io.ably.lib.types.ErrorInfo
-
 /**
  * Represents the options for a given chat room.
  */
@@ -31,7 +28,19 @@ data class RoomOptions(
      * {@link RoomOptionsDefaults.occupancy} to enable occupancy with default options.
      */
     val occupancy: OccupancyOptions? = null,
-)
+) {
+    companion object {
+        /**
+         * Supports all room options with default values
+         */
+        val default = RoomOptions(
+            typing = TypingOptions(),
+            presence = PresenceOptions(),
+            reactions = RoomReactionsOptions,
+            occupancy = OccupancyOptions,
+        )
+    }
+}
 
 /**
  * Represents the presence options for a chat room.
@@ -81,12 +90,6 @@ object OccupancyOptions
  */
 fun RoomOptions.validateRoomOptions() {
     if (typing != null && typing.timeoutMs <= 0) {
-        throw AblyException.fromErrorInfo(
-            ErrorInfo(
-                "Typing timeout must be greater than 0",
-                ErrorCodes.InvalidRequestBody.errorCode,
-                HttpStatusCodes.BadRequest,
-            ),
-        )
+        throw ablyException("Typing timeout must be greater than 0", ErrorCodes.InvalidRequestBody)
     }
 }

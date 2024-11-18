@@ -80,6 +80,11 @@ enum class ErrorCodes(val errorCode: Int) {
     RoomIsReleased(102_103),
 
     /**
+     * Room was released before the operation could complete.
+     */
+    RoomReleasedBeforeOperationCompleted(102_106),
+
+    /**
      * Cannot perform operation because the previous operation failed.
      */
     PreviousOperationFailed(102_104),

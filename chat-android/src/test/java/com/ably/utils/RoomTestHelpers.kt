@@ -36,8 +36,10 @@ fun AblyRealtimeChannel.setState(state: ChannelState, errorInfo: ErrorInfo? = nu
     this.reason = errorInfo
 }
 
+fun createMockRealtimeClient(): AblyRealtime = spyk(AblyRealtime(ClientOptions("id:key").apply { autoConnect = false }))
+
 fun createRoomFeatureMocks(roomId: String = "1234"): List<ContributesToRoomLifecycle> {
-    val realtimeClient = spyk(AblyRealtime(ClientOptions("id:key").apply { autoConnect = false }))
+    val realtimeClient = createMockRealtimeClient()
     val chatApi = mockk<ChatApi>(relaxed = true)
 
     val messagesContributor = spyk(DefaultMessages(roomId, realtimeClient.channels, chatApi), recordPrivateCalls = true)

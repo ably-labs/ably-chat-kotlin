@@ -2,7 +2,6 @@
 
 package com.ably.chat
 
-import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
 import io.ably.lib.util.Log.LogHandler
 import kotlinx.coroutines.CoroutineName
@@ -144,13 +143,7 @@ internal class DefaultRoom(
     override val presence: Presence
         get() {
             if (_presence == null) {
-                throw AblyException.fromErrorInfo(
-                    ErrorInfo(
-                        "Presence is not enabled for this room",
-                        ErrorCodes.BadRequest.errorCode,
-                        HttpStatusCodes.BadRequest,
-                    ),
-                )
+                throw ablyException("Presence is not enabled for this room", ErrorCodes.BadRequest)
             }
             return _presence as Presence
         }
@@ -159,13 +152,7 @@ internal class DefaultRoom(
     override val reactions: RoomReactions
         get() {
             if (_reactions == null) {
-                throw AblyException.fromErrorInfo(
-                    ErrorInfo(
-                        "Reactions are not enabled for this room",
-                        ErrorCodes.BadRequest.errorCode,
-                        HttpStatusCodes.BadRequest,
-                    ),
-                )
+                throw ablyException("Reactions are not enabled for this room", ErrorCodes.BadRequest)
             }
             return _reactions as RoomReactions
         }
@@ -174,13 +161,7 @@ internal class DefaultRoom(
     override val typing: Typing
         get() {
             if (_typing == null) {
-                throw AblyException.fromErrorInfo(
-                    ErrorInfo(
-                        "Typing is not enabled for this room",
-                        ErrorCodes.BadRequest.errorCode,
-                        HttpStatusCodes.BadRequest,
-                    ),
-                )
+                throw ablyException("Typing is not enabled for this room", ErrorCodes.BadRequest)
             }
             return _typing as Typing
         }
@@ -189,13 +170,7 @@ internal class DefaultRoom(
     override val occupancy: Occupancy
         get() {
             if (_occupancy == null) {
-                throw AblyException.fromErrorInfo(
-                    ErrorInfo(
-                        "Occupancy is not enabled for this room",
-                        ErrorCodes.BadRequest.errorCode,
-                        HttpStatusCodes.BadRequest,
-                    ),
-                )
+                throw ablyException("Occupancy is not enabled for this room", ErrorCodes.BadRequest)
             }
             return _occupancy as Occupancy
         }

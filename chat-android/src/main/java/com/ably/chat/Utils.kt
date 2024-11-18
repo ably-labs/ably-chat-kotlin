@@ -195,3 +195,10 @@ internal class DeferredValue<T> {
         return result
     }
 }
+
+fun ablyException(
+    errorMessage: String,
+    code: ErrorCodes,
+    statusCode: Int = HttpStatusCodes.BadRequest,
+    cause: Throwable? = null,
+): AblyException = AblyException.fromErrorInfo(cause, ErrorInfo(errorMessage, statusCode, code.errorCode))

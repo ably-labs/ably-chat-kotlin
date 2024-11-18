@@ -1,4 +1,4 @@
-package com.ably.chat.room
+package com.ably.chat.room.lifecycle
 
 import com.ably.chat.ContributesToRoomLifecycle
 import com.ably.chat.DefaultRoomAttachmentResult
