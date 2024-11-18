@@ -131,7 +131,8 @@ internal class DefaultRoom(
     private val roomScope =
         CoroutineScope(Dispatchers.Default.limitedParallelism(1) + CoroutineName(roomId))
 
-    private val clientId get() = realtimeClient.auth.clientId
+    private val clientId: String
+        get() = realtimeClient.auth.clientId
 
     override val messages = DefaultMessages(
         roomId = roomId,
@@ -144,8 +145,9 @@ internal class DefaultRoom(
         get() {
             if (_presence == null) {
                 throw AblyException.fromErrorInfo(
-                    ErrorInfo.fromResponseStatus(
+                    ErrorInfo(
                         "Presence is not enabled for this room",
+                        ErrorCodes.BadRequest.errorCode,
                         HttpStatusCodes.BadRequest,
                     ),
                 )
@@ -158,8 +160,9 @@ internal class DefaultRoom(
         get() {
             if (_reactions == null) {
                 throw AblyException.fromErrorInfo(
-                    ErrorInfo.fromResponseStatus(
+                    ErrorInfo(
                         "Reactions are not enabled for this room",
+                        ErrorCodes.BadRequest.errorCode,
                         HttpStatusCodes.BadRequest,
                     ),
                 )
@@ -172,8 +175,9 @@ internal class DefaultRoom(
         get() {
             if (_typing == null) {
                 throw AblyException.fromErrorInfo(
-                    ErrorInfo.fromResponseStatus(
+                    ErrorInfo(
                         "Typing is not enabled for this room",
+                        ErrorCodes.BadRequest.errorCode,
                         HttpStatusCodes.BadRequest,
                     ),
                 )
@@ -186,8 +190,9 @@ internal class DefaultRoom(
         get() {
             if (_occupancy == null) {
                 throw AblyException.fromErrorInfo(
-                    ErrorInfo.fromResponseStatus(
+                    ErrorInfo(
                         "Occupancy is not enabled for this room",
+                        ErrorCodes.BadRequest.errorCode,
                         HttpStatusCodes.BadRequest,
                     ),
                 )

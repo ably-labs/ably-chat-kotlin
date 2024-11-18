@@ -82,8 +82,9 @@ object OccupancyOptions
 fun RoomOptions.validateRoomOptions() {
     if (typing != null && typing.timeoutMs <= 0) {
         throw AblyException.fromErrorInfo(
-            ErrorInfo.fromResponseStatus(
+            ErrorInfo(
                 "Typing timeout must be greater than 0",
+                ErrorCodes.InvalidRequestBody.errorCode,
                 HttpStatusCodes.BadRequest,
             ),
         )
