@@ -161,7 +161,7 @@ class DetachTest {
     @Test
     fun `(CHA-RL2i) Detach op should wait for existing operation as per (CHA-RL7)`() = runTest {
         val statusLifecycle = spyk<DefaultRoomLifecycle>()
-        Assert.assertEquals(RoomStatus.Initializing, statusLifecycle.status)
+        Assert.assertEquals(RoomStatus.Initialized, statusLifecycle.status) // CHA-RS3
 
         val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks()))
 

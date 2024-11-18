@@ -11,11 +11,6 @@ import io.ably.lib.util.Log.LogHandler
  */
 enum class RoomStatus(val stateName: String) {
     /**
-     * The library is currently initializing the room.
-     */
-    Initializing("initializing"),
-
-    /**
      * (CHA-RS1a)
      * A temporary state for when the library is first initialized.
      */
@@ -182,7 +177,8 @@ class RoomStatusEventEmitter : EventEmitter<RoomStatus, RoomLifecycle.Listener>(
 class DefaultRoomLifecycle(private val logger: LogHandler? = null) : InternalRoomLifecycle {
 
     private val _logger = logger
-    private var _status = RoomStatus.Initializing
+
+    private var _status = RoomStatus.Initialized // CHA-RS3
     override val status: RoomStatus
         get() = _status
 

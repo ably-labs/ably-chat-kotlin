@@ -91,7 +91,7 @@ class AttachTest {
     @Test
     fun `(CHA-RL1d) Attach op should wait for existing operation as per (CHA-RL7)`() = runTest {
         val statusLifecycle = spyk<DefaultRoomLifecycle>()
-        Assert.assertEquals(RoomStatus.Initializing, statusLifecycle.status)
+        Assert.assertEquals(RoomStatus.Initialized, statusLifecycle.status) // CHA-RS3
 
         val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks()))
 

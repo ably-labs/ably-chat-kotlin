@@ -90,7 +90,7 @@ class ReleaseTest {
         // TODO - need more clarity regarding test case as per https://github.com/ably/ably-chat-js/issues/399
         // TODO - There might be a need to rephrase the spec statement
         val statusLifecycle = spyk<DefaultRoomLifecycle>()
-        Assert.assertEquals(RoomStatus.Initializing, statusLifecycle.status)
+        Assert.assertEquals(RoomStatus.Initialized, statusLifecycle.status)
 
         val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks()))
 
@@ -137,7 +137,9 @@ class ReleaseTest {
 
     @Test
     fun `(CHA-RL3l) Release op should transition room into RELEASING state, transient timeouts should be cleared`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk<DefaultRoomLifecycle>().apply {
+            setStatus(RoomStatus.Attached)
+        }
         val roomStatusChanges = mutableListOf<RoomStatusChange>()
         statusLifecycle.onChange {
             roomStatusChanges.add(it)
@@ -159,7 +161,9 @@ class ReleaseTest {
 
     @Test
     fun `(CHA-RL3d) Release op should detach each contributor channel sequentially and room should be considered RELEASED`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk<DefaultRoomLifecycle>().apply {
+            setStatus(RoomStatus.Attached)
+        }
 
         mockkStatic(io.ably.lib.realtime.Channel::detachCoroutine)
         val capturedChannels = mutableListOf<io.ably.lib.realtime.Channel>()
@@ -190,7 +194,9 @@ class ReleaseTest {
 
     @Test
     fun `(CHA-RL3e) If a one of the contributors is in failed state, release op continues for other contributors`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk<DefaultRoomLifecycle>().apply {
+            setStatus(RoomStatus.Attached)
+        }
 
         mockkStatic(io.ably.lib.realtime.Channel::detachCoroutine)
         val capturedChannels = mutableListOf<io.ably.lib.realtime.Channel>()
@@ -222,7 +228,10 @@ class ReleaseTest {
 
     @Test
     fun `(CHA-RL3f) If a one of the contributors fails to detach, release op continues for all contributors after 250ms delay`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk<DefaultRoomLifecycle>().apply {
+            setStatus(RoomStatus.Attached)
+        }
+
         val roomEvents = mutableListOf<RoomStatusChange>()
         statusLifecycle.onChange {
             roomEvents.add(it)
@@ -259,7 +268,9 @@ class ReleaseTest {
 
     @Test
     fun `(CHA-RL3g) Release op continues till all contributors enters either DETACHED or FAILED state`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk<DefaultRoomLifecycle>().apply {
+            setStatus(RoomStatus.Attached)
+        }
 
         mockkStatic(io.ably.lib.realtime.Channel::detachCoroutine)
         var failDetachTimes = 5
@@ -303,7 +314,9 @@ class ReleaseTest {
 
     @Test
     fun `(CHA-RL3h) Upon channel release, underlying Realtime Channels are released from the core SDK prevent leakage`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk<DefaultRoomLifecycle>().apply {
+            setStatus(RoomStatus.Attached)
+        }
 
         mockkStatic(io.ably.lib.realtime.Channel::detachCoroutine)
         coEvery { any<io.ably.lib.realtime.Channel>().detachCoroutine() } coAnswers {
@@ -347,8 +360,10 @@ class ReleaseTest {
 
     @Test
     fun `(CHA-RL3k) Release op should wait for existing operation as per (CHA-RL7)`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
-        Assert.assertEquals(RoomStatus.Initializing, statusLifecycle.status)
+        val statusLifecycle = spyk<DefaultRoomLifecycle>().apply {
+            setStatus(RoomStatus.Attached)
+        }
+
         val roomEvents = mutableListOf<RoomStatusChange>()
 
         statusLifecycle.onChange {
