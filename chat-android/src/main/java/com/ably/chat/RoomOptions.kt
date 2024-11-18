@@ -1,5 +1,8 @@
 package com.ably.chat
 
+import io.ably.lib.types.AblyException
+import io.ably.lib.types.ErrorInfo
+
 /**
  * Represents the options for a given chat room.
  */
@@ -58,9 +61,9 @@ data class TypingOptions(
     /**
      * The timeout for typing events in milliseconds. If typing.start() is not called for this amount of time, a stop
      * typing event will be fired, resulting in the user being removed from the currently typing set.
-     * @defaultValue 10000
+     * @defaultValue 5000
      */
-    val timeoutMs: Long = 10_000,
+    val timeoutMs: Long = 5000,
 )
 
 /**
@@ -72,3 +75,17 @@ object RoomReactionsOptions
  * Represents the occupancy options for a chat room.
  */
 object OccupancyOptions
+
+/**
+ * Throws AblyException for invalid room configuration.
+ */
+fun RoomOptions.validateRoomOptions() {
+    if (typing != null && typing.timeoutMs <= 0) {
+        throw AblyException.fromErrorInfo(
+            ErrorInfo.fromResponseStatus(
+                "Typing timeout must be greater than 0",
+                HttpStatusCodes.BadRequest,
+            ),
+        )
+    }
+}

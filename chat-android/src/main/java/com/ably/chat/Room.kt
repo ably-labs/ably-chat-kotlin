@@ -2,6 +2,7 @@
 
 package com.ably.chat
 
+import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
 import io.ably.lib.util.Log.LogHandler
 import kotlinx.coroutines.CoroutineName
@@ -132,85 +133,139 @@ internal class DefaultRoom(
 
     private val clientId get() = realtimeClient.auth.clientId
 
-    private val _messages = DefaultMessages(
+    override val messages = DefaultMessages(
         roomId = roomId,
         realtimeChannels = realtimeClient.channels,
         chatApi = chatApi,
     )
 
-    override val messages: Messages = _messages
+    private var _presence: Presence? = null
+    override val presence: Presence
+        get() {
+            if (_presence == null) {
+                throw AblyException.fromErrorInfo(
+                    ErrorInfo.fromResponseStatus(
+                        "Presence is not enabled for this room",
+                        HttpStatusCodes.BadRequest,
+                    ),
+                )
+            }
+            return _presence as Presence
+        }
 
-    override val presence: Presence = DefaultPresence(
-        channel = messages.channel,
-        clientId = clientId,
-        presence = messages.channel.presence,
-    )
+    private var _reactions: RoomReactions? = null
+    override val reactions: RoomReactions
+        get() {
+            if (_reactions == null) {
+                throw AblyException.fromErrorInfo(
+                    ErrorInfo.fromResponseStatus(
+                        "Reactions are not enabled for this room",
+                        HttpStatusCodes.BadRequest,
+                    ),
+                )
+            }
+            return _reactions as RoomReactions
+        }
 
-    override val reactions: RoomReactions = DefaultRoomReactions(
-        roomId = roomId,
-        clientId = clientId,
-        realtimeChannels = realtimeClient.channels,
-    )
+    private var _typing: Typing? = null
+    override val typing: Typing
+        get() {
+            if (_typing == null) {
+                throw AblyException.fromErrorInfo(
+                    ErrorInfo.fromResponseStatus(
+                        "Typing is not enabled for this room",
+                        HttpStatusCodes.BadRequest,
+                    ),
+                )
+            }
+            return _typing as Typing
+        }
 
-    override val typing: Typing = DefaultTyping(
-        roomId = roomId,
-        realtimeClient = realtimeClient,
-    )
+    private var _occupancy: Occupancy? = null
+    override val occupancy: Occupancy
+        get() {
+            if (_occupancy == null) {
+                throw AblyException.fromErrorInfo(
+                    ErrorInfo.fromResponseStatus(
+                        "Occupancy is not enabled for this room",
+                        HttpStatusCodes.BadRequest,
+                    ),
+                )
+            }
+            return _occupancy as Occupancy
+        }
 
-    override val occupancy: Occupancy = DefaultOccupancy(
-        messages = messages,
-    )
-    private var _lifecycleManager: RoomLifecycleManager? = null
-
-    private val _statusLifecycle = DefaultRoomLifecycle(logger)
-    internal val statusLifecycle: DefaultRoomLifecycle
-        get() = _statusLifecycle
+    private val statusLifecycle = DefaultRoomLifecycle(logger)
 
     override val status: RoomStatus
-        get() = _statusLifecycle.status
+        get() = statusLifecycle.status
 
     override val error: ErrorInfo?
-        get() = _statusLifecycle.error
+        get() = statusLifecycle.error
+
+    private var lifecycleManager: RoomLifecycleManager
 
     init {
-        /**
-         * TODO
-         * Initialize features based on provided RoomOptions.
-         * By default, only messages feature should be initialized.
-         * Currently, all features are initialized by default.
-         */
-        val features = listOf(messages, presence, typing, reactions, occupancy)
-        _lifecycleManager = RoomLifecycleManager(roomScope, _statusLifecycle, features, _logger)
-        /**
-         * TODO
-         * Make sure previous release op. for same was a success.
-         * Make sure channels were removed using realtime.channels.release(contributor.channel.name);
-         * Once this is a success, set room to initialized, if not set it to failed and throw error.
-         * Note that impl. can change based on recent proposed changes to chat-room-lifecycle DR.
-         */
-        this._statusLifecycle.setStatus(RoomStatus.Initialized)
+        options.validateRoomOptions()
+
+        val roomFeatures = mutableListOf<ContributesToRoomLifecycle>(messages)
+
+        options.presence?.let {
+            val presenceContributor = DefaultPresence(
+                clientId = clientId,
+                channel = messages.channel,
+                presence = messages.channel.presence,
+            )
+            roomFeatures.add(presenceContributor)
+            _presence = presenceContributor
+        }
+
+        options.typing?.let {
+            val typingContributor = DefaultTyping(
+                roomId = roomId,
+                realtimeClient = realtimeClient,
+            )
+            roomFeatures.add(typingContributor)
+            _typing = typingContributor
+        }
+
+        options.reactions?.let {
+            val reactionsContributor = DefaultRoomReactions(
+                roomId = roomId,
+                clientId = clientId,
+                realtimeChannels = realtimeClient.channels,
+            )
+            roomFeatures.add(reactionsContributor)
+            _reactions = reactionsContributor
+        }
+
+        options.occupancy?.let {
+            val occupancyContributor = DefaultOccupancy(
+                messages = messages,
+            )
+            roomFeatures.add(occupancyContributor)
+            _occupancy = occupancyContributor
+        }
+
+        lifecycleManager = RoomLifecycleManager(roomScope, statusLifecycle, roomFeatures, _logger)
     }
 
-    override fun onStatusChange(listener: RoomLifecycle.Listener): Subscription = _statusLifecycle.onChange(listener)
+    override fun onStatusChange(listener: RoomLifecycle.Listener): Subscription =
+        statusLifecycle.onChange(listener)
 
     override fun offAllStatusChange() {
-        _statusLifecycle.offAll()
+        statusLifecycle.offAll()
     }
 
     override suspend fun attach() {
-        if (_lifecycleManager == null) {
-            // TODO - wait for room to be initialized inside init
-        }
-        _lifecycleManager?.attach()
+        lifecycleManager.attach()
     }
 
     override suspend fun detach() {
-        messages.channel.detachCoroutine()
-        typing.channel.detachCoroutine()
-        reactions.channel.detachCoroutine()
+        lifecycleManager.detach()
     }
 
     override suspend fun release() {
-        _lifecycleManager?.release()
+        lifecycleManager.release()
     }
 }

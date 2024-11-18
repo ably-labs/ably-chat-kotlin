@@ -41,7 +41,10 @@ fun createRoomFeatureMocks(roomId: String = "1234"): List<ContributesToRoomLifec
     val chatApi = mockk<ChatApi>(relaxed = true)
 
     val messagesContributor = spyk(DefaultMessages(roomId, realtimeClient.channels, chatApi), recordPrivateCalls = true)
-    val presenceContributor = spyk(DefaultPresence(messagesContributor), recordPrivateCalls = true)
+    val presenceContributor = spyk(
+        DefaultPresence("client1", messagesContributor.channel, messagesContributor.channel.presence),
+        recordPrivateCalls = true,
+    )
     val occupancyContributor = spyk(DefaultOccupancy(messagesContributor), recordPrivateCalls = true)
     val typingContributor = spyk(DefaultTyping(roomId, realtimeClient), recordPrivateCalls = true)
     val reactionsContributor = spyk(DefaultRoomReactions(roomId, "client1", realtimeClient.channels), recordPrivateCalls = true)
