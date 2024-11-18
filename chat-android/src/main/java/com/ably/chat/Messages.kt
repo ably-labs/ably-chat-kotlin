@@ -243,7 +243,7 @@ internal class DefaultMessages(
 
     init {
         channelStateListener = ChannelStateListener {
-            if (!it.resumed) updateChannelSerialsAfterDiscontinuity()
+            if (it.current == ChannelState.attached && !it.resumed) updateChannelSerialsAfterDiscontinuity()
         }
         channel.on(channelStateListener)
     }
