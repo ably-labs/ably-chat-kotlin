@@ -61,6 +61,7 @@ internal class DefaultChatClient(
         realtimeClient = realtime,
         chatApi = chatApi,
         clientOptions = clientOptions,
+        clientId = clientId,
     )
 
     override val connection: Connection

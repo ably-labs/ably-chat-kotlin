@@ -39,12 +39,12 @@ class Sandbox private constructor(val appId: String, val apiKey: String) {
     }
 }
 
-internal fun Sandbox.createSandboxChatClient(): DefaultChatClient {
-    val realtime = createSandboxRealtime(apiKey)
+internal fun Sandbox.createSandboxChatClient(chatClientId: String = "sandbox-client"): DefaultChatClient {
+    val realtime = createSandboxRealtime(chatClientId)
     return DefaultChatClient(realtime, ClientOptions())
 }
 
-internal fun Sandbox.createSandboxRealtime(chatClientId: String = "sandbox-client"): AblyRealtime =
+internal fun Sandbox.createSandboxRealtime(chatClientId: String): AblyRealtime =
     AblyRealtime(
         io.ably.lib.types.ClientOptions().apply {
             key = apiKey

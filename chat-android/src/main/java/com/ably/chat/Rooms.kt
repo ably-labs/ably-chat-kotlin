@@ -46,6 +46,7 @@ internal class DefaultRooms(
     private val realtimeClient: RealtimeClient,
     private val chatApi: ChatApi,
     override val clientOptions: ClientOptions,
+    private val clientId: String,
 ) : Rooms {
     private val roomIdToRoom: MutableMap<String, DefaultRoom> = mutableMapOf()
 
@@ -57,6 +58,7 @@ internal class DefaultRooms(
                     options = options,
                     realtimeClient = realtimeClient,
                     chatApi = chatApi,
+                    clientId = clientId,
                 )
             }
 

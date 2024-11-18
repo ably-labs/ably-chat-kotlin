@@ -89,9 +89,8 @@ internal class DefaultRoom(
     override val options: RoomOptions,
     val realtimeClient: RealtimeClient,
     chatApi: ChatApi,
+    clientId: String,
 ) : Room {
-
-    private val clientId get() = realtimeClient.auth.clientId
 
     private val _messages = DefaultMessages(
         roomId = roomId,

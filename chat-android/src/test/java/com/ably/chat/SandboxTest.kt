@@ -26,7 +26,7 @@ class SandboxTest {
 
     @Test
     fun `should return yourself as presence member after you entered`() = runTest {
-        val chatClient = sandbox.createSandboxChatClient()
+        val chatClient = sandbox.createSandboxChatClient("sandbox-client")
         val room = chatClient.rooms.get(UUID.randomUUID().toString())
         room.attach()
         room.presence.enter()
