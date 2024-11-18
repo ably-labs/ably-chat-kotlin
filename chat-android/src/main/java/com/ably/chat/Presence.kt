@@ -14,6 +14,7 @@ import io.ably.lib.realtime.Presence as PubSubPresence
 import io.ably.lib.realtime.Presence.PresenceListener as PubSubPresenceListener
 
 typealias PresenceData = JsonElement
+
 /**
  * This interface is used to interact with presence in a chat room: subscribing to presence events,
  * fetching presence members, or sending presence events (join,update,leave).

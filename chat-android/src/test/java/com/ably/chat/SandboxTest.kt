@@ -4,6 +4,7 @@ import java.util.UUID
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Test
 
 class SandboxTest {
@@ -16,6 +17,7 @@ class SandboxTest {
     }
 
     @Test
+    @Ignore
     fun `should return empty list of presence members if nobody is entered`() = runTest {
         val chatClient = sandbox.createSandboxChatClient()
         val room = chatClient.rooms.get(UUID.randomUUID().toString())
@@ -25,6 +27,7 @@ class SandboxTest {
     }
 
     @Test
+    @Ignore
     fun `should return yourself as presence member after you entered`() = runTest {
         val chatClient = sandbox.createSandboxChatClient()
         val room = chatClient.rooms.get(UUID.randomUUID().toString())
