@@ -1,13 +1,19 @@
 package com.ably.chat
 
+import com.google.gson.JsonElement
 import io.ably.lib.realtime.Channel
 import io.ably.lib.realtime.CompletionListener
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ChannelOptions
 import io.ably.lib.types.ErrorInfo
+import io.ably.lib.types.Param
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import io.ably.lib.realtime.Presence as PubSubPresence
 
 const val AGENT_PARAMETER_NAME = "agent"
 
@@ -38,6 +44,63 @@ suspend fun Channel.detachCoroutine() = suspendCoroutine { continuation ->
 suspend fun Channel.publishCoroutine(message: PubSubMessage) = suspendCoroutine { continuation ->
     publish(
         message,
+        object : CompletionListener {
+            override fun onSuccess() {
+                continuation.resume(Unit)
+            }
+
+            override fun onError(reason: ErrorInfo?) {
+                continuation.resumeWithException(AblyException.fromErrorInfo(reason))
+            }
+        },
+    )
+}
+
+suspend fun PubSubPresence.getCoroutine(param: Param) = withContext(Dispatchers.IO) {
+    get(param)
+}
+
+@Suppress("SpreadOperator")
+suspend fun PubSubPresence.getCoroutine(params: List<Param>) = withContext(Dispatchers.IO) {
+    get(*params.toTypedArray())
+}
+
+suspend fun PubSubPresence.enterClientCoroutine(clientId: String, data: JsonElement?) = suspendCancellableCoroutine { continuation ->
+    enterClient(
+        clientId,
+        data,
+        object : CompletionListener {
+            override fun onSuccess() {
+                continuation.resume(Unit)
+            }
+
+            override fun onError(reason: ErrorInfo?) {
+                continuation.resumeWithException(AblyException.fromErrorInfo(reason))
+            }
+        },
+    )
+}
+
+suspend fun PubSubPresence.updateClientCoroutine(clientId: String, data: JsonElement?) = suspendCancellableCoroutine { continuation ->
+    updateClient(
+        clientId,
+        data,
+        object : CompletionListener {
+            override fun onSuccess() {
+                continuation.resume(Unit)
+            }
+
+            override fun onError(reason: ErrorInfo?) {
+                continuation.resumeWithException(AblyException.fromErrorInfo(reason))
+            }
+        },
+    )
+}
+
+suspend fun PubSubPresence.leaveClientCoroutine(clientId: String, data: JsonElement?) = suspendCancellableCoroutine { continuation ->
+    leaveClient(
+        clientId,
+        data,
         object : CompletionListener {
             override fun onSuccess() {
                 continuation.resume(Unit)

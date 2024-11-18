@@ -115,7 +115,7 @@ interface Room {
 internal class DefaultRoom(
     override val roomId: String,
     override val options: RoomOptions,
-    realtimeClient: RealtimeClient,
+    val realtimeClient: RealtimeClient,
     chatApi: ChatApi,
     val logger: LogHandler?,
 ) : Room {
@@ -130,28 +130,34 @@ internal class DefaultRoom(
     private val roomScope =
         CoroutineScope(Dispatchers.Default.limitedParallelism(1) + CoroutineName(roomId))
 
-    override val messages = DefaultMessages(
+    private val clientId get() = realtimeClient.auth.clientId
+
+    private val _messages = DefaultMessages(
         roomId = roomId,
         realtimeChannels = realtimeClient.channels,
         chatApi = chatApi,
     )
 
-    override val presence = DefaultPresence(
-        messages = messages,
+    override val messages: Messages = _messages
+
+    override val presence: Presence = DefaultPresence(
+        channel = messages.channel,
+        clientId = clientId,
+        presence = messages.channel.presence,
     )
 
-    override val typing = DefaultTyping(
+    override val reactions: RoomReactions = DefaultRoomReactions(
+        roomId = roomId,
+        clientId = clientId,
+        realtimeChannels = realtimeClient.channels,
+    )
+
+    override val typing: Typing = DefaultTyping(
         roomId = roomId,
         realtimeClient = realtimeClient,
     )
 
-    override val reactions = DefaultRoomReactions(
-        roomId = roomId,
-        clientId = realtimeClient.auth.clientId,
-        realtimeChannels = realtimeClient.channels,
-    )
-
-    override val occupancy = DefaultOccupancy(
+    override val occupancy: Occupancy = DefaultOccupancy(
         messages = messages,
     )
     private var _lifecycleManager: RoomLifecycleManager? = null
