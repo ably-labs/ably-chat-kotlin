@@ -1,8 +1,8 @@
 package com.ably.chat.room
 
+import com.ably.chat.ContributesToRoomLifecycle
 import com.ably.chat.DefaultRoomLifecycle
 import com.ably.chat.ErrorCodes
-import com.ably.chat.ResolvedContributor
 import com.ably.chat.RoomLifecycleManager
 import com.ably.chat.RoomStatus
 import com.ably.chat.RoomStatusChange
@@ -188,13 +188,13 @@ class AttachTest {
         val contributorErrors = mutableListOf<ErrorInfo>()
         for (contributor in contributors) {
             every {
-                contributor.contributor.discontinuityDetected(capture(contributorErrors))
+                contributor.discontinuityDetected(capture(contributorErrors))
             } returns Unit
         }
         Assert.assertEquals(5, contributors.size)
 
         val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors), recordPrivateCalls = true) {
-            val pendingDiscontinuityEvents = mutableMapOf<ResolvedContributor, ErrorInfo?>().apply {
+            val pendingDiscontinuityEvents = mutableMapOf<ContributesToRoomLifecycle, ErrorInfo?>().apply {
                 for (contributor in contributors) {
                     put(contributor, ErrorInfo("${contributor.channel.name} error", 500))
                 }
@@ -214,7 +214,7 @@ class AttachTest {
         // CHA-RL1g2
         verify(exactly = 1) {
             for (contributor in contributors) {
-                contributor.contributor.discontinuityDetected(any<ErrorInfo>())
+                contributor.discontinuityDetected(any<ErrorInfo>())
             }
         }
         Assert.assertEquals(5, contributorErrors.size)
@@ -307,10 +307,10 @@ class AttachTest {
         val contributors = createRoomFeatureMocks("1234")
         val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors), recordPrivateCalls = true)
 
-        val resolvedContributor = slot<ResolvedContributor>()
+        val capturedContributors = slot<ContributesToRoomLifecycle>()
 
         // Behaviour for CHA-RL5 will be tested as a part of sub spec for the same
-        coEvery { roomLifecycle["doRetry"](capture(resolvedContributor)) } coAnswers {
+        coEvery { roomLifecycle["doRetry"](capture(capturedContributors)) } coAnswers {
             delay(1000)
         }
 
@@ -323,9 +323,9 @@ class AttachTest {
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing } // Wait for doRetry to finish
 
         coVerify(exactly = 1) {
-            roomLifecycle["doRetry"](resolvedContributor.captured)
+            roomLifecycle["doRetry"](capturedContributors.captured)
         }
-        Assert.assertEquals("reactions", resolvedContributor.captured.contributor.featureName)
+        Assert.assertEquals("reactions", capturedContributors.captured.featureName)
     }
 
     @Test
@@ -365,7 +365,7 @@ class AttachTest {
         }
 
         coVerify(exactly = 1) {
-            roomLifecycle["doChannelWindDown"](any<ResolvedContributor>())
+            roomLifecycle["doChannelWindDown"](any<ContributesToRoomLifecycle>())
         }
 
         Assert.assertEquals("1234::\$chat::\$chatMessages", detachedChannels[0].name)
@@ -417,7 +417,7 @@ class AttachTest {
 
         // Channel detach success on 6th call
         coVerify(exactly = 6) {
-            roomLifecycle["doChannelWindDown"](any<ResolvedContributor>())
+            roomLifecycle["doChannelWindDown"](any<ContributesToRoomLifecycle>())
         }
 
         Assert.assertEquals("1234::\$chat::\$chatMessages", detachedChannels[0].name)

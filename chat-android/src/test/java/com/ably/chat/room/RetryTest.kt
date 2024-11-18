@@ -51,7 +51,7 @@ class RetryTest {
 
         val contributors = createRoomFeatureMocks()
         Assert.assertEquals(5, contributors.size)
-        val messagesContributor = contributors.first { it.contributor.featureName == "messages" }
+        val messagesContributor = contributors.first { it.featureName == "messages" }
         messagesContributor.channel.setState(ChannelState.attached)
 
         val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors))
@@ -86,7 +86,7 @@ class RetryTest {
 
         val contributors = createRoomFeatureMocks()
 
-        val messagesContributor = contributors.first { it.contributor.featureName == "messages" }
+        val messagesContributor = contributors.first { it.featureName == "messages" }
         messagesContributor.channel.setState(ChannelState.attached)
 
         val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors))
@@ -116,7 +116,7 @@ class RetryTest {
 
         val contributors = createRoomFeatureMocks()
 
-        val messagesContributor = contributors.first { it.contributor.featureName == "messages" }
+        val messagesContributor = contributors.first { it.featureName == "messages" }
         messagesContributor.channel.setState(ChannelState.attached)
 
         val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors))
@@ -137,7 +137,7 @@ class RetryTest {
         coJustRun { any<io.ably.lib.realtime.Channel>().detachCoroutine() }
 
         val contributors = createRoomFeatureMocks()
-        val messagesContributor = contributors.first { it.contributor.featureName == "messages" }
+        val messagesContributor = contributors.first { it.featureName == "messages" }
 
         every {
             messagesContributor.channel.once(eq(ChannelState.attached), any<ChannelStateListener>())
@@ -175,7 +175,7 @@ class RetryTest {
         coJustRun { any<io.ably.lib.realtime.Channel>().detachCoroutine() }
 
         val contributors = createRoomFeatureMocks()
-        val messagesContributor = contributors.first { it.contributor.featureName == "messages" }
+        val messagesContributor = contributors.first { it.featureName == "messages" }
         messagesContributor.channel.setState(ChannelState.failed)
         messagesContributor.channel.reason = ErrorInfo("Failed channel messages", HttpStatusCodes.InternalServerError)
 
@@ -208,7 +208,7 @@ class RetryTest {
 
         val contributors = createRoomFeatureMocks()
         Assert.assertEquals(5, contributors.size)
-        val messagesContributor = contributors.first { it.contributor.featureName == "messages" }
+        val messagesContributor = contributors.first { it.featureName == "messages" }
         messagesContributor.channel.setState(ChannelState.attached)
 
         val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors))

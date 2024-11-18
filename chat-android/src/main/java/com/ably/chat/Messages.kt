@@ -225,7 +225,7 @@ internal class DefaultMessages(
     private val roomId: String,
     private val realtimeChannels: AblyRealtime.Channels,
     private val chatApi: ChatApi,
-) : Messages, ContributesToRoomLifecycleImpl(), ResolvedContributor {
+) : Messages, ContributesToRoomLifecycleImpl() {
 
     override val featureName: String = "messages"
 
@@ -242,8 +242,6 @@ internal class DefaultMessages(
     private val messagesChannelName = "$roomId::\$chat::\$chatMessages"
 
     override val channel = realtimeChannels.get(messagesChannelName, ChatChannelOptions())
-
-    override val contributor: ContributesToRoomLifecycle = this
 
     override val attachmentErrorCode: ErrorCodes = ErrorCodes.MessagesAttachmentFailed
 

@@ -61,13 +61,11 @@ data class OccupancyEvent(
 
 internal class DefaultOccupancy(
     private val messages: Messages,
-) : Occupancy, ContributesToRoomLifecycleImpl(), ResolvedContributor {
+) : Occupancy, ContributesToRoomLifecycleImpl() {
 
     override val featureName: String = "occupancy"
 
     override val channel = messages.channel
-
-    override val contributor: ContributesToRoomLifecycle = this
 
     override val attachmentErrorCode: ErrorCodes = ErrorCodes.OccupancyAttachmentFailed
 

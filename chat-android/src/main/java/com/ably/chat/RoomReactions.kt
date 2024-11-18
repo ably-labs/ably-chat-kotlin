@@ -107,15 +107,13 @@ internal class DefaultRoomReactions(
     roomId: String,
     private val clientId: String,
     private val realtimeChannels: AblyRealtime.Channels,
-) : RoomReactions, ContributesToRoomLifecycleImpl(), ResolvedContributor {
+) : RoomReactions, ContributesToRoomLifecycleImpl() {
 
     override val featureName = "reactions"
 
     private val roomReactionsChannelName = "$roomId::\$chat::\$reactions"
 
     override val channel: AblyRealtimeChannel = realtimeChannels.get(roomReactionsChannelName, ChatChannelOptions())
-
-    override val contributor: ContributesToRoomLifecycle = this
 
     override val attachmentErrorCode: ErrorCodes = ErrorCodes.ReactionsAttachmentFailed
 

@@ -132,13 +132,11 @@ data class PresenceEvent(
 
 internal class DefaultPresence(
     private val messages: Messages,
-) : Presence, ContributesToRoomLifecycleImpl(), ResolvedContributor {
+) : Presence, ContributesToRoomLifecycleImpl() {
 
     override val featureName = "presence"
 
     override val channel = messages.channel
-
-    override val contributor: ContributesToRoomLifecycle = this
 
     override val attachmentErrorCode: ErrorCodes = ErrorCodes.PresenceAttachmentFailed
 

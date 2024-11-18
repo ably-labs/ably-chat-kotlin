@@ -65,18 +65,6 @@ abstract class ContributesToRoomLifecycleImpl : ContributesToRoomLifecycle {
 }
 
 /**
- * This interface represents a feature that contributes to the room lifecycle and
- * exposes its channel directly. Objects of this type are created by awaiting the
- * channel promises of all the {@link ContributesToRoomLifecycle} objects.
- *
- * @internal
- */
-interface ResolvedContributor {
-    val channel: AblyRealtimeChannel
-    val contributor: ContributesToRoomLifecycle
-}
-
-/**
  * The order of precedence for lifecycle operations, passed to PriorityQueueExecutor which allows
  * us to ensure that internal operations take precedence over user-driven operations.
  */
@@ -89,13 +77,13 @@ enum class LifecycleOperationPrecedence(val priority: Int) {
 /**
  * A map of contributors to pending discontinuity events.
  */
-typealias DiscontinuityEventMap = MutableMap<ResolvedContributor, ErrorInfo?>
+typealias DiscontinuityEventMap = MutableMap<ContributesToRoomLifecycle, ErrorInfo?>
 
 /**
  * An internal interface that represents the result of a room attachment operation.
  */
 interface RoomAttachmentResult : NewRoomStatus {
-    val failedFeature: ResolvedContributor?
+    val failedFeature: ContributesToRoomLifecycle?
     val exception: AblyException
 }
 
@@ -104,8 +92,8 @@ class DefaultRoomAttachmentResult : RoomAttachmentResult {
     override val status: RoomStatus
         get() = statusField
 
-    internal var failedFeatureField: ResolvedContributor? = null
-    override val failedFeature: ResolvedContributor?
+    internal var failedFeatureField: ContributesToRoomLifecycle? = null
+    override val failedFeature: ContributesToRoomLifecycle?
         get() = failedFeatureField
 
     internal var errorField: ErrorInfo? = null
@@ -132,7 +120,7 @@ class DefaultRoomAttachmentResult : RoomAttachmentResult {
 class RoomLifecycleManager(
     private val roomScope: CoroutineScope,
     lifecycle: DefaultRoomLifecycle,
-    contributors: List<ResolvedContributor>,
+    contributors: List<ContributesToRoomLifecycle>,
     logger: LogHandler? = null,
 ) {
 
@@ -144,7 +132,7 @@ class RoomLifecycleManager(
     /**
      * The features that contribute to the room status.
      */
-    private var _contributors: List<ResolvedContributor> = contributors
+    private var _contributors: List<ContributesToRoomLifecycle> = contributors
 
     /**
      * Logger for RoomLifeCycleManager
@@ -179,7 +167,7 @@ class RoomLifecycleManager(
      *
      * Used to control whether we should trigger discontinuity events.
      */
-    private val _firstAttachesCompleted = mutableMapOf<ResolvedContributor, Boolean>()
+    private val _firstAttachesCompleted = mutableMapOf<ContributesToRoomLifecycle, Boolean>()
 
     /**
      * Are we in the process of releasing the room?
@@ -222,7 +210,7 @@ class RoomLifecycleManager(
      * Spec: CHA-RL5
      */
     @SuppressWarnings("CognitiveComplexMethod")
-    private suspend fun doRetry(contributor: ResolvedContributor) {
+    private suspend fun doRetry(contributor: ContributesToRoomLifecycle) {
         // CHA-RL5a - Handle the channel wind-down for other channels
         var result = kotlin.runCatching { doChannelWindDown(contributor) }
         while (result.isFailure) {
@@ -261,7 +249,7 @@ class RoomLifecycleManager(
                         )
                     }
                     // No need to catch errors, rather they should propagate to caller method
-                    return@coroutineScope doRetry(failedFeature as ResolvedContributor)
+                    return@coroutineScope doRetry(failedFeature as ContributesToRoomLifecycle)
                 }
                 // We attached, huzzah!
             }
@@ -288,7 +276,9 @@ class RoomLifecycleManager(
     /**
      * CHA-RL5f, CHA-RL5e
      */
-    private suspend fun listenToChannelAttachOrFailure(contributor: ResolvedContributor) = suspendCancellableCoroutine { continuation ->
+    private suspend fun listenToChannelAttachOrFailure(
+        contributor: ContributesToRoomLifecycle,
+    ) = suspendCancellableCoroutine { continuation ->
         // CHA-RL5f
         val resumeIfAttached = {
             if (continuation.isActive) {
@@ -415,9 +405,9 @@ class RoomLifecycleManager(
                 attachResult.throwable = ex
                 attachResult.failedFeatureField = feature
                 attachResult.errorField = ErrorInfo(
-                    "failed to attach ${feature.contributor.featureName} feature${feature.channel.errorMessage}",
+                    "failed to attach ${feature.featureName} feature${feature.channel.errorMessage}",
                     HttpStatusCodes.InternalServerError,
-                    feature.contributor.attachmentErrorCode.errorCode,
+                    feature.attachmentErrorCode.errorCode,
                 )
 
                 // The current feature should be in one of two states, it will be either suspended or failed
@@ -449,7 +439,7 @@ class RoomLifecycleManager(
 
         // Iterate the pending discontinuity events and trigger them
         for ((contributor, error) in _pendingDiscontinuityEvents) {
-            contributor.contributor.discontinuityDetected(error)
+            contributor.discontinuityDetected(error)
         }
         _pendingDiscontinuityEvents.clear()
         return attachResult
@@ -481,8 +471,8 @@ class RoomLifecycleManager(
      *
      */
     @SuppressWarnings("CognitiveComplexMethod", "ComplexCondition")
-    private suspend fun doChannelWindDown(except: ResolvedContributor? = null) = coroutineScope {
-        _contributors.map { contributor: ResolvedContributor ->
+    private suspend fun doChannelWindDown(except: ContributesToRoomLifecycle? = null) = coroutineScope {
+        _contributors.map { contributor: ContributesToRoomLifecycle ->
             async {
                 // CHA-RL5a1 - If its the contributor we want to wait for a conclusion on, then we should not detach it
                 // Unless we're in a failed state, in which case we should detach it
@@ -511,9 +501,9 @@ class RoomLifecycleManager(
                         _statusLifecycle.status !== RoomStatus.Released
                     ) {
                         val contributorError = ErrorInfo(
-                            "failed to detach ${contributor.contributor.featureName} feature${contributor.channel.errorMessage}",
+                            "failed to detach ${contributor.featureName} feature${contributor.channel.errorMessage}",
                             HttpStatusCodes.InternalServerError,
-                            contributor.contributor.detachmentErrorCode.errorCode,
+                            contributor.detachmentErrorCode.errorCode,
                         )
                         _statusLifecycle.setStatus(RoomStatus.Failed, contributorError)
                         throw AblyException.fromErrorInfo(throwable, contributorError)
@@ -699,7 +689,7 @@ class RoomLifecycleManager(
      */
     @Suppress("RethrowCaughtException")
     private suspend fun doRelease() = coroutineScope {
-        _contributors.map { contributor: ResolvedContributor ->
+        _contributors.map { contributor: ContributesToRoomLifecycle ->
             async {
                 // CHA-RL3e - Failed channels, we can ignore
                 if (contributor.channel.state == ChannelState.failed) {
@@ -720,7 +710,7 @@ class RoomLifecycleManager(
 
         // CHA-RL3h - underlying Realtime Channels are released from the core SDK prevent leakage
         _contributors.forEach {
-            it.contributor.release()
+            it.release()
         }
         _releaseInProgress = false
         _statusLifecycle.setStatus(RoomStatus.Released) // CHA-RL3g

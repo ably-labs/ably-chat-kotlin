@@ -1,8 +1,8 @@
 package com.ably.chat.room
 
+import com.ably.chat.ContributesToRoomLifecycle
 import com.ably.chat.DefaultRoomAttachmentResult
 import com.ably.chat.DefaultRoomLifecycle
-import com.ably.chat.ResolvedContributor
 import com.ably.chat.RoomLifecycleManager
 import com.ably.chat.RoomStatus
 import com.ably.chat.RoomStatusChange
@@ -51,7 +51,7 @@ class PrecedenceTest {
 
         val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors), recordPrivateCalls = true)
         // Internal operation
-        coEvery { roomLifecycle["doRetry"](any<ResolvedContributor>()) } coAnswers {
+        coEvery { roomLifecycle["doRetry"](any<ContributesToRoomLifecycle>()) } coAnswers {
             delay(200)
             statusLifecycle.setStatus(RoomStatus.Suspended)
             statusLifecycle.setStatus(RoomStatus.Failed)
@@ -105,7 +105,7 @@ class PrecedenceTest {
         Assert.assertEquals(RoomStatus.Released, roomStatusChanges[5].current)
 
         verify {
-            roomLifecycle["doRetry"](any<ResolvedContributor>())
+            roomLifecycle["doRetry"](any<ContributesToRoomLifecycle>())
             roomLifecycle invokeNoArgs "doAttach"
             roomLifecycle invokeNoArgs "releaseChannels"
         }

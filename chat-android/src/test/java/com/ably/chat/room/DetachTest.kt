@@ -1,9 +1,9 @@
 package com.ably.chat.room
 
+import com.ably.chat.ContributesToRoomLifecycle
 import com.ably.chat.DefaultRoomLifecycle
 import com.ably.chat.ErrorCodes
 import com.ably.chat.HttpStatusCodes
-import com.ably.chat.ResolvedContributor
 import com.ably.chat.RoomLifecycleManager
 import com.ably.chat.RoomStatus
 import com.ably.chat.RoomStatusChange
@@ -250,7 +250,7 @@ class DetachTest {
 
         // First fail for typing, second fail for reactions, third is a success
         coVerify(exactly = 3) {
-            roomLifecycle["doChannelWindDown"](any<ResolvedContributor>())
+            roomLifecycle["doChannelWindDown"](any<ContributesToRoomLifecycle>())
         }
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
     }
@@ -338,7 +338,7 @@ class DetachTest {
 
         // Channel detach success on 6th call
         coVerify(exactly = 6) {
-            roomLifecycle["doChannelWindDown"](any<ResolvedContributor>())
+            roomLifecycle["doChannelWindDown"](any<ContributesToRoomLifecycle>())
         }
     }
 }

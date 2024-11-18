@@ -329,7 +329,7 @@ class ReleaseTest {
 
         val releasedChannels = mutableListOf<io.ably.lib.realtime.Channel>()
         for (contributor in contributors) {
-            every { contributor.contributor.release() } answers {
+            every { contributor.release() } answers {
                 releasedChannels.add(contributor.channel)
             }
         }
@@ -353,7 +353,7 @@ class ReleaseTest {
 
         for (contributor in contributors) {
             verify(exactly = 1) {
-                contributor.contributor.release()
+                contributor.release()
             }
         }
     }

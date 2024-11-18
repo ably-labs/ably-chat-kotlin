@@ -2,13 +2,13 @@ package com.ably.utils
 
 import com.ably.chat.AtomicCoroutineScope
 import com.ably.chat.ChatApi
+import com.ably.chat.ContributesToRoomLifecycle
 import com.ably.chat.DefaultMessages
 import com.ably.chat.DefaultOccupancy
 import com.ably.chat.DefaultPresence
 import com.ably.chat.DefaultRoomReactions
 import com.ably.chat.DefaultTyping
 import com.ably.chat.LifecycleOperationPrecedence
-import com.ably.chat.ResolvedContributor
 import com.ably.chat.RoomLifecycleManager
 import com.ably.chat.getPrivateField
 import com.ably.chat.invokePrivateSuspendMethod
@@ -22,10 +22,10 @@ import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
 fun RoomLifecycleManager.atomicCoroutineScope(): AtomicCoroutineScope = getPrivateField("atomicCoroutineScope")
 
-suspend fun RoomLifecycleManager.retry(exceptContributor: ResolvedContributor) =
+suspend fun RoomLifecycleManager.retry(exceptContributor: ContributesToRoomLifecycle) =
     invokePrivateSuspendMethod<Unit>("doRetry", exceptContributor)
 
-suspend fun RoomLifecycleManager.atomicRetry(exceptContributor: ResolvedContributor) {
+suspend fun RoomLifecycleManager.atomicRetry(exceptContributor: ContributesToRoomLifecycle) {
     atomicCoroutineScope().async(LifecycleOperationPrecedence.Internal.priority) {
         retry(exceptContributor)
     }.await()
@@ -36,7 +36,7 @@ fun AblyRealtimeChannel.setState(state: ChannelState, errorInfo: ErrorInfo? = nu
     this.reason = errorInfo
 }
 
-fun createRoomFeatureMocks(roomId: String = "1234"): List<ResolvedContributor> {
+fun createRoomFeatureMocks(roomId: String = "1234"): List<ContributesToRoomLifecycle> {
     val realtimeClient = spyk(AblyRealtime(ClientOptions("id:key").apply { autoConnect = false }))
     val chatApi = mockk<ChatApi>(relaxed = true)
 
