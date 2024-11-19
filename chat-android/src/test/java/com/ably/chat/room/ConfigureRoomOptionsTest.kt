@@ -5,7 +5,6 @@ import com.ably.chat.DefaultRoom
 import com.ably.chat.RoomOptions
 import com.ably.chat.RoomStatus
 import com.ably.chat.TypingOptions
-import com.ably.utils.createMockRealtimeClient
 import io.ably.lib.types.AblyException
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest

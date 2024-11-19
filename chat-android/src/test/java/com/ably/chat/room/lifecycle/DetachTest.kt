@@ -9,9 +9,9 @@ import com.ably.chat.RoomStatus
 import com.ably.chat.RoomStatusChange
 import com.ably.chat.assertWaiter
 import com.ably.chat.detachCoroutine
-import com.ably.utils.atomicCoroutineScope
-import com.ably.utils.createRoomFeatureMocks
-import com.ably.utils.setState
+import com.ably.chat.room.atomicCoroutineScope
+import com.ably.chat.room.createRoomFeatureMocks
+import com.ably.chat.room.setState
 import io.ably.lib.realtime.ChannelState
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo

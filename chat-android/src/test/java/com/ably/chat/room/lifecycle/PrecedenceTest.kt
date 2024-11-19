@@ -7,9 +7,9 @@ import com.ably.chat.RoomLifecycleManager
 import com.ably.chat.RoomStatus
 import com.ably.chat.RoomStatusChange
 import com.ably.chat.assertWaiter
-import com.ably.utils.atomicCoroutineScope
-import com.ably.utils.atomicRetry
-import com.ably.utils.createRoomFeatureMocks
+import com.ably.chat.room.atomicCoroutineScope
+import com.ably.chat.room.atomicRetry
+import com.ably.chat.room.createRoomFeatureMocks
 import io.mockk.coEvery
 import io.mockk.spyk
 import io.mockk.verify
