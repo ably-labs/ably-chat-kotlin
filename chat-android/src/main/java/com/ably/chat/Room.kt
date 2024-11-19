@@ -105,17 +105,12 @@ interface Room {
      * Detaches from the room to stop receiving events in realtime.
      */
     suspend fun detach()
-
-    /**
-     * Releases the room, underlying channels are removed from the core SDK to prevent leakage.
-     */
-    suspend fun release()
 }
 
 internal class DefaultRoom(
     override val roomId: String,
     override val options: RoomOptions,
-    val realtimeClient: RealtimeClient,
+    private val realtimeClient: RealtimeClient,
     chatApi: ChatApi,
     val logger: LogHandler?,
 ) : Room {
@@ -245,7 +240,11 @@ internal class DefaultRoom(
         lifecycleManager.detach()
     }
 
-    override suspend fun release() {
+    /**
+     * Releases the room, underlying channels are removed from the core SDK to prevent leakage.
+     * This is an internal method and only called from Rooms interface implementation.
+     */
+    internal suspend fun release() {
         lifecycleManager.release()
     }
 }
