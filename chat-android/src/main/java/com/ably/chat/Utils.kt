@@ -201,4 +201,9 @@ fun ablyException(
     code: ErrorCodes,
     statusCode: Int = HttpStatusCodes.BadRequest,
     cause: Throwable? = null,
-): AblyException = AblyException.fromErrorInfo(cause, ErrorInfo(errorMessage, statusCode, code.errorCode))
+): AblyException {
+    cause?.let {
+        return AblyException.fromErrorInfo(cause, ErrorInfo(errorMessage, statusCode, code.errorCode))
+    }
+    return AblyException.fromErrorInfo(ErrorInfo(errorMessage, statusCode, code.errorCode))
+}

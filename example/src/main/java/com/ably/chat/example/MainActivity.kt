@@ -49,6 +49,7 @@ import com.ably.chat.example.ui.theme.AblyChatExampleTheme
 import io.ably.lib.types.ClientOptions
 import java.util.UUID
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 val randomClientId = UUID.randomUUID().toString()
 
@@ -113,7 +114,7 @@ fun Chat(chatClient: ChatClient, modifier: Modifier = Modifier) {
     val coroutineScope = rememberCoroutineScope()
     var receivedReactions by remember { mutableStateOf<List<String>>(listOf()) }
 
-    val room = chatClient.rooms.get(Settings.ROOM_ID)
+    val room = runBlocking { chatClient.rooms.get(Settings.ROOM_ID) }
 
     DisposableEffect(Unit) {
         coroutineScope.launch {

@@ -89,7 +89,9 @@ object OccupancyOptions
  * Throws AblyException for invalid room configuration.
  */
 fun RoomOptions.validateRoomOptions() {
-    if (typing != null && typing.timeoutMs <= 0) {
-        throw ablyException("Typing timeout must be greater than 0", ErrorCodes.InvalidRequestBody)
+    typing?.let {
+        if (typing.timeoutMs <= 0) {
+            throw ablyException("Typing timeout must be greater than 0", ErrorCodes.InvalidRequestBody)
+        }
     }
 }

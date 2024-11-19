@@ -1,7 +1,10 @@
 package com.ably.chat
 
-import io.ably.lib.types.AblyException
-import io.ably.lib.types.ErrorInfo
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 
 /**
  * Manages the lifecycle of chat rooms.
@@ -9,6 +12,7 @@ import io.ably.lib.types.ErrorInfo
 interface Rooms {
     /**
      * Get the client options used to create the Chat instance.
+     * @returns ClientOptions
      */
     val clientOptions: ClientOptions
 
@@ -19,12 +23,18 @@ interface Rooms {
      *
      * Always call `release(roomId)` after the Room object is no longer needed.
      *
+     * If a call to `get` is made for a room that is currently being released, then the promise will resolve only when
+     * the release operation is complete.
+     *
+     * If a call to `get` is made, followed by a subsequent call to `release` before the promise resolves, then the
+     * promise will reject with an error.
+     *
      * @param roomId The ID of the room.
      * @param options The options for the room.
      * @throws {@link ErrorInfo} if a room with the same ID but different options already exists.
      * @returns Room A new or existing Room object.
      */
-    fun get(roomId: String, options: RoomOptions = RoomOptions()): Room
+    suspend fun get(roomId: String, options: RoomOptions = RoomOptions()): Room
 
     /**
      * Release the Room object if it exists. This method only releases the reference
@@ -33,6 +43,8 @@ interface Rooms {
      *
      * After calling this function, the room object is no-longer usable. If you wish to get the room object again,
      * you must call {@link Rooms.get}.
+     *
+     * Calling this function will abort any in-progress `get` calls for the same room.
      *
      * @param roomId The ID of the room.
      */
@@ -47,32 +59,95 @@ internal class DefaultRooms(
     private val chatApi: ChatApi,
     override val clientOptions: ClientOptions,
 ) : Rooms {
+
+    /**
+     * All operations for DefaultRooms should be executed under sequentialScope to avoid concurrency issues.
+     * This makes sure all members/properties accessed by one coroutine at a time.
+     */
+    private val sequentialScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1))
+
     private val roomIdToRoom: MutableMap<String, DefaultRoom> = mutableMapOf()
+    private val roomGetDeferred: MutableMap<String, CompletableDeferred<Unit>> = mutableMapOf()
+    private val roomReleaseDeferred: MutableMap<String, CompletableDeferred<Unit>> = mutableMapOf()
 
-    override fun get(roomId: String, options: RoomOptions): Room {
-        return synchronized(this) {
-            val room = roomIdToRoom.getOrPut(roomId) {
-                DefaultRoom(
-                    roomId = roomId,
-                    options = options,
-                    realtimeClient = realtimeClient,
-                    chatApi = chatApi,
-                    logger = clientOptions.logHandler,
-                )
+    override suspend fun get(roomId: String, options: RoomOptions): Room {
+        return sequentialScope.async {
+            val existingRoom = getReleasedOrExistingRoom(roomId)
+            existingRoom?.let {
+                if (options != existingRoom.options) {
+                    throw ablyException("room already exists with different options", ErrorCodes.BadRequest)
+                }
+                return@async existingRoom
             }
-
-            if (room.options != options) {
-                throw AblyException.fromErrorInfo(
-                    ErrorInfo("Room already exists with different options", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest.errorCode),
-                )
-            }
-
-            room
-        }
+            val newRoom = makeRoom(roomId, options)
+            roomIdToRoom[roomId] = newRoom
+            return@async newRoom
+        }.await()
     }
 
     override suspend fun release(roomId: String) {
-        val room = roomIdToRoom.remove(roomId)
-        room?.release()
+        sequentialScope.launch {
+            // Previous Room Get in progress, cancel all of them
+            roomGetDeferred[roomId]?.let {
+                val exception = ablyException(
+                    "room released before get operation could complete",
+                    ErrorCodes.RoomReleasedBeforeOperationCompleted,
+                )
+                it.completeExceptionally(exception)
+            }
+
+            val existingRoom = roomIdToRoom[roomId]
+            existingRoom?.let {
+                if (roomReleaseDeferred.containsKey(roomId)) {
+                    roomReleaseDeferred[roomId]?.await()
+                } else {
+                    val roomReleaseDeferred = CompletableDeferred<Unit>()
+                    this@DefaultRooms.roomReleaseDeferred[roomId] = roomReleaseDeferred
+                    existingRoom.release()
+                    roomReleaseDeferred.complete(Unit)
+                }
+            }
+            roomReleaseDeferred.remove(roomId)
+            roomIdToRoom.remove(roomId)
+        }.join()
     }
+
+    /**
+     * @returns null for released room or non-null existing active room (not in releasing/released state)
+     */
+    @Suppress("ReturnCount")
+    private suspend fun getReleasedOrExistingRoom(roomId: String): Room? {
+        // Previous Room Get in progress, because room release in progress
+        // So await on same deferred and return null
+        roomGetDeferred[roomId]?.let {
+            it.await()
+            return null
+        }
+
+        val existingRoom = roomIdToRoom[roomId]
+        existingRoom?.let {
+            val roomReleaseInProgress = roomReleaseDeferred[roomId]
+            roomReleaseInProgress?.let {
+                val roomGetDeferred = CompletableDeferred<Unit>()
+                this.roomGetDeferred[roomId] = roomGetDeferred
+                roomReleaseInProgress.await()
+                roomGetDeferred.complete(Unit)
+                this.roomGetDeferred.remove(roomId)
+                return null
+            }
+            return existingRoom
+        }
+        return null
+    }
+
+    /**
+     * makes a new room object
+     *
+     * @param roomId The ID of the room.
+     * @param options The options for the room.
+     *
+     * @returns DefaultRoom A new room object.
+     */
+    private fun makeRoom(roomId: String, options: RoomOptions): DefaultRoom =
+        DefaultRoom(roomId, options, realtimeClient, chatApi, null)
 }
