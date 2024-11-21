@@ -3,6 +3,7 @@ package com.ably.chat
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
@@ -64,7 +65,7 @@ internal class DefaultRooms(
      * All operations for DefaultRooms should be executed under sequentialScope to avoid concurrency issues.
      * This makes sure all members/properties accessed by one coroutine at a time.
      */
-    private val sequentialScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1))
+    private val sequentialScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1) + SupervisorJob())
 
     private val roomIdToRoom: MutableMap<String, DefaultRoom> = mutableMapOf()
     private val roomGetDeferred: MutableMap<String, CompletableDeferred<Unit>> = mutableMapOf()
@@ -130,8 +131,17 @@ internal class DefaultRooms(
             roomReleaseInProgress?.let {
                 val roomGetDeferred = CompletableDeferred<Unit>()
                 this.roomGetDeferred[roomId] = roomGetDeferred
+                roomGetDeferred.invokeOnCompletion {
+                    it?.let {
+                        this.roomGetDeferred.remove(roomId)
+                    }
+                }
                 roomReleaseInProgress.await()
-                roomGetDeferred.complete(Unit)
+                if (roomGetDeferred.isActive) {
+                    roomGetDeferred.complete(Unit)
+                } else {
+                    roomGetDeferred.await()
+                }
                 this.roomGetDeferred.remove(roomId)
                 return null
             }
