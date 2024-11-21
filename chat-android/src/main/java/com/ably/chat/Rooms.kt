@@ -34,6 +34,7 @@ interface Rooms {
      * @param options The options for the room.
      * @throws {@link ErrorInfo} if a room with the same ID but different options already exists.
      * @returns Room A new or existing Room object.
+     * Spec: CHA-RC1f
      */
     suspend fun get(roomId: String, options: RoomOptions = RoomOptions()): Room
 
@@ -48,6 +49,7 @@ interface Rooms {
      * Calling this function will abort any in-progress `get` calls for the same room.
      *
      * @param roomId The ID of the room.
+     * Spec: CHA-RC1g, CHA-RC1g1
      */
     suspend fun release(roomId: String)
 }
@@ -75,11 +77,12 @@ internal class DefaultRooms(
         return sequentialScope.async {
             val existingRoom = getReleasedOrExistingRoom(roomId)
             existingRoom?.let {
-                if (options != existingRoom.options) {
+                if (options != existingRoom.options) { // CHA-RC1f1
                     throw ablyException("room already exists with different options", ErrorCodes.BadRequest)
                 }
-                return@async existingRoom
+                return@async existingRoom // CHA-RC1f2
             }
+            // CHA-RC1f3
             val newRoom = makeRoom(roomId, options)
             roomIdToRoom[roomId] = newRoom
             return@async newRoom
@@ -88,7 +91,7 @@ internal class DefaultRooms(
 
     override suspend fun release(roomId: String) {
         sequentialScope.launch {
-            // Previous Room Get in progress, cancel all of them
+            // CHA-RC1g4 - Previous Room Get in progress, cancel all of them
             roomGetDeferred[roomId]?.let {
                 val exception = ablyException(
                     "room released before get operation could complete",
@@ -97,6 +100,7 @@ internal class DefaultRooms(
                 it.completeExceptionally(exception)
             }
 
+            // CHA-RC1g2, CHA-RC1g3
             val existingRoom = roomIdToRoom[roomId]
             existingRoom?.let {
                 if (roomReleaseDeferred.containsKey(roomId)) {
@@ -104,7 +108,7 @@ internal class DefaultRooms(
                 } else {
                     val roomReleaseDeferred = CompletableDeferred<Unit>()
                     this@DefaultRooms.roomReleaseDeferred[roomId] = roomReleaseDeferred
-                    existingRoom.release()
+                    existingRoom.release() // CHA-RC1g5
                     roomReleaseDeferred.complete(Unit)
                 }
             }
@@ -115,6 +119,7 @@ internal class DefaultRooms(
 
     /**
      * @returns null for released room or non-null existing active room (not in releasing/released state)
+     * Spec: CHA-RC1f4, CHA-RC1f5, CHA-RC1f6, CHA-RC1g4
      */
     @Suppress("ReturnCount")
     private suspend fun getReleasedOrExistingRoom(roomId: String): Room? {
@@ -157,6 +162,7 @@ internal class DefaultRooms(
      * @param options The options for the room.
      *
      * @returns DefaultRoom A new room object.
+     * Spec: CHA-RC1f3
      */
     private fun makeRoom(roomId: String, options: RoomOptions): DefaultRoom =
         DefaultRoom(roomId, options, realtimeClient, chatApi, null)
