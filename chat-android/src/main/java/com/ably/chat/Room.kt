@@ -7,6 +7,7 @@ import io.ably.lib.util.Log.LogHandler
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 /**
  * Represents a chat room.
@@ -123,7 +124,7 @@ internal class DefaultRoom(
      * preventing concurrency issues. Every operation within Room must be performed through this scope.
      */
     private val roomScope =
-        CoroutineScope(Dispatchers.Default.limitedParallelism(1) + CoroutineName(roomId))
+        CoroutineScope(Dispatchers.Default.limitedParallelism(1) + CoroutineName(roomId) + SupervisorJob())
 
     private val clientId: String
         get() = realtimeClient.auth.clientId
@@ -137,7 +138,7 @@ internal class DefaultRoom(
     private var _presence: Presence? = null
     override val presence: Presence
         get() {
-            if (_presence == null) {
+            if (_presence == null) { // CHA-RC2b
                 throw ablyException("Presence is not enabled for this room", ErrorCodes.BadRequest)
             }
             return _presence as Presence
@@ -146,7 +147,7 @@ internal class DefaultRoom(
     private var _reactions: RoomReactions? = null
     override val reactions: RoomReactions
         get() {
-            if (_reactions == null) {
+            if (_reactions == null) { // CHA-RC2b
                 throw ablyException("Reactions are not enabled for this room", ErrorCodes.BadRequest)
             }
             return _reactions as RoomReactions
@@ -155,7 +156,7 @@ internal class DefaultRoom(
     private var _typing: Typing? = null
     override val typing: Typing
         get() {
-            if (_typing == null) {
+            if (_typing == null) { // CHA-RC2b
                 throw ablyException("Typing is not enabled for this room", ErrorCodes.BadRequest)
             }
             return _typing as Typing
@@ -164,7 +165,7 @@ internal class DefaultRoom(
     private var _occupancy: Occupancy? = null
     override val occupancy: Occupancy
         get() {
-            if (_occupancy == null) {
+            if (_occupancy == null) { // CHA-RC2b
                 throw ablyException("Occupancy is not enabled for this room", ErrorCodes.BadRequest)
             }
             return _occupancy as Occupancy
@@ -181,7 +182,7 @@ internal class DefaultRoom(
     private var lifecycleManager: RoomLifecycleManager
 
     init {
-        options.validateRoomOptions()
+        options.validateRoomOptions() // CHA-RC2a
 
         val roomFeatures = mutableListOf<ContributesToRoomLifecycle>(messages)
 

@@ -87,6 +87,7 @@ object OccupancyOptions
 
 /**
  * Throws AblyException for invalid room configuration.
+ * Spec: CHA-RC2a
  */
 fun RoomOptions.validateRoomOptions() {
     typing?.let {
