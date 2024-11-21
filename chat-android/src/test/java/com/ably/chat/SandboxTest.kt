@@ -4,17 +4,10 @@ import java.util.UUID
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Before
+import org.junit.BeforeClass
 import org.junit.Test
 
 class SandboxTest {
-
-    private lateinit var sandbox: Sandbox
-
-    @Before
-    fun setUp() = runTest {
-        sandbox = Sandbox.createInstance()
-    }
 
     @Test
     fun `should return empty list of presence members if nobody is entered`() = runTest {
@@ -55,5 +48,33 @@ class SandboxTest {
         val typingEvent = deferredValue.await()
         assertEquals(setOf("client1"), typingEvent.currentlyTyping)
         assertEquals(setOf("client1"), chatClient2Room.typing.get())
+    }
+
+    @Test
+    fun `should return occupancy for the client`() = runTest {
+        val chatClient = sandbox.createSandboxChatClient("client1")
+        val roomId = UUID.randomUUID().toString()
+        val roomOptions = RoomOptions(occupancy = OccupancyOptions)
+
+        val chatClientRoom = chatClient.rooms.get(roomId, roomOptions)
+
+        val firstOccupancyEvent = CompletableDeferred<OccupancyEvent>()
+        chatClientRoom.occupancy.subscribeOnce {
+            firstOccupancyEvent.complete(it)
+        }
+
+        chatClientRoom.attach()
+        assertEquals(OccupancyEvent(1, 0), firstOccupancyEvent.await())
+    }
+
+    companion object {
+
+        private lateinit var sandbox: Sandbox
+
+        @JvmStatic
+        @BeforeClass
+        fun setUp() = runTest {
+            sandbox = Sandbox.createInstance()
+        }
     }
 }

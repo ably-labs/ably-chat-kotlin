@@ -107,11 +107,21 @@ internal class DefaultRoom(
         logger = logger.withContext(tag = "Typing"),
     )
 
+    private val _occupancy = DefaultOccupancy(
+        roomId = roomId,
+        realtimeChannels = realtimeClient.channels,
+        chatApi = chatApi,
+        logger = logger.withContext(tag = "Occupancy"),
+    )
+
     override val messages: Messages
         get() = _messages
 
     override val typing: Typing
         get() = _typing
+
+    override val occupancy: Occupancy
+        get() = _occupancy
 
     override val presence: Presence = DefaultPresence(
         channel = messages.channel,
@@ -123,10 +133,6 @@ internal class DefaultRoom(
         roomId = roomId,
         clientId = clientId,
         realtimeChannels = realtimeClient.channels,
-    )
-
-    override val occupancy: Occupancy = DefaultOccupancy(
-        messages = messages,
     )
 
     override val status: RoomStatus
@@ -149,5 +155,6 @@ internal class DefaultRoom(
     fun release() {
         _messages.release()
         _typing.release()
+        _occupancy.release()
     }
 }
