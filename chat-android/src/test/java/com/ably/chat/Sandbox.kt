@@ -6,6 +6,7 @@ import io.ably.lib.realtime.AblyRealtime
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpRequestRetry
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -13,10 +14,17 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.http.isSuccess
 
-val client = HttpClient(CIO) {
+private val client = HttpClient(CIO) {
     install(HttpRequestRetry) {
-        retryOnServerErrors(maxRetries = 4)
+        maxRetries = 5
+        retryIf { _, response ->
+            !response.status.isSuccess()
+        }
+        retryOnExceptionIf { _, cause ->
+            cause is HttpRequestTimeoutException
+        }
         exponentialDelay()
     }
 }
