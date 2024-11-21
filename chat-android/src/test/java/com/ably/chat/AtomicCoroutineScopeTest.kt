@@ -1,7 +1,6 @@
 package com.ably.chat
 
 import io.ably.lib.types.AblyException
-import io.ably.lib.types.ErrorInfo
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
@@ -40,7 +39,7 @@ class AtomicCoroutineScopeTest {
         val atomicCoroutineScope = AtomicCoroutineScope()
         val deferredResult1 = atomicCoroutineScope.async {
             delay(2000)
-            throw AblyException.fromErrorInfo(ErrorInfo("Error performing operation", 400))
+            throw clientError("Error performing operation")
         }
         val deferredResult2 = atomicCoroutineScope.async {
             delay(2000)

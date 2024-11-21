@@ -196,14 +196,36 @@ internal class DeferredValue<T> {
     }
 }
 
+fun lifeCycleErrorInfo(
+    errorMessage: String,
+    errorCode: ErrorCodes,
+    statusCode: Int = HttpStatusCodes.InternalServerError,
+) = ErrorInfo(errorMessage, statusCode, errorCode.errorCode)
+
+fun lifeCycleException(
+    errorMessage: String,
+    errorCode: ErrorCodes,
+    statusCode: Int = HttpStatusCodes.InternalServerError,
+    cause: Throwable? = null,
+): AblyException = ablyException(errorMessage, errorCode, statusCode, cause)
+
+fun lifeCycleException(errorInfo: ErrorInfo, cause: Throwable? = null) = ablyException(errorInfo, cause)
+
+fun ablyException(errorInfo: ErrorInfo, cause: Throwable? = null): AblyException {
+    cause?.let {
+        return AblyException.fromErrorInfo(cause, errorInfo)
+    }
+    return AblyException.fromErrorInfo(errorInfo)
+}
+
 fun ablyException(
     errorMessage: String,
-    code: ErrorCodes,
+    errorCode: ErrorCodes,
     statusCode: Int = HttpStatusCodes.BadRequest,
     cause: Throwable? = null,
 ): AblyException {
     cause?.let {
-        return AblyException.fromErrorInfo(cause, ErrorInfo(errorMessage, statusCode, code.errorCode))
+        return AblyException.fromErrorInfo(cause, ErrorInfo(errorMessage, statusCode, errorCode.errorCode))
     }
-    return AblyException.fromErrorInfo(ErrorInfo(errorMessage, statusCode, code.errorCode))
+    return AblyException.fromErrorInfo(ErrorInfo(errorMessage, statusCode, errorCode.errorCode))
 }

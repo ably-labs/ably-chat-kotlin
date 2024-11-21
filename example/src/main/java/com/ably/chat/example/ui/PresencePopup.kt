@@ -28,7 +28,7 @@ import com.google.gson.JsonObject
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
-@SuppressWarnings("LongMethod")
+@Suppress("LongMethod")
 @Composable
 fun PresencePopup(chatClient: ChatClient, onDismiss: () -> Unit) {
     var members by remember { mutableStateOf(listOf<PresenceMember>()) }

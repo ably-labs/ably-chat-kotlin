@@ -104,7 +104,7 @@ fun App(chatClient: ChatClient) {
     }
 }
 
-@SuppressWarnings("LongMethod")
+@Suppress("LongMethod")
 @Composable
 fun Chat(chatClient: ChatClient, modifier: Modifier = Modifier) {
     var messageText by remember { mutableStateOf(TextFieldValue("")) }

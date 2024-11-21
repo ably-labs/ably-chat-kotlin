@@ -6,12 +6,14 @@ import com.ably.chat.ErrorCodes
 import com.ably.chat.RoomLifecycleManager
 import com.ably.chat.RoomStatus
 import com.ably.chat.RoomStatusChange
+import com.ably.chat.ablyException
 import com.ably.chat.assertWaiter
 import com.ably.chat.attachCoroutine
 import com.ably.chat.detachCoroutine
 import com.ably.chat.room.atomicCoroutineScope
 import com.ably.chat.room.createRoomFeatureMocks
 import com.ably.chat.room.setState
+import com.ably.chat.serverError
 import com.ably.chat.setPrivateField
 import io.ably.lib.realtime.ChannelState
 import io.ably.lib.types.AblyException
@@ -199,7 +201,7 @@ class AttachTest {
                     put(contributor, ErrorInfo("${contributor.channel.name} error", 500))
                 }
             }
-            this.setPrivateField("_pendingDiscontinuityEvents", pendingDiscontinuityEvents)
+            this.setPrivateField("pendingDiscontinuityEvents", pendingDiscontinuityEvents)
         }
         justRun { roomLifecycle invokeNoArgs "clearAllTransientDetachTimeouts" }
 
@@ -237,7 +239,7 @@ class AttachTest {
             if ("reactions" in channel.name) {
                 // Throw error for typing contributor, likely to throw because it uses different channel
                 channel.setState(ChannelState.suspended)
-                throw AblyException.fromErrorInfo(ErrorInfo("error attaching channel ${channel.name}", 500))
+                throw serverError("error attaching channel ${channel.name}")
             }
         }
 
@@ -268,7 +270,7 @@ class AttachTest {
                 // Throw error for typing contributor, likely to throw because it uses different channel
                 val error = ErrorInfo("error attaching channel ${channel.name}", 500)
                 channel.setState(ChannelState.failed, error)
-                throw AblyException.fromErrorInfo(error)
+                throw ablyException(error)
             }
         }
 
@@ -300,7 +302,7 @@ class AttachTest {
             if ("reactions" in channel.name) {
                 // Throw error for typing contributor, likely to throw because it uses different channel
                 channel.setState(ChannelState.suspended)
-                throw AblyException.fromErrorInfo(ErrorInfo("error attaching channel ${channel.name}", 500))
+                throw serverError("error attaching channel ${channel.name}")
             }
         }
 
@@ -339,7 +341,7 @@ class AttachTest {
                 // Throw error for typing contributor, likely to throw because it uses different channel
                 val error = ErrorInfo("error attaching channel ${channel.name}", 500)
                 channel.setState(ChannelState.failed, error)
-                throw AblyException.fromErrorInfo(error)
+                throw ablyException(error)
             }
         }
 
@@ -386,7 +388,7 @@ class AttachTest {
                 // Throw error for typing contributor, likely to throw because it uses different channel
                 val error = ErrorInfo("error attaching channel ${channel.name}", 500)
                 channel.setState(ChannelState.failed, error)
-                throw AblyException.fromErrorInfo(error)
+                throw ablyException(error)
             }
         }
 

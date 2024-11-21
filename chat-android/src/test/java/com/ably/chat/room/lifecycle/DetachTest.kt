@@ -7,6 +7,7 @@ import com.ably.chat.HttpStatusCodes
 import com.ably.chat.RoomLifecycleManager
 import com.ably.chat.RoomStatus
 import com.ably.chat.RoomStatusChange
+import com.ably.chat.ablyException
 import com.ably.chat.assertWaiter
 import com.ably.chat.detachCoroutine
 import com.ably.chat.room.atomicCoroutineScope
@@ -217,13 +218,13 @@ class DetachTest {
             if ("typing" in channel.name) { // Throw error for typing contributor
                 val error = ErrorInfo("error detaching channel ${channel.name}", 500)
                 channel.setState(ChannelState.failed, error)
-                throw AblyException.fromErrorInfo(error)
+                throw ablyException(error)
             }
 
             if ("reactions" in channel.name) { // Throw error for reactions contributor
                 val error = ErrorInfo("error detaching channel ${channel.name}", 500)
                 channel.setState(ChannelState.failed, error)
-                throw AblyException.fromErrorInfo(error)
+                throw ablyException(error)
             }
         }
 
@@ -272,13 +273,13 @@ class DetachTest {
             if ("typing" in channel.name) {
                 val error = ErrorInfo("error detaching channel ${channel.name}", 500)
                 channel.setState(ChannelState.failed, error)
-                throw AblyException.fromErrorInfo(error)
+                throw ablyException(error)
             }
 
             if ("reactions" in channel.name) {
                 val error = ErrorInfo("error detaching channel ${channel.name}", 500)
                 channel.setState(ChannelState.failed, error)
-                throw AblyException.fromErrorInfo(error)
+                throw ablyException(error)
             }
         }
 
