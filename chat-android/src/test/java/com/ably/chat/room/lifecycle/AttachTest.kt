@@ -3,6 +3,7 @@ package com.ably.chat.room.lifecycle
 import com.ably.chat.ContributesToRoomLifecycle
 import com.ably.chat.DefaultRoomLifecycle
 import com.ably.chat.ErrorCodes
+import com.ably.chat.HttpStatusCodes
 import com.ably.chat.RoomLifecycleManager
 import com.ably.chat.RoomStatus
 import com.ably.chat.RoomStatusChange
