@@ -5,10 +5,6 @@ package com.ably.chat
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import io.ably.lib.realtime.Channel
-import io.ably.lib.realtime.Presence.GET_CLIENTID
-import io.ably.lib.realtime.Presence.GET_CONNECTIONID
-import io.ably.lib.realtime.Presence.GET_WAITFORSYNC
-import io.ably.lib.types.Param
 import io.ably.lib.types.PresenceMessage
 import io.ably.lib.realtime.Presence as PubSubPresence
 import io.ably.lib.realtime.Presence.PresenceListener as PubSubPresenceListener
@@ -149,9 +145,8 @@ internal class DefaultPresence(
 
     override val detachmentErrorCode: ErrorCodes = ErrorCodes.PresenceDetachmentFailed
 
-    suspend fun get(params: List<Param>): List<PresenceMember> {
-        val usersOnPresence = presence.getCoroutine(params)
-        return usersOnPresence.map { user ->
+    override suspend fun get(waitForSync: Boolean, clientId: String?, connectionId: String?): List<PresenceMember> {
+        return presence.getCoroutine(waitForSync, clientId, connectionId).map { user ->
             PresenceMember(
                 clientId = user.clientId,
                 action = user.action,
@@ -161,16 +156,7 @@ internal class DefaultPresence(
         }
     }
 
-    override suspend fun get(waitForSync: Boolean, clientId: String?, connectionId: String?): List<PresenceMember> {
-        val params = buildList {
-            if (waitForSync) add(Param(GET_WAITFORSYNC, true))
-            clientId?.let { add(Param(GET_CLIENTID, it)) }
-            connectionId?.let { add(Param(GET_CONNECTIONID, it)) }
-        }
-        return get(params)
-    }
-
-    override suspend fun isUserPresent(clientId: String): Boolean = presence.getCoroutine(Param(GET_CLIENTID, clientId)).isNotEmpty()
+    override suspend fun isUserPresent(clientId: String): Boolean = presence.getCoroutine(clientId = clientId).isNotEmpty()
 
     override suspend fun enter(data: PresenceData?) {
         presence.enterClientCoroutine(clientId, wrapInUserCustomData(data))

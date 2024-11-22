@@ -61,6 +61,8 @@ internal class DefaultRooms(
     private val realtimeClient: RealtimeClient,
     private val chatApi: ChatApi,
     override val clientOptions: ClientOptions,
+    private val clientId: String,
+    private val logger: Logger,
 ) : Rooms {
 
     /**
@@ -165,5 +167,5 @@ internal class DefaultRooms(
      * Spec: CHA-RC1f3
      */
     private fun makeRoom(roomId: String, options: RoomOptions): DefaultRoom =
-        DefaultRoom(roomId, options, realtimeClient, chatApi, null)
+        DefaultRoom(roomId, options, realtimeClient, chatApi, clientId, logger)
 }

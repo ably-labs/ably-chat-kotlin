@@ -20,19 +20,22 @@ import org.junit.Test
  */
 class ConfigureRoomOptionsTest {
 
+    private val clientId = "clientId"
+    private val logger = createMockLogger()
+
     @Test
     fun `(CHA-RC2a) If a room is requested with a negative typing timeout, an ErrorInfo with code 40001 must be thrown`() = runTest {
         val mockRealtimeClient = createMockRealtimeClient()
         val chatApi = mockk<ChatApi>(relaxed = true)
 
         // Room success when positive typing timeout
-        val room = DefaultRoom("1234", RoomOptions(typing = TypingOptions(timeoutMs = 100)), mockRealtimeClient, chatApi, null)
+        val room = DefaultRoom("1234", RoomOptions(typing = TypingOptions(timeoutMs = 100)), mockRealtimeClient, chatApi, clientId, logger)
         Assert.assertNotNull(room)
         Assert.assertEquals(RoomStatus.Initialized, room.status)
 
         // Room failure when negative timeout
         val exception = assertThrows(AblyException::class.java) {
-            DefaultRoom("1234", RoomOptions(typing = TypingOptions(timeoutMs = -1)), mockRealtimeClient, chatApi, null)
+            DefaultRoom("1234", RoomOptions(typing = TypingOptions(timeoutMs = -1)), mockRealtimeClient, chatApi, clientId, logger)
         }
         Assert.assertEquals("Typing timeout must be greater than 0", exception.errorInfo.message)
         Assert.assertEquals(40_001, exception.errorInfo.code)
@@ -45,7 +48,7 @@ class ConfigureRoomOptionsTest {
         val chatApi = mockk<ChatApi>(relaxed = true)
 
         // Room only supports messages feature, since by default other features are turned off
-        val room = DefaultRoom("1234", RoomOptions(), mockRealtimeClient, chatApi, null)
+        val room = DefaultRoom("1234", RoomOptions(), mockRealtimeClient, chatApi, clientId, logger)
         Assert.assertNotNull(room)
         Assert.assertEquals(RoomStatus.Initialized, room.status)
 
@@ -82,7 +85,7 @@ class ConfigureRoomOptionsTest {
         Assert.assertEquals(400, exception.errorInfo.statusCode)
 
         // room with all features
-        val roomWithAllFeatures = DefaultRoom("1234", RoomOptions.default, mockRealtimeClient, chatApi, null)
+        val roomWithAllFeatures = DefaultRoom("1234", RoomOptions.default, mockRealtimeClient, chatApi, clientId, logger)
         Assert.assertNotNull(roomWithAllFeatures.presence)
         Assert.assertNotNull(roomWithAllFeatures.reactions)
         Assert.assertNotNull(roomWithAllFeatures.typing)

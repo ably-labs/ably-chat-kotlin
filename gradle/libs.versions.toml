@@ -4,6 +4,7 @@
 [versions]
 ably-chat = "0.0.1"
 ably = "1.2.45"
+desugar-jdk-libs = "2.1.2"
 junit = "4.13.2"
 agp = "8.5.2"
 detekt = "1.23.6"
@@ -23,6 +24,7 @@ build-config = "5.4.0"
 ktor = "3.0.1"
 
 [libraries]
+desugar-jdk-libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar-jdk-libs" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
 ably-android = { module = "io.ably:ably-android", version.ref = "ably" }
@@ -58,7 +60,7 @@ ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 ktor-client = ["ktor-client-core", "ktor-client-cio"]
 
 [plugins]
-detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt"}
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 android-kotlin = { id = "org.jetbrains.kotlin.android", version = "2.0.21" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 android-application = { id = "com.android.application", version.ref = "agp" }

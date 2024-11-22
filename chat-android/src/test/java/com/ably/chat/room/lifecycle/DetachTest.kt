@@ -11,6 +11,7 @@ import com.ably.chat.ablyException
 import com.ably.chat.assertWaiter
 import com.ably.chat.detachCoroutine
 import com.ably.chat.room.atomicCoroutineScope
+import com.ably.chat.room.createMockLogger
 import com.ably.chat.room.createRoomFeatureMocks
 import com.ably.chat.room.setState
 import io.ably.lib.realtime.ChannelState
@@ -39,16 +40,19 @@ import org.junit.Test
  * Spec: CHA-RL2
  */
 class DetachTest {
+
+    private val logger = createMockLogger()
+
     private val roomScope = CoroutineScope(
         Dispatchers.Default.limitedParallelism(1) + CoroutineName("roomId"),
     )
 
     @Test
     fun `(CHA-RL2a) Detach success when room is already in detached state`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>().apply {
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger)).apply {
             setStatus(RoomStatus.Detached)
         }
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks()))
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks(), logger))
         val result = kotlin.runCatching { roomLifecycle.detach() }
         Assert.assertTrue(result.isSuccess)
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
@@ -56,10 +60,10 @@ class DetachTest {
 
     @Test
     fun `(CHA-RL2b) Detach throws exception when room in releasing state`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>().apply {
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger)).apply {
             setStatus(RoomStatus.Releasing)
         }
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks()))
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks(), logger))
         val exception = Assert.assertThrows(AblyException::class.java) {
             runBlocking {
                 roomLifecycle.detach()
@@ -73,10 +77,10 @@ class DetachTest {
 
     @Test
     fun `(CHA-RL2c) Detach throws exception when room in released state`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>().apply {
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger)).apply {
             setStatus(RoomStatus.Released)
         }
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, listOf()))
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, listOf(), logger))
         val exception = Assert.assertThrows(AblyException::class.java) {
             runBlocking {
                 roomLifecycle.detach()
@@ -90,10 +94,10 @@ class DetachTest {
 
     @Test
     fun `(CHA-RL2d) Detach throws exception when room in failed state`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>().apply {
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger)).apply {
             setStatus(RoomStatus.Failed)
         }
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, listOf()))
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, listOf(), logger))
         val exception = Assert.assertThrows(AblyException::class.java) {
             runBlocking {
                 roomLifecycle.detach()
@@ -107,13 +111,13 @@ class DetachTest {
 
     @Test
     fun `(CHA-RL2e) Detach op should transition room into DETACHING state, transient timeouts should be cleared`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
         val roomStatusChanges = mutableListOf<RoomStatusChange>()
         statusLifecycle.onChange {
             roomStatusChanges.add(it)
         }
 
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, emptyList()), recordPrivateCalls = true)
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, emptyList(), logger), recordPrivateCalls = true)
         justRun { roomLifecycle invokeNoArgs "clearAllTransientDetachTimeouts" }
 
         roomLifecycle.detach()
@@ -130,7 +134,7 @@ class DetachTest {
     @Suppress("MaximumLineLength")
     @Test
     fun `(CHA-RL2f, CHA-RL2g) Detach op should detach each contributor channel sequentially and room should be considered DETACHED`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
 
         mockkStatic(io.ably.lib.realtime.Channel::detachCoroutine)
         val capturedChannels = mutableListOf<io.ably.lib.realtime.Channel>()
@@ -141,7 +145,7 @@ class DetachTest {
         val contributors = createRoomFeatureMocks()
         Assert.assertEquals(5, contributors.size)
 
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors))
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors, logger))
         val result = kotlin.runCatching { roomLifecycle.detach() }
         Assert.assertTrue(result.isSuccess)
         Assert.assertEquals(RoomStatus.Detached, statusLifecycle.status)
@@ -161,10 +165,10 @@ class DetachTest {
 
     @Test
     fun `(CHA-RL2i) Detach op should wait for existing operation as per (CHA-RL7)`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
         Assert.assertEquals(RoomStatus.Initialized, statusLifecycle.status) // CHA-RS3
 
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks()))
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks(), logger))
 
         val roomReleased = Channel<Boolean>()
         coEvery {
@@ -209,7 +213,7 @@ class DetachTest {
     @Suppress("MaximumLineLength")
     @Test
     fun `(CHA-RL2h1) If a one of the contributors fails to detach (enters failed state), then room enters failed state, detach op continues for other contributors`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
 
         mockkStatic(io.ably.lib.realtime.Channel::detachCoroutine)
         // Fail detach for both typing and reactions, should capture error for first failed contributor
@@ -229,7 +233,7 @@ class DetachTest {
         }
 
         val contributors = createRoomFeatureMocks("1234")
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors), recordPrivateCalls = true)
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors, logger), recordPrivateCalls = true)
 
         val result = kotlin.runCatching { roomLifecycle.detach() }
 
@@ -259,7 +263,7 @@ class DetachTest {
     @Suppress("MaximumLineLength")
     @Test
     fun `(CHA-RL2h2) If multiple contributors fails to detach (enters failed state), then failed status should be emitted only once`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
         val failedRoomEvents = mutableListOf<RoomStatusChange>()
         statusLifecycle.onChange {
             if (it.current == RoomStatus.Failed) {
@@ -284,7 +288,7 @@ class DetachTest {
         }
 
         val contributors = createRoomFeatureMocks("1234")
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors), recordPrivateCalls = true)
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors, logger), recordPrivateCalls = true)
 
         val result = kotlin.runCatching { roomLifecycle.detach() }
 
@@ -309,7 +313,7 @@ class DetachTest {
     @Suppress("MaximumLineLength")
     @Test
     fun `(CHA-RL2h3) If channel fails to detach entering another state (ATTACHED), detach will be retried until finally detached`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
         val roomEvents = mutableListOf<RoomStatusChange>()
         statusLifecycle.onChange {
             roomEvents.add(it)
@@ -327,7 +331,7 @@ class DetachTest {
         }
 
         val contributors = createRoomFeatureMocks("1234")
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors), recordPrivateCalls = true)
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors, logger), recordPrivateCalls = true)
 
         val result = kotlin.runCatching { roomLifecycle.detach() }
         Assert.assertTrue(result.isSuccess)

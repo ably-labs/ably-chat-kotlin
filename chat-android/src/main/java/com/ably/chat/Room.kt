@@ -3,7 +3,6 @@
 package com.ably.chat
 
 import io.ably.lib.types.ErrorInfo
-import io.ably.lib.util.Log.LogHandler
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -113,10 +112,9 @@ internal class DefaultRoom(
     override val options: RoomOptions,
     private val realtimeClient: RealtimeClient,
     chatApi: ChatApi,
-    val logger: LogHandler?,
+    clientId: String,
+    private val logger: Logger,
 ) : Room {
-
-    private val _logger = logger
 
     /**
      * RoomScope is a crucial part of the Room lifecycle. It manages sequential and atomic operations.
@@ -125,9 +123,6 @@ internal class DefaultRoom(
      */
     private val roomScope =
         CoroutineScope(Dispatchers.Default.limitedParallelism(1) + CoroutineName(roomId) + SupervisorJob())
-
-    private val clientId: String
-        get() = realtimeClient.auth.clientId
 
     override val messages = DefaultMessages(
         roomId = roomId,
@@ -200,6 +195,9 @@ internal class DefaultRoom(
             val typingContributor = DefaultTyping(
                 roomId = roomId,
                 realtimeClient = realtimeClient,
+                clientId = clientId,
+                options = options.typing,
+                logger = logger.withContext(tag = "Typing"),
             )
             roomFeatures.add(typingContributor)
             _typing = typingContributor
@@ -223,7 +221,7 @@ internal class DefaultRoom(
             _occupancy = occupancyContributor
         }
 
-        lifecycleManager = RoomLifecycleManager(roomScope, statusLifecycle, roomFeatures, _logger)
+        lifecycleManager = RoomLifecycleManager(roomScope, statusLifecycle, roomFeatures, logger)
     }
 
     override fun onStatusChange(listener: RoomLifecycle.Listener): Subscription =

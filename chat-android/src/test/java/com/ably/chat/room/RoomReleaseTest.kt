@@ -33,15 +33,19 @@ import org.junit.Test
  * Spec: CHA-RC1g
  */
 class RoomReleaseTest {
+
+    private val clientId = "clientId"
+    private val logger = createMockLogger()
+
     @Test
     fun `(CHA-RC1g) Should be able to release existing room, makes it eligible for garbage collection`() = runTest {
         val roomId = "1234"
         val mockRealtimeClient = createMockRealtimeClient()
         val chatApi = mockk<ChatApi>(relaxed = true)
-        val rooms = spyk(DefaultRooms(mockRealtimeClient, chatApi, ClientOptions()), recordPrivateCalls = true)
+        val rooms = spyk(DefaultRooms(mockRealtimeClient, chatApi, ClientOptions(), clientId, logger), recordPrivateCalls = true)
 
         val defaultRoom = spyk(
-            DefaultRoom(roomId, RoomOptions.default, mockRealtimeClient, chatApi, null),
+            DefaultRoom(roomId, RoomOptions.default, mockRealtimeClient, chatApi, clientId, logger),
             recordPrivateCalls = true,
         )
         coJustRun { defaultRoom.release() }
@@ -64,10 +68,10 @@ class RoomReleaseTest {
         val roomId = "1234"
         val mockRealtimeClient = createMockRealtimeClient()
         val chatApi = mockk<ChatApi>(relaxed = true)
-        val rooms = spyk(DefaultRooms(mockRealtimeClient, chatApi, ClientOptions()), recordPrivateCalls = true)
+        val rooms = spyk(DefaultRooms(mockRealtimeClient, chatApi, ClientOptions(), clientId, logger), recordPrivateCalls = true)
 
         val defaultRoom = spyk(
-            DefaultRoom(roomId, RoomOptions.default, mockRealtimeClient, chatApi, null),
+            DefaultRoom(roomId, RoomOptions.default, mockRealtimeClient, chatApi, clientId, logger),
             recordPrivateCalls = true,
         )
 
@@ -106,7 +110,7 @@ class RoomReleaseTest {
         val roomId = "1234"
         val mockRealtimeClient = createMockRealtimeClient()
         val chatApi = mockk<ChatApi>(relaxed = true)
-        val rooms = spyk(DefaultRooms(mockRealtimeClient, chatApi, ClientOptions()), recordPrivateCalls = true)
+        val rooms = spyk(DefaultRooms(mockRealtimeClient, chatApi, ClientOptions(), clientId, logger), recordPrivateCalls = true)
 
         // No room exists
         Assert.assertEquals(0, rooms.RoomIdToRoom.size)
@@ -126,10 +130,10 @@ class RoomReleaseTest {
         val roomId = "1234"
         val mockRealtimeClient = createMockRealtimeClient()
         val chatApi = mockk<ChatApi>(relaxed = true)
-        val rooms = spyk(DefaultRooms(mockRealtimeClient, chatApi, ClientOptions()), recordPrivateCalls = true)
+        val rooms = spyk(DefaultRooms(mockRealtimeClient, chatApi, ClientOptions(), clientId, logger), recordPrivateCalls = true)
 
         val defaultRoom = spyk(
-            DefaultRoom(roomId, RoomOptions.default, mockRealtimeClient, chatApi, null),
+            DefaultRoom(roomId, RoomOptions.default, mockRealtimeClient, chatApi, clientId, logger),
             recordPrivateCalls = true,
         )
         every { rooms["makeRoom"](any<String>(), any<RoomOptions>()) } returns defaultRoom
@@ -182,10 +186,10 @@ class RoomReleaseTest {
         val roomId = "1234"
         val mockRealtimeClient = createMockRealtimeClient()
         val chatApi = mockk<ChatApi>(relaxed = true)
-        val rooms = spyk(DefaultRooms(mockRealtimeClient, chatApi, ClientOptions()), recordPrivateCalls = true)
+        val rooms = spyk(DefaultRooms(mockRealtimeClient, chatApi, ClientOptions(), clientId, logger), recordPrivateCalls = true)
 
         val defaultRoom = spyk(
-            DefaultRoom(roomId, RoomOptions.default, mockRealtimeClient, chatApi, null),
+            DefaultRoom(roomId, RoomOptions.default, mockRealtimeClient, chatApi, clientId, logger),
             recordPrivateCalls = true,
         )
 
@@ -204,7 +208,7 @@ class RoomReleaseTest {
         } answers {
             var room = defaultRoom
             if (roomReleased.isClosedForSend) {
-                room = DefaultRoom(roomId, RoomOptions.default, mockRealtimeClient, chatApi, null)
+                room = DefaultRoom(roomId, RoomOptions.default, mockRealtimeClient, chatApi, clientId, logger)
             }
             room
         }

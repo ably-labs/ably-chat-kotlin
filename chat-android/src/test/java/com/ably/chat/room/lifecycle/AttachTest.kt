@@ -12,6 +12,7 @@ import com.ably.chat.assertWaiter
 import com.ably.chat.attachCoroutine
 import com.ably.chat.detachCoroutine
 import com.ably.chat.room.atomicCoroutineScope
+import com.ably.chat.room.createMockLogger
 import com.ably.chat.room.createRoomFeatureMocks
 import com.ably.chat.room.setState
 import com.ably.chat.serverError
@@ -45,16 +46,18 @@ import org.junit.Test
  */
 class AttachTest {
 
+    private val logger = createMockLogger()
+
     private val roomScope = CoroutineScope(
         Dispatchers.Default.limitedParallelism(1) + CoroutineName("roomId"),
     )
 
     @Test
     fun `(CHA-RL1a) Attach success when room is already in attached state`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>().apply {
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger)).apply {
             setStatus(RoomStatus.Attached)
         }
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks()))
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks(), logger))
         val result = kotlin.runCatching { roomLifecycle.attach() }
         Assert.assertTrue(result.isSuccess)
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
@@ -62,10 +65,10 @@ class AttachTest {
 
     @Test
     fun `(CHA-RL1b) Attach throws exception when room in releasing state`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>().apply {
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger)).apply {
             setStatus(RoomStatus.Releasing)
         }
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks()))
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks(), logger))
         val exception = Assert.assertThrows(AblyException::class.java) {
             runBlocking {
                 roomLifecycle.attach()
@@ -79,10 +82,10 @@ class AttachTest {
 
     @Test
     fun `(CHA-RL1c) Attach throws exception when room in released state`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>().apply {
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger)).apply {
             setStatus(RoomStatus.Released)
         }
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, listOf()))
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, listOf(), logger))
         val exception = Assert.assertThrows(AblyException::class.java) {
             runBlocking {
                 roomLifecycle.attach()
@@ -96,10 +99,10 @@ class AttachTest {
 
     @Test
     fun `(CHA-RL1d) Attach op should wait for existing operation as per (CHA-RL7)`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
         Assert.assertEquals(RoomStatus.Initialized, statusLifecycle.status) // CHA-RS3
 
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks()))
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks(), logger))
 
         val roomReleased = Channel<Boolean>()
         coEvery {
@@ -143,12 +146,12 @@ class AttachTest {
 
     @Test
     fun `(CHA-RL1e) Attach op should transition room into ATTACHING state`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
         val roomStatusChanges = mutableListOf<RoomStatusChange>()
         statusLifecycle.onChange {
             roomStatusChanges.add(it)
         }
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, emptyList()))
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, emptyList(), logger))
         roomLifecycle.attach()
 
         Assert.assertEquals(RoomStatus.Attaching, roomStatusChanges[0].current)
@@ -158,7 +161,7 @@ class AttachTest {
 
     @Test
     fun `(CHA-RL1f) Attach op should attach each contributor channel sequentially`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
 
         mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
         val capturedChannels = mutableListOf<io.ably.lib.realtime.Channel>()
@@ -169,7 +172,7 @@ class AttachTest {
         val contributors = createRoomFeatureMocks()
         Assert.assertEquals(5, contributors.size)
 
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors))
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors, logger))
         roomLifecycle.attach()
         val result = kotlin.runCatching { roomLifecycle.attach() }
         Assert.assertTrue(result.isSuccess)
@@ -187,7 +190,7 @@ class AttachTest {
 
     @Test
     fun `(CHA-RL1g) When all contributor channels ATTACH, op is complete and room should be considered ATTACHED`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
 
         mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
         coEvery { any<io.ably.lib.realtime.Channel>().attachCoroutine() } returns Unit
@@ -201,7 +204,7 @@ class AttachTest {
         }
         Assert.assertEquals(5, contributors.size)
 
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors), recordPrivateCalls = true) {
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors, logger), recordPrivateCalls = true) {
             val pendingDiscontinuityEvents = mutableMapOf<ContributesToRoomLifecycle, ErrorInfo?>().apply {
                 for (contributor in contributors) {
                     put(contributor, ErrorInfo("${contributor.channel.name} error", 500))
@@ -236,7 +239,7 @@ class AttachTest {
     @Suppress("MaximumLineLength")
     @Test
     fun `(CHA-RL1h1, CHA-RL1h2) If a one of the contributors fails to attach (enters suspended state), attach throws related error and room enters suspended state`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
 
         mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
         coEvery { any<io.ably.lib.realtime.Channel>().attachCoroutine() } coAnswers {
@@ -249,7 +252,7 @@ class AttachTest {
         }
 
         val contributors = createRoomFeatureMocks("1234")
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors), recordPrivateCalls = true)
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors, logger), recordPrivateCalls = true)
 
         val result = kotlin.runCatching { roomLifecycle.attach() }
 
@@ -266,7 +269,7 @@ class AttachTest {
     @Suppress("MaximumLineLength")
     @Test
     fun `(CHA-RL1h1, CHA-RL1h4) If a one of the contributors fails to attach (enters failed state), attach throws related error and room enters failed state`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
 
         mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
         coEvery { any<io.ably.lib.realtime.Channel>().attachCoroutine() } coAnswers {
@@ -280,7 +283,7 @@ class AttachTest {
         }
 
         val contributors = createRoomFeatureMocks("1234")
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors), recordPrivateCalls = true)
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors, logger), recordPrivateCalls = true)
 
         val result = kotlin.runCatching { roomLifecycle.attach() }
 
@@ -299,7 +302,7 @@ class AttachTest {
 
     @Test
     fun `(CHA-RL1h3) When room enters suspended state (CHA-RL1h2), it should enter recovery loop as per (CHA-RL5)`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
 
         mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
         coEvery { any<io.ably.lib.realtime.Channel>().attachCoroutine() } coAnswers {
@@ -312,7 +315,7 @@ class AttachTest {
         }
 
         val contributors = createRoomFeatureMocks("1234")
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors), recordPrivateCalls = true)
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors, logger), recordPrivateCalls = true)
 
         val capturedContributors = slot<ContributesToRoomLifecycle>()
 
@@ -337,7 +340,7 @@ class AttachTest {
 
     @Test
     fun `(CHA-RL1h5) When room enters failed state (CHA-RL1h4), room detach all channels not in failed state`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
 
         mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
         coEvery { any<io.ably.lib.realtime.Channel>().attachCoroutine() } coAnswers {
@@ -357,7 +360,7 @@ class AttachTest {
         }
 
         val contributors = createRoomFeatureMocks("1234")
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors), recordPrivateCalls = true)
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors, logger), recordPrivateCalls = true)
 
         val result = kotlin.runCatching { roomLifecycle.attach() }
         Assert.assertFalse(roomLifecycle.atomicCoroutineScope().finishedProcessing) // Internal channels detach in progress
@@ -384,7 +387,7 @@ class AttachTest {
     @Suppress("MaximumLineLength")
     @Test
     fun `(CHA-RL1h6) When room enters failed state, when CHA-RL1h5 fails to detach, op will be repeated till all channels are detached`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
 
         mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
         coEvery { any<io.ably.lib.realtime.Channel>().attachCoroutine() } coAnswers {
@@ -408,7 +411,7 @@ class AttachTest {
         }
 
         val contributors = createRoomFeatureMocks("1234")
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors), recordPrivateCalls = true)
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors, logger), recordPrivateCalls = true)
 
         val result = kotlin.runCatching { roomLifecycle.attach() }
         Assert.assertFalse(roomLifecycle.atomicCoroutineScope().finishedProcessing) // Internal channels detach in progress

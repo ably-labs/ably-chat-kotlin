@@ -367,6 +367,7 @@ internal class DefaultMessages(
     }
 
     override fun release() {
+        channel.off(channelStateListener)
         realtimeChannels.release(channel.name)
     }
 }

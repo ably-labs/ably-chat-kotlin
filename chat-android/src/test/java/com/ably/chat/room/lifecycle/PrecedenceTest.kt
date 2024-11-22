@@ -9,6 +9,7 @@ import com.ably.chat.RoomStatusChange
 import com.ably.chat.assertWaiter
 import com.ably.chat.room.atomicCoroutineScope
 import com.ably.chat.room.atomicRetry
+import com.ably.chat.room.createMockLogger
 import com.ably.chat.room.createRoomFeatureMocks
 import io.mockk.coEvery
 import io.mockk.spyk
@@ -28,6 +29,8 @@ import org.junit.Test
  * Spec: CHA-RL7
  */
 class PrecedenceTest {
+    private val logger = createMockLogger()
+
     private val roomScope = CoroutineScope(
         Dispatchers.Default.limitedParallelism(1) + CoroutineName("roomId"),
     )
@@ -40,7 +43,7 @@ class PrecedenceTest {
     @Suppress("LongMethod")
     @Test
     fun `(CHA-RL7a) If multiple operations are scheduled to run, they run as per LifecycleOperationPrecedence`() = runTest {
-        val statusLifecycle = spyk<DefaultRoomLifecycle>()
+        val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
         val roomStatusChanges = mutableListOf<RoomStatusChange>()
         statusLifecycle.onChange {
             roomStatusChanges.add(it)
@@ -49,7 +52,7 @@ class PrecedenceTest {
         val contributors = createRoomFeatureMocks("1234")
         Assert.assertEquals(5, contributors.size)
 
-        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors), recordPrivateCalls = true)
+        val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors, logger), recordPrivateCalls = true)
         // Internal operation
         coEvery { roomLifecycle["doRetry"](any<ContributesToRoomLifecycle>()) } coAnswers {
             delay(200)

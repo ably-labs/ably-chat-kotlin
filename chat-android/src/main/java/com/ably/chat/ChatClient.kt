@@ -1,4 +1,4 @@
-@file:Suppress("StringLiteralDuplication", "NotImplementedDeclaration")
+@file:Suppress("NotImplementedDeclaration")
 
 package com.ably.chat
 
@@ -45,12 +45,24 @@ internal class DefaultChatClient(
     override val clientOptions: ClientOptions,
 ) : ChatClient {
 
-    private val chatApi = ChatApi(realtime, clientId)
+    private val logger: Logger = if (clientOptions.logHandler != null) {
+        CustomLogger(
+            clientOptions.logHandler,
+            clientOptions.logLevel,
+            buildLogContext(),
+        )
+    } else {
+        AndroidLogger(clientOptions.logLevel, buildLogContext())
+    }
+
+    private val chatApi = ChatApi(realtime, clientId, logger.withContext(tag = "AblyChatAPI"))
 
     override val rooms: Rooms = DefaultRooms(
         realtimeClient = realtime,
         chatApi = chatApi,
         clientOptions = clientOptions,
+        clientId = clientId,
+        logger = logger,
     )
 
     override val connection: Connection
@@ -58,4 +70,16 @@ internal class DefaultChatClient(
 
     override val clientId: String
         get() = realtime.auth.clientId
+
+    private fun buildLogContext() = LogContext(
+        tag = "ChatClient",
+        staticContext = mapOf(
+            "clientId" to clientId,
+            "instanceId" to generateUUID(),
+        ),
+        dynamicContext = mapOf(
+            "connectionId" to { realtime.connection.id },
+            "connectionState" to { realtime.connection.state.name },
+        ),
+    )
 }

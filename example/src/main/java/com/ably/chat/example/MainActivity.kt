@@ -22,12 +22,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,13 +43,20 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ably.chat.ChatClient
 import com.ably.chat.Message
+import com.ably.chat.PresenceOptions
 import com.ably.chat.RealtimeClient
+import com.ably.chat.Room
+import com.ably.chat.RoomOptions
+import com.ably.chat.RoomReactionsOptions
 import com.ably.chat.SendMessageParams
 import com.ably.chat.SendReactionParams
+import com.ably.chat.Typing
+import com.ably.chat.TypingOptions
 import com.ably.chat.example.ui.PresencePopup
 import com.ably.chat.example.ui.theme.AblyChatExampleTheme
 import io.ably.lib.types.ClientOptions
 import java.util.UUID
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
@@ -80,41 +89,14 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun App(chatClient: ChatClient) {
     var showPopup by remember { mutableStateOf(false) }
-
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
-            TopAppBar(
-                title = { Text("Chat") },
-                actions = {
-                    IconButton(onClick = { showPopup = true }) {
-                        Icon(Icons.Default.Person, contentDescription = "Show members")
-                    }
-                },
-            )
-        },
-    ) { innerPadding ->
-        Chat(
-            chatClient,
-            modifier = Modifier.padding(innerPadding),
+    val room = runBlocking {
+        chatClient.rooms.get(
+            Settings.ROOM_ID,
+            RoomOptions(typing = TypingOptions(), presence = PresenceOptions(), reactions = RoomReactionsOptions),
         )
-        if (showPopup) {
-            PresencePopup(chatClient, onDismiss = { showPopup = false })
-        }
     }
-}
-
-@Suppress("LongMethod")
-@Composable
-fun Chat(chatClient: ChatClient, modifier: Modifier = Modifier) {
-    var messageText by remember { mutableStateOf(TextFieldValue("")) }
-    var sending by remember { mutableStateOf(false) }
-    var messages by remember { mutableStateOf(listOf<Message>()) }
-    val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    var receivedReactions by remember { mutableStateOf<List<String>>(listOf()) }
-
-    val room = runBlocking { chatClient.rooms.get(Settings.ROOM_ID) }
+    val currentlyTyping by typingUsers(room.typing)
 
     DisposableEffect(Unit) {
         coroutineScope.launch {
@@ -126,6 +108,55 @@ fun Chat(chatClient: ChatClient, modifier: Modifier = Modifier) {
             }
         }
     }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { Text(Settings.ROOM_ID) },
+                actions = {
+                    IconButton(onClick = { showPopup = true }) {
+                        Icon(Icons.Default.Person, contentDescription = "Show members")
+                    }
+                },
+            )
+        },
+    ) { innerPadding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
+            if (currentlyTyping.isNotEmpty()) {
+                Text(
+                    modifier = Modifier.padding(start = 16.dp),
+                    text = "Currently typing: ${currentlyTyping.joinToString(", ")}",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = Color.Gray,
+                    ),
+                )
+            }
+            Chat(
+                room,
+                modifier = Modifier.padding(16.dp),
+            )
+        }
+
+        if (showPopup) {
+            PresencePopup(chatClient, onDismiss = { showPopup = false })
+        }
+    }
+}
+
+@SuppressWarnings("LongMethod")
+@Composable
+fun Chat(room: Room, modifier: Modifier = Modifier) {
+    var messageText by remember { mutableStateOf(TextFieldValue("")) }
+    var sending by remember { mutableStateOf(false) }
+    var messages by remember { mutableStateOf(listOf<Message>()) }
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+    var receivedReactions by remember { mutableStateOf<List<String>>(listOf()) }
 
     DisposableEffect(Unit) {
         val subscription = room.messages.subscribe {
@@ -174,7 +205,12 @@ fun Chat(chatClient: ChatClient, modifier: Modifier = Modifier) {
         ChatInputField(
             sending = sending,
             messageInput = messageText,
-            onMessageChange = { messageText = it },
+            onMessageChange = {
+                messageText = it
+                coroutineScope.launch {
+                    room.typing.start()
+                }
+            },
             onSendClick = {
                 sending = true
                 coroutineScope.launch {
@@ -257,6 +293,23 @@ fun ChatInputField(
             }
         }
     }
+}
+
+@Composable
+fun typingUsers(typing: Typing): State<Set<String>> {
+    val currentlyTyping = remember { mutableStateOf(emptySet<String>()) }
+
+    DisposableEffect(typing) {
+        val subscription = typing.subscribe { typingEvent ->
+            currentlyTyping.value = typingEvent.currentlyTyping - randomClientId
+        }
+
+        onDispose {
+            subscription.unsubscribe()
+        }
+    }
+
+    return currentlyTyping
 }
 
 @Preview

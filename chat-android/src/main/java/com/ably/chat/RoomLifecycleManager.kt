@@ -3,7 +3,6 @@ package com.ably.chat
 import io.ably.lib.realtime.ChannelState
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
-import io.ably.lib.util.Log.LogHandler
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.CoroutineScope
@@ -114,17 +113,12 @@ class DefaultRoomAttachmentResult : RoomAttachmentResult {
  * An implementation of the `Status` interface.
  * @internal
  */
-class RoomLifecycleManager(
+internal class RoomLifecycleManager(
     private val roomScope: CoroutineScope,
     private val statusLifecycle: DefaultRoomLifecycle,
     private val contributors: List<ContributesToRoomLifecycle>,
-    logger: LogHandler? = null,
+    private val logger: Logger,
 ) {
-
-    /**
-     * Logger for RoomLifeCycleManager
-     */
-    private val _logger: LogHandler? = logger
 
     /**
      * AtomicCoroutineScope makes sure all operations are atomic and run with given priority.
