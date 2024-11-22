@@ -34,17 +34,18 @@ class RoomLifecycleManagerTest {
     )
 
     @Test
-    fun `(CHA-RL1a) Attach success when channel in already in attached state`() = runTest {
+    fun `(CHA-RL1a) Attach success when room is already in attached state`() = runTest {
         val statusLifecycle = spyk<DefaultRoomLifecycle>().apply {
             setStatus(RoomStatus.Attached)
         }
         val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, createRoomFeatureMocks()))
         val result = kotlin.runCatching { roomLifecycle.attach() }
         Assert.assertTrue(result.isSuccess)
+        assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
     }
 
     @Test
-    fun `(CHA-RL1b) Attach throws exception when channel in releasing state`() = runTest {
+    fun `(CHA-RL1b) Attach throws exception when room in releasing state`() = runTest {
         val statusLifecycle = spyk<DefaultRoomLifecycle>().apply {
             setStatus(RoomStatus.Releasing)
         }
@@ -55,12 +56,13 @@ class RoomLifecycleManagerTest {
             }
         }
         Assert.assertEquals("unable to attach room; room is releasing", exception.errorInfo.message)
-        Assert.assertEquals(102_102, exception.errorInfo.code)
-        Assert.assertEquals(500, exception.errorInfo.statusCode)
+        Assert.assertEquals(ErrorCodes.RoomIsReleasing.errorCode, exception.errorInfo.code)
+        Assert.assertEquals(HttpStatusCodes.InternalServerError, exception.errorInfo.statusCode)
+        assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
     }
 
     @Test
-    fun `(CHA-RL1c) Attach throws exception when channel in released state`() = runTest {
+    fun `(CHA-RL1c) Attach throws exception when room in released state`() = runTest {
         val statusLifecycle = spyk<DefaultRoomLifecycle>().apply {
             setStatus(RoomStatus.Released)
         }
@@ -71,8 +73,9 @@ class RoomLifecycleManagerTest {
             }
         }
         Assert.assertEquals("unable to attach room; room is released", exception.errorInfo.message)
-        Assert.assertEquals(102_103, exception.errorInfo.code)
-        Assert.assertEquals(500, exception.errorInfo.statusCode)
+        Assert.assertEquals(ErrorCodes.RoomIsReleased.errorCode, exception.errorInfo.code)
+        Assert.assertEquals(HttpStatusCodes.InternalServerError, exception.errorInfo.statusCode)
+        assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
     }
 
     @Test
@@ -115,8 +118,9 @@ class RoomLifecycleManagerTest {
         val exception = result.exceptionOrNull() as AblyException
 
         Assert.assertEquals("unable to attach room; room is released", exception.errorInfo.message)
-        Assert.assertEquals(102_103, exception.errorInfo.code)
-        Assert.assertEquals(500, exception.errorInfo.statusCode)
+        Assert.assertEquals(ErrorCodes.RoomIsReleased.errorCode, exception.errorInfo.code)
+        Assert.assertEquals(HttpStatusCodes.InternalServerError, exception.errorInfo.statusCode)
+        assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
 
         coVerify { roomLifecycle.release() }
     }
@@ -130,6 +134,7 @@ class RoomLifecycleManagerTest {
         }
         val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, emptyList()))
         roomLifecycle.attach()
+
         Assert.assertEquals(RoomStatus.Attaching, roomStatusChanges[0].current)
         Assert.assertEquals(RoomStatus.Attached, roomStatusChanges[1].current)
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
@@ -190,7 +195,6 @@ class RoomLifecycleManagerTest {
         }
         justRun { roomLifecycle invokeNoArgs "clearAllTransientDetachTimeouts" }
 
-        roomLifecycle.attach()
         val result = kotlin.runCatching { roomLifecycle.attach() }
 
         // CHA-RL1g1
