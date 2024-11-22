@@ -2,8 +2,8 @@ package com.ably.chat.room.lifecycle
 
 import com.ably.chat.ContributesToRoomLifecycle
 import com.ably.chat.DefaultRoomLifecycle
-import com.ably.chat.ErrorCodes
-import com.ably.chat.HttpStatusCodes
+import com.ably.chat.ErrorCode
+import com.ably.chat.HttpStatusCode
 import com.ably.chat.RoomLifecycleManager
 import com.ably.chat.RoomStatus
 import com.ably.chat.RoomStatusChange
@@ -75,8 +75,8 @@ class AttachTest {
             }
         }
         Assert.assertEquals("unable to attach room; room is releasing", exception.errorInfo.message)
-        Assert.assertEquals(ErrorCodes.RoomIsReleasing.errorCode, exception.errorInfo.code)
-        Assert.assertEquals(HttpStatusCodes.InternalServerError, exception.errorInfo.statusCode)
+        Assert.assertEquals(ErrorCode.RoomIsReleasing.code, exception.errorInfo.code)
+        Assert.assertEquals(HttpStatusCode.InternalServerError, exception.errorInfo.statusCode)
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
     }
 
@@ -92,8 +92,8 @@ class AttachTest {
             }
         }
         Assert.assertEquals("unable to attach room; room is released", exception.errorInfo.message)
-        Assert.assertEquals(ErrorCodes.RoomIsReleased.errorCode, exception.errorInfo.code)
-        Assert.assertEquals(HttpStatusCodes.InternalServerError, exception.errorInfo.statusCode)
+        Assert.assertEquals(ErrorCode.RoomIsReleased.code, exception.errorInfo.code)
+        Assert.assertEquals(HttpStatusCode.InternalServerError, exception.errorInfo.statusCode)
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
     }
 
@@ -137,8 +137,8 @@ class AttachTest {
         val exception = result.exceptionOrNull() as AblyException
 
         Assert.assertEquals("unable to attach room; room is released", exception.errorInfo.message)
-        Assert.assertEquals(ErrorCodes.RoomIsReleased.errorCode, exception.errorInfo.code)
-        Assert.assertEquals(HttpStatusCodes.InternalServerError, exception.errorInfo.statusCode)
+        Assert.assertEquals(ErrorCode.RoomIsReleased.code, exception.errorInfo.code)
+        Assert.assertEquals(HttpStatusCode.InternalServerError, exception.errorInfo.statusCode)
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
 
         coVerify { roomLifecycle.release() }
@@ -262,7 +262,7 @@ class AttachTest {
         val exception = result.exceptionOrNull() as AblyException
 
         Assert.assertEquals("failed to attach reactions feature", exception.errorInfo.message)
-        Assert.assertEquals(ErrorCodes.ReactionsAttachmentFailed.errorCode, exception.errorInfo.code)
+        Assert.assertEquals(ErrorCode.ReactionsAttachmentFailed.code, exception.errorInfo.code)
         Assert.assertEquals(500, exception.errorInfo.statusCode)
     }
 
@@ -296,7 +296,7 @@ class AttachTest {
             "failed to attach typing feature, error attaching channel 1234::\$chat::\$typingIndicators",
             exception.errorInfo.message,
         )
-        Assert.assertEquals(ErrorCodes.TypingAttachmentFailed.errorCode, exception.errorInfo.code)
+        Assert.assertEquals(ErrorCode.TypingAttachmentFailed.code, exception.errorInfo.code)
         Assert.assertEquals(500, exception.errorInfo.statusCode)
     }
 

@@ -115,9 +115,9 @@ internal class DefaultRoomReactions(
 
     override val channel: AblyRealtimeChannel = realtimeChannels.get(roomReactionsChannelName, ChatChannelOptions())
 
-    override val attachmentErrorCode: ErrorCodes = ErrorCodes.ReactionsAttachmentFailed
+    override val attachmentErrorCode: ErrorCode = ErrorCode.ReactionsAttachmentFailed
 
-    override val detachmentErrorCode: ErrorCodes = ErrorCodes.ReactionsDetachmentFailed
+    override val detachmentErrorCode: ErrorCode = ErrorCode.ReactionsDetachmentFailed
 
     // (CHA-ER3) Ephemeral room reactions are sent to Ably via the Realtime connection via a send method.
     // (CHA-ER3a) Reactions are sent on the channel using a message in a particular format - see spec for format.
@@ -142,10 +142,10 @@ internal class DefaultRoomReactions(
     override fun subscribe(listener: RoomReactions.Listener): Subscription {
         val messageListener = PubSubMessageListener {
             val pubSubMessage = it ?: throw AblyException.fromErrorInfo(
-                ErrorInfo("Got empty pubsub channel message", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest.errorCode),
+                ErrorInfo("Got empty pubsub channel message", HttpStatusCode.BadRequest, ErrorCode.BadRequest.code),
             )
             val data = pubSubMessage.data as? JsonObject ?: throw AblyException.fromErrorInfo(
-                ErrorInfo("Unrecognized Pub/Sub channel's message for `roomReaction` event", HttpStatusCodes.InternalServerError),
+                ErrorInfo("Unrecognized Pub/Sub channel's message for `roomReaction` event", HttpStatusCode.InternalServerError),
             )
             val reaction = Reaction(
                 type = data.requireString("type"),

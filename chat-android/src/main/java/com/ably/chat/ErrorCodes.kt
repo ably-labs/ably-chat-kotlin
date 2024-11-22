@@ -3,7 +3,7 @@ package com.ably.chat
 /**
  * Error codes for the Chat SDK.
  */
-enum class ErrorCodes(val errorCode: Int) {
+enum class ErrorCode(val code: Int) {
 
     /**
      * The messages feature failed to attach.
@@ -113,7 +113,7 @@ enum class ErrorCodes(val errorCode: Int) {
 /**
  * Http Status Codes
  */
-object HttpStatusCodes {
+object HttpStatusCode {
 
     const val BadRequest = 400
 

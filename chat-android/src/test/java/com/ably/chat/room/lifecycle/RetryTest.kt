@@ -1,7 +1,7 @@
 package com.ably.chat.room.lifecycle
 
 import com.ably.chat.DefaultRoomLifecycle
-import com.ably.chat.HttpStatusCodes
+import com.ably.chat.HttpStatusCode
 import com.ably.chat.RoomLifecycleManager
 import com.ably.chat.RoomStatus
 import com.ably.chat.assertWaiter
@@ -180,7 +180,7 @@ class RetryTest {
         val contributors = createRoomFeatureMocks()
         val messagesContributor = contributors.first { it.featureName == "messages" }
         messagesContributor.channel.setState(ChannelState.failed)
-        messagesContributor.channel.reason = ErrorInfo("Failed channel messages", HttpStatusCodes.InternalServerError)
+        messagesContributor.channel.reason = ErrorInfo("Failed channel messages", HttpStatusCode.InternalServerError)
 
         val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors, logger))
 

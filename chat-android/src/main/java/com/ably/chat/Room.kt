@@ -134,7 +134,7 @@ internal class DefaultRoom(
     override val presence: Presence
         get() {
             if (_presence == null) { // CHA-RC2b
-                throw ablyException("Presence is not enabled for this room", ErrorCodes.BadRequest)
+                throw ablyException("Presence is not enabled for this room", ErrorCode.BadRequest)
             }
             return _presence as Presence
         }
@@ -143,7 +143,7 @@ internal class DefaultRoom(
     override val reactions: RoomReactions
         get() {
             if (_reactions == null) { // CHA-RC2b
-                throw ablyException("Reactions are not enabled for this room", ErrorCodes.BadRequest)
+                throw ablyException("Reactions are not enabled for this room", ErrorCode.BadRequest)
             }
             return _reactions as RoomReactions
         }
@@ -152,7 +152,7 @@ internal class DefaultRoom(
     override val typing: Typing
         get() {
             if (_typing == null) { // CHA-RC2b
-                throw ablyException("Typing is not enabled for this room", ErrorCodes.BadRequest)
+                throw ablyException("Typing is not enabled for this room", ErrorCode.BadRequest)
             }
             return _typing as Typing
         }
@@ -161,7 +161,7 @@ internal class DefaultRoom(
     override val occupancy: Occupancy
         get() {
             if (_occupancy == null) { // CHA-RC2b
-                throw ablyException("Occupancy is not enabled for this room", ErrorCodes.BadRequest)
+                throw ablyException("Occupancy is not enabled for this room", ErrorCode.BadRequest)
             }
             return _occupancy as Occupancy
         }

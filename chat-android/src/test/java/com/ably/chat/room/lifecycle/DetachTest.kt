@@ -2,8 +2,8 @@ package com.ably.chat.room.lifecycle
 
 import com.ably.chat.ContributesToRoomLifecycle
 import com.ably.chat.DefaultRoomLifecycle
-import com.ably.chat.ErrorCodes
-import com.ably.chat.HttpStatusCodes
+import com.ably.chat.ErrorCode
+import com.ably.chat.HttpStatusCode
 import com.ably.chat.RoomLifecycleManager
 import com.ably.chat.RoomStatus
 import com.ably.chat.RoomStatusChange
@@ -70,8 +70,8 @@ class DetachTest {
             }
         }
         Assert.assertEquals("unable to detach room; room is releasing", exception.errorInfo.message)
-        Assert.assertEquals(ErrorCodes.RoomIsReleasing.errorCode, exception.errorInfo.code)
-        Assert.assertEquals(HttpStatusCodes.InternalServerError, exception.errorInfo.statusCode)
+        Assert.assertEquals(ErrorCode.RoomIsReleasing.code, exception.errorInfo.code)
+        Assert.assertEquals(HttpStatusCode.InternalServerError, exception.errorInfo.statusCode)
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
     }
 
@@ -87,8 +87,8 @@ class DetachTest {
             }
         }
         Assert.assertEquals("unable to detach room; room is released", exception.errorInfo.message)
-        Assert.assertEquals(ErrorCodes.RoomIsReleased.errorCode, exception.errorInfo.code)
-        Assert.assertEquals(HttpStatusCodes.InternalServerError, exception.errorInfo.statusCode)
+        Assert.assertEquals(ErrorCode.RoomIsReleased.code, exception.errorInfo.code)
+        Assert.assertEquals(HttpStatusCode.InternalServerError, exception.errorInfo.statusCode)
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
     }
 
@@ -104,8 +104,8 @@ class DetachTest {
             }
         }
         Assert.assertEquals("unable to detach room; room has failed", exception.errorInfo.message)
-        Assert.assertEquals(ErrorCodes.RoomInFailedState.errorCode, exception.errorInfo.code)
-        Assert.assertEquals(HttpStatusCodes.InternalServerError, exception.errorInfo.statusCode)
+        Assert.assertEquals(ErrorCode.RoomInFailedState.code, exception.errorInfo.code)
+        Assert.assertEquals(HttpStatusCode.InternalServerError, exception.errorInfo.statusCode)
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
     }
 
@@ -203,8 +203,8 @@ class DetachTest {
         val exception = result.exceptionOrNull() as AblyException
 
         Assert.assertEquals("unable to detach room; room is released", exception.errorInfo.message)
-        Assert.assertEquals(ErrorCodes.RoomIsReleased.errorCode, exception.errorInfo.code)
-        Assert.assertEquals(HttpStatusCodes.InternalServerError, exception.errorInfo.statusCode)
+        Assert.assertEquals(ErrorCode.RoomIsReleased.code, exception.errorInfo.code)
+        Assert.assertEquals(HttpStatusCode.InternalServerError, exception.errorInfo.statusCode)
 
         coVerify { roomLifecycle.release() }
     }
@@ -247,8 +247,8 @@ class DetachTest {
             "failed to detach typing feature, error detaching channel 1234::\$chat::\$typingIndicators",
             exception.errorInfo.message,
         )
-        Assert.assertEquals(ErrorCodes.TypingDetachmentFailed.errorCode, exception.errorInfo.code)
-        Assert.assertEquals(HttpStatusCodes.InternalServerError, exception.errorInfo.statusCode)
+        Assert.assertEquals(ErrorCode.TypingDetachmentFailed.code, exception.errorInfo.code)
+        Assert.assertEquals(HttpStatusCode.InternalServerError, exception.errorInfo.statusCode)
 
         // The same ErrorInfo must accompany the FAILED room status
         Assert.assertSame(statusLifecycle.error, exception.errorInfo)
@@ -306,8 +306,8 @@ class DetachTest {
             "failed to detach typing feature, error detaching channel 1234::\$chat::\$typingIndicators",
             error.message,
         )
-        Assert.assertEquals(ErrorCodes.TypingDetachmentFailed.errorCode, error.code)
-        Assert.assertEquals(HttpStatusCodes.InternalServerError, error.statusCode)
+        Assert.assertEquals(ErrorCode.TypingDetachmentFailed.code, error.code)
+        Assert.assertEquals(HttpStatusCode.InternalServerError, error.statusCode)
     }
 
     @Suppress("MaximumLineLength")

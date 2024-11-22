@@ -67,9 +67,9 @@ internal class DefaultOccupancy(
 
     override val channel = messages.channel
 
-    override val attachmentErrorCode: ErrorCodes = ErrorCodes.OccupancyAttachmentFailed
+    override val attachmentErrorCode: ErrorCode = ErrorCode.OccupancyAttachmentFailed
 
-    override val detachmentErrorCode: ErrorCodes = ErrorCodes.OccupancyDetachmentFailed
+    override val detachmentErrorCode: ErrorCode = ErrorCode.OccupancyDetachmentFailed
 
     override fun subscribe(listener: Occupancy.Listener): Subscription {
         TODO("Not yet implemented")

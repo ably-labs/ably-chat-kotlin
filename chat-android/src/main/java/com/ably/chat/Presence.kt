@@ -141,9 +141,9 @@ internal class DefaultPresence(
 
     override val featureName = "presence"
 
-    override val attachmentErrorCode: ErrorCodes = ErrorCodes.PresenceAttachmentFailed
+    override val attachmentErrorCode: ErrorCode = ErrorCode.PresenceAttachmentFailed
 
-    override val detachmentErrorCode: ErrorCodes = ErrorCodes.PresenceDetachmentFailed
+    override val detachmentErrorCode: ErrorCode = ErrorCode.PresenceDetachmentFailed
 
     override suspend fun get(waitForSync: Boolean, clientId: String?, connectionId: String?): List<PresenceMember> {
         return presence.getCoroutine(waitForSync, clientId, connectionId).map { user ->

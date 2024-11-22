@@ -100,9 +100,9 @@ internal class DefaultTyping(
 
     override val featureName = "typing"
 
-    override val attachmentErrorCode: ErrorCodes = ErrorCodes.TypingAttachmentFailed
+    override val attachmentErrorCode: ErrorCode = ErrorCode.TypingAttachmentFailed
 
-    override val detachmentErrorCode: ErrorCodes = ErrorCodes.TypingDetachmentFailed
+    override val detachmentErrorCode: ErrorCode = ErrorCode.TypingDetachmentFailed
 
     private val typingScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1) + SupervisorJob())
 
@@ -186,7 +186,7 @@ internal class DefaultTyping(
         val timeout = options?.timeoutMs ?: throw AblyException.fromErrorInfo(
             ErrorInfo(
                 "Typing options hasn't been initialized",
-                ErrorCodes.BadRequest.errorCode,
+                ErrorCode.BadRequest.code,
             ),
         )
         logger.trace("DefaultTyping.startTypingTimer()")

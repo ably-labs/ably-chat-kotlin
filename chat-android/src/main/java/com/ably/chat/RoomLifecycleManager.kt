@@ -32,13 +32,13 @@ interface ContributesToRoomLifecycle : EmitsDiscontinuities, HandlesDiscontinuit
      * Gets the ErrorInfo code that should be used when the feature fails to attach.
      * @returns The error that should be used when the feature fails to attach.
      */
-    val attachmentErrorCode: ErrorCodes
+    val attachmentErrorCode: ErrorCode
 
     /**
      * Gets the ErrorInfo code that should be used when the feature fails to detach.
      * @returns The error that should be used when the feature fails to detach.
      */
-    val detachmentErrorCode: ErrorCodes
+    val detachmentErrorCode: ErrorCode
 
     /**
      * Underlying Realtime feature channel is removed from the core SDK to prevent leakage.
@@ -104,7 +104,7 @@ class DefaultRoomAttachmentResult : RoomAttachmentResult {
     override val exception: AblyException
         get() {
             val errorInfo = errorField
-                ?: lifeCycleErrorInfo("unknown error in attach", ErrorCodes.RoomLifecycleError)
+                ?: lifeCycleErrorInfo("unknown error in attach", ErrorCode.RoomLifecycleError)
             return lifeCycleException(errorInfo, throwable)
         }
 }
@@ -215,7 +215,7 @@ internal class RoomLifecycleManager(
                     val failedFeature = attachmentResult.failedFeature
                         ?: throw lifeCycleException(
                             "no failed feature in doRetry",
-                            ErrorCodes.RoomLifecycleError,
+                            ErrorCode.RoomLifecycleError,
                         )
                     // No need to catch errors, rather they should propagate to caller method
                     return@coroutineScope doRetry(failedFeature)
@@ -267,7 +267,7 @@ internal class RoomLifecycleManager(
                 val exception = lifeCycleException(
                     reason ?: lifeCycleErrorInfo(
                         "unknown error in doRetry",
-                        ErrorCodes.RoomLifecycleError,
+                        ErrorCode.RoomLifecycleError,
                     ),
                 )
                 continuation.resumeWithException(exception)
@@ -300,14 +300,14 @@ internal class RoomLifecycleManager(
             if (statusLifecycle.status == RoomStatus.Releasing) { // CHA-RL1b
                 throw lifeCycleException(
                     "unable to attach room; room is releasing",
-                    ErrorCodes.RoomIsReleasing,
+                    ErrorCode.RoomIsReleasing,
                 )
             }
 
             if (statusLifecycle.status == RoomStatus.Released) { // CHA-RL1c
                 throw lifeCycleException(
                     "unable to attach room; room is released",
-                    ErrorCodes.RoomIsReleased,
+                    ErrorCode.RoomIsReleased,
                 )
             }
 
@@ -332,7 +332,7 @@ internal class RoomLifecycleManager(
                 if (attachResult.failedFeature == null) {
                     throw lifeCycleException(
                         "no failed feature in attach",
-                        ErrorCodes.RoomLifecycleError,
+                        ErrorCode.RoomLifecycleError,
                     )
                 }
                 attachResult.failedFeature?.let {
@@ -380,7 +380,7 @@ internal class RoomLifecycleManager(
                         attachResult.statusField = RoomStatus.Failed
                         attachResult.errorField = lifeCycleErrorInfo(
                             "unexpected channel state in doAttach ${feature.channel.state}${feature.channel.errorMessage}",
-                            ErrorCodes.RoomLifecycleError,
+                            ErrorCode.RoomLifecycleError,
                         )
                     }
                 }
@@ -491,7 +491,7 @@ internal class RoomLifecycleManager(
             if (statusLifecycle.status === RoomStatus.Released) {
                 throw lifeCycleException(
                     "unable to detach room; room is released",
-                    ErrorCodes.RoomIsReleased,
+                    ErrorCode.RoomIsReleased,
                 )
             }
 
@@ -499,7 +499,7 @@ internal class RoomLifecycleManager(
             if (statusLifecycle.status === RoomStatus.Releasing) {
                 throw lifeCycleException(
                     "unable to detach room; room is releasing",
-                    ErrorCodes.RoomIsReleasing,
+                    ErrorCode.RoomIsReleasing,
                 )
             }
 
@@ -507,7 +507,7 @@ internal class RoomLifecycleManager(
             if (statusLifecycle.status === RoomStatus.Failed) {
                 throw lifeCycleException(
                     "unable to detach room; room has failed",
-                    ErrorCodes.RoomInFailedState,
+                    ErrorCode.RoomInFailedState,
                 )
             }
 
@@ -550,7 +550,7 @@ internal class RoomLifecycleManager(
         throw firstContributorFailedError
             ?: lifeCycleException(
                 "unknown error in doDetach",
-                ErrorCodes.RoomLifecycleError,
+                ErrorCode.RoomLifecycleError,
             )
     }
 

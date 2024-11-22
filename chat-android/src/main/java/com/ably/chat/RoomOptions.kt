@@ -92,7 +92,7 @@ object OccupancyOptions
 fun RoomOptions.validateRoomOptions() {
     typing?.let {
         if (typing.timeoutMs <= 0) {
-            throw ablyException("Typing timeout must be greater than 0", ErrorCodes.InvalidRequestBody)
+            throw ablyException("Typing timeout must be greater than 0", ErrorCode.InvalidRequestBody)
         }
     }
 }

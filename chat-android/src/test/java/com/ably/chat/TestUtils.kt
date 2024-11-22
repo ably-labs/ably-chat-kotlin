@@ -92,6 +92,6 @@ suspend fun <T>Any.invokePrivateSuspendMethod(methodName: String, vararg args: A
     }
 }
 
-fun clientError(errorMessage: String) = ablyException(errorMessage, ErrorCodes.BadRequest, HttpStatusCodes.BadRequest)
+fun clientError(errorMessage: String) = ablyException(errorMessage, ErrorCode.BadRequest, HttpStatusCode.BadRequest)
 
-fun serverError(errorMessage: String) = ablyException(errorMessage, ErrorCodes.InternalError, HttpStatusCodes.InternalServerError)
+fun serverError(errorMessage: String) = ablyException(errorMessage, ErrorCode.InternalError, HttpStatusCode.InternalServerError)

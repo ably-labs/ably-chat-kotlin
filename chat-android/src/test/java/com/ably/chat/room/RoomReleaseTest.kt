@@ -4,7 +4,7 @@ import com.ably.chat.ChatApi
 import com.ably.chat.ClientOptions
 import com.ably.chat.DefaultRoom
 import com.ably.chat.DefaultRooms
-import com.ably.chat.ErrorCodes
+import com.ably.chat.ErrorCode
 import com.ably.chat.Room
 import com.ably.chat.RoomOptions
 import com.ably.chat.RoomStatus
@@ -271,7 +271,7 @@ class RoomReleaseTest {
             val result = kotlin.runCatching { deferred.await() }
             Assert.assertTrue(result.isFailure)
             val exception = result.exceptionOrNull() as AblyException
-            Assert.assertEquals(ErrorCodes.RoomReleasedBeforeOperationCompleted.errorCode, exception.errorInfo.code)
+            Assert.assertEquals(ErrorCode.RoomReleasedBeforeOperationCompleted.code, exception.errorInfo.code)
             Assert.assertEquals("room released before get operation could complete", exception.errorInfo.message)
         }
 

@@ -80,7 +80,7 @@ internal class DefaultRooms(
             val existingRoom = getReleasedOrExistingRoom(roomId)
             existingRoom?.let {
                 if (options != existingRoom.options) { // CHA-RC1f1
-                    throw ablyException("room already exists with different options", ErrorCodes.BadRequest)
+                    throw ablyException("room already exists with different options", ErrorCode.BadRequest)
                 }
                 return@async existingRoom // CHA-RC1f2
             }
@@ -97,7 +97,7 @@ internal class DefaultRooms(
             roomGetDeferred[roomId]?.let {
                 val exception = ablyException(
                     "room released before get operation could complete",
-                    ErrorCodes.RoomReleasedBeforeOperationCompleted,
+                    ErrorCode.RoomReleasedBeforeOperationCompleted,
                 )
                 it.completeExceptionally(exception)
             }

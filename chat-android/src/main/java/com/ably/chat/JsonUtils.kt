@@ -22,7 +22,7 @@ internal fun JsonElement.toMap() = buildMap<String, String> {
 internal fun JsonElement.requireJsonObject(): JsonObject {
     if (!isJsonObject) {
         throw AblyException.fromErrorInfo(
-            ErrorInfo("Response value expected to be JsonObject, got primitive instead", HttpStatusCodes.InternalServerError),
+            ErrorInfo("Response value expected to be JsonObject, got primitive instead", HttpStatusCode.InternalServerError),
         )
     }
     return asJsonObject
@@ -34,7 +34,7 @@ internal fun JsonElement.requireString(memberName: String): String {
         throw AblyException.fromErrorInfo(
             ErrorInfo(
                 "Value for \"$memberName\" field expected to be JsonPrimitive, got object instead",
-                HttpStatusCodes.InternalServerError,
+                HttpStatusCode.InternalServerError,
             ),
         )
     }
@@ -48,7 +48,7 @@ internal fun JsonElement.requireLong(memberName: String): Long {
     } catch (formatException: NumberFormatException) {
         throw AblyException.fromErrorInfo(
             formatException,
-            ErrorInfo("Required numeric field \"$memberName\" is not a valid long", HttpStatusCodes.InternalServerError),
+            ErrorInfo("Required numeric field \"$memberName\" is not a valid long", HttpStatusCode.InternalServerError),
         )
     }
 }
@@ -60,7 +60,7 @@ internal fun JsonElement.requireInt(memberName: String): Int {
     } catch (formatException: NumberFormatException) {
         throw AblyException.fromErrorInfo(
             formatException,
-            ErrorInfo("Required numeric field \"$memberName\" is not a valid int", HttpStatusCodes.InternalServerError),
+            ErrorInfo("Required numeric field \"$memberName\" is not a valid int", HttpStatusCode.InternalServerError),
         )
     }
 }
@@ -71,7 +71,7 @@ internal fun JsonElement.requireJsonPrimitive(memberName: String): JsonPrimitive
         throw AblyException.fromErrorInfo(
             ErrorInfo(
                 "Value for \"$memberName\" field expected to be JsonPrimitive, got object instead",
-                HttpStatusCodes.InternalServerError,
+                HttpStatusCode.InternalServerError,
             ),
         )
     }
@@ -80,5 +80,5 @@ internal fun JsonElement.requireJsonPrimitive(memberName: String): JsonPrimitive
 
 internal fun JsonElement.requireField(memberName: String): JsonElement = requireJsonObject().get(memberName)
     ?: throw AblyException.fromErrorInfo(
-        ErrorInfo("Required field \"$memberName\" is missing", HttpStatusCodes.InternalServerError),
+        ErrorInfo("Required field \"$memberName\" is missing", HttpStatusCode.InternalServerError),
     )
