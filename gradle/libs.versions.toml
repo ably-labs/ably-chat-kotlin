@@ -3,7 +3,7 @@
 
 [versions]
 ably-chat = "0.0.1"
-ably = "1.2.44"
+ably = "1.2.45"
 junit = "4.13.2"
 agp = "8.5.2"
 detekt = "1.23.6"
