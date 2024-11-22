@@ -33,6 +33,7 @@ val Rooms.RoomReleaseDeferred get() = getPrivateField<MutableMap<String, Complet
 
 // Room mocks
 val Room.StatusLifecycle get() = getPrivateField<DefaultRoomLifecycle>("statusLifecycle")
+val Room.LifecycleManager get() = getPrivateField<RoomLifecycleManager>("lifecycleManager")
 
 // RoomLifeCycleManager Mocks
 fun RoomLifecycleManager.atomicCoroutineScope(): AtomicCoroutineScope = getPrivateField("atomicCoroutineScope")
