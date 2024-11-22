@@ -150,12 +150,6 @@ interface NewRoomStatus {
  */
 interface InternalRoomLifecycle : RoomLifecycle {
     /**
-     * Registers a listener that will be called once when the room status changes.
-     * @param listener The function to call when the status changes.
-     */
-    fun onChangeOnce(listener: RoomLifecycle.Listener)
-
-    /**
      * Sets the status of the room.
      *
      * @param params The new status of the room.
@@ -198,10 +192,6 @@ class DefaultRoomLifecycle(private val logger: LogHandler? = null) : InternalRoo
 
     override fun offAll() {
         externalEmitter.off()
-    }
-
-    override fun onChangeOnce(listener: RoomLifecycle.Listener) {
-        internalEmitter.once(listener)
     }
 
     override fun setStatus(params: NewRoomStatus) {

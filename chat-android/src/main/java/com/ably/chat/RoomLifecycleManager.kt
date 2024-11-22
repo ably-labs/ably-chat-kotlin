@@ -157,13 +157,6 @@ class RoomLifecycleManager(
     private val firstAttachesCompleted = mutableMapOf<ContributesToRoomLifecycle, Boolean>()
 
     /**
-     * Are we in the process of releasing the room?
-     * This property along with related impl. might be removed based on https://github.com/ably/ably-chat-js/issues/399
-     * Spec: CHA-RL3c
-     */
-    private var releaseInProgress = false
-
-    /**
      * Retry duration in milliseconds, used by internal doRetry and runDownChannelsOnFailedAttach methods
      */
     private val retryDurationInMs: Long = 250
@@ -590,38 +583,16 @@ class RoomLifecycleManager(
                 statusLifecycle.setStatus(RoomStatus.Released)
                 return@async
             }
-
-            // CHA-RL3c - If we're in the process of releasing, we should wait for it to complete
-            // This might be removed in the future based on https://github.com/ably/ably-chat-js/issues/399
-            if (releaseInProgress) {
-                return@async listenToRoomRelease()
-            }
-
             // CHA-RL3l - We force the room status to be releasing.
             // Any transient disconnect timeouts shall be cleared.
             clearAllTransientDetachTimeouts()
             operationInProgress = true
-            releaseInProgress = true
             statusLifecycle.setStatus(RoomStatus.Releasing)
 
             // CHA-RL3f - Do the release until it completes
             return@async releaseChannels()
         }
         deferredRelease.await()
-    }
-
-    private suspend fun listenToRoomRelease() = suspendCancellableCoroutine { continuation ->
-        statusLifecycle.onChangeOnce {
-            if (it.current == RoomStatus.Released) {
-                continuation.resume(Unit)
-            } else {
-                val err = lifeCycleException(
-                    "failed to release room; existing attempt failed${it.errorMessage}",
-                    ErrorCodes.PreviousOperationFailed,
-                )
-                continuation.resumeWithException(err)
-            }
-        }
     }
 
     /**
@@ -668,7 +639,6 @@ class RoomLifecycleManager(
         contributors.forEach {
             it.release()
         }
-        releaseInProgress = false
         statusLifecycle.setStatus(RoomStatus.Released) // CHA-RL3g
     }
 }
