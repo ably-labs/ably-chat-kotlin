@@ -113,8 +113,9 @@ internal class DefaultRoom(
     private val realtimeClient: RealtimeClient,
     chatApi: ChatApi,
     clientId: String,
-    private val logger: Logger,
+    logger: Logger,
 ) : Room {
+    private val roomLogger = logger.withContext("Room", mapOf("roomId" to roomId))
 
     /**
      * RoomScope is a crucial part of the Room lifecycle. It manages sequential and atomic operations.
@@ -128,7 +129,7 @@ internal class DefaultRoom(
         roomId = roomId,
         realtimeChannels = realtimeClient.channels,
         chatApi = chatApi,
-        logger = logger.withContext(tag = "Messages"),
+        logger = roomLogger.withContext(tag = "Messages"),
     )
 
     private var _presence: Presence? = null
@@ -167,7 +168,7 @@ internal class DefaultRoom(
             return _occupancy as Occupancy
         }
 
-    private val statusLifecycle = DefaultRoomLifecycle(logger)
+    private val statusLifecycle = DefaultRoomLifecycle(roomLogger)
 
     override val status: RoomStatus
         get() = statusLifecycle.status
@@ -187,7 +188,7 @@ internal class DefaultRoom(
                 clientId = clientId,
                 channel = messages.channel,
                 presence = messages.channel.presence,
-                logger = logger.withContext(tag = "Presence"),
+                logger = roomLogger.withContext(tag = "Presence"),
             )
             roomFeatures.add(presenceContributor)
             _presence = presenceContributor
@@ -199,7 +200,7 @@ internal class DefaultRoom(
                 realtimeClient = realtimeClient,
                 clientId = clientId,
                 options = options.typing,
-                logger = logger.withContext(tag = "Typing"),
+                logger = roomLogger.withContext(tag = "Typing"),
             )
             roomFeatures.add(typingContributor)
             _typing = typingContributor
@@ -210,7 +211,7 @@ internal class DefaultRoom(
                 roomId = roomId,
                 clientId = clientId,
                 realtimeChannels = realtimeClient.channels,
-                logger = logger.withContext(tag = "Reactions"),
+                logger = roomLogger.withContext(tag = "Reactions"),
             )
             roomFeatures.add(reactionsContributor)
             _reactions = reactionsContributor
@@ -221,13 +222,13 @@ internal class DefaultRoom(
                 roomId = roomId,
                 realtimeChannels = realtimeClient.channels,
                 chatApi = chatApi,
-                logger = logger.withContext(tag = "Occupancy"),
+                logger = roomLogger.withContext(tag = "Occupancy"),
             )
             roomFeatures.add(occupancyContributor)
             _occupancy = occupancyContributor
         }
 
-        lifecycleManager = RoomLifecycleManager(roomScope, statusLifecycle, roomFeatures, logger)
+        lifecycleManager = RoomLifecycleManager(roomScope, statusLifecycle, roomFeatures, roomLogger)
     }
 
     override fun onStatusChange(listener: RoomLifecycle.Listener): Subscription =

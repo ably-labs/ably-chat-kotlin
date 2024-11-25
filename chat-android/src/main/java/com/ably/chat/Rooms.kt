@@ -138,8 +138,8 @@ internal class DefaultRooms(
             roomReleaseInProgress?.let {
                 val roomGetDeferred = CompletableDeferred<Unit>()
                 this.roomGetDeferred[roomId] = roomGetDeferred
-                roomGetDeferred.invokeOnCompletion {
-                    it?.let {
+                roomGetDeferred.invokeOnCompletion { throwable ->
+                    throwable?.let {
                         this.roomGetDeferred.remove(roomId)
                     }
                 }
