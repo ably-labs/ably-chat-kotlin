@@ -5,6 +5,7 @@ import com.ably.chat.RoomLifecycleManager
 import com.ably.chat.RoomStatus
 import com.ably.chat.RoomStatusChange
 import com.ably.chat.assertWaiter
+import com.ably.chat.attachCoroutine
 import com.ably.chat.detachCoroutine
 import com.ably.chat.room.atomicCoroutineScope
 import com.ably.chat.room.createMockLogger
@@ -17,6 +18,7 @@ import io.mockk.every
 import io.mockk.justRun
 import io.mockk.mockkStatic
 import io.mockk.spyk
+import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
@@ -26,6 +28,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert
 import org.junit.Test
 
@@ -38,6 +41,11 @@ class ReleaseTest {
     private val roomScope = CoroutineScope(
         Dispatchers.Default.limitedParallelism(1) + CoroutineName("roomId"),
     )
+
+    @After
+    fun tearDown() {
+        unmockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
+    }
 
     @Test
     fun `(CHA-RL3a) Release success when room is already in released state`() = runTest {

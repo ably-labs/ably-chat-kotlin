@@ -134,13 +134,6 @@ val Channel.errorMessage: String
         ", ${reason.message}"
     }
 
-val RoomStatusChange.errorMessage: String
-    get() = if (error == null) {
-        ""
-    } else {
-        ", ${error.message}"
-    }
-
 @Suppress("FunctionName")
 fun ChatChannelOptions(init: (ChannelOptions.() -> Unit)? = null): ChannelOptions {
     val options = ChannelOptions()

@@ -64,8 +64,8 @@ internal fun Sandbox.createSandboxRealtime(chatClientId: String): AblyRealtime =
         },
     )
 
-internal suspend fun Sandbox.getConnectedChatClient(): DefaultChatClient {
-    val realtime = createSandboxRealtime(apiKey)
+internal suspend fun Sandbox.getConnectedChatClient(chatClientId: String = "sandbox-client"): DefaultChatClient {
+    val realtime = createSandboxRealtime(chatClientId)
     realtime.ensureConnected()
     return DefaultChatClient(realtime, ClientOptions())
 }
@@ -78,6 +78,7 @@ private suspend fun AblyRealtime.ensureConnected() {
     this.connection.on {
         if (it.event == ConnectionEvent.connected) {
             connectedDeferred.complete(Unit)
+            this.connection.off()
         } else if (it.event != ConnectionEvent.connecting) {
             connectedDeferred.completeExceptionally(serverError("ably connection failed"))
             this.connection.off()

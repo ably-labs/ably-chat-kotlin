@@ -27,6 +27,7 @@ import io.mockk.justRun
 import io.mockk.mockkStatic
 import io.mockk.slot
 import io.mockk.spyk
+import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
@@ -38,6 +39,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert
 import org.junit.Test
 
@@ -51,6 +53,11 @@ class AttachTest {
     private val roomScope = CoroutineScope(
         Dispatchers.Default.limitedParallelism(1) + CoroutineName("roomId"),
     )
+
+    @After
+    fun tearDown() {
+        unmockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
+    }
 
     @Test
     fun `(CHA-RL1a) Attach success when room is already in attached state`() = runTest {

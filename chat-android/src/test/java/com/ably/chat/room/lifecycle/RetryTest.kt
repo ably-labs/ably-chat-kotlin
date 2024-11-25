@@ -22,11 +22,13 @@ import io.mockk.every
 import io.mockk.justRun
 import io.mockk.mockkStatic
 import io.mockk.spyk
+import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert
 import org.junit.Test
 
@@ -39,6 +41,11 @@ class RetryTest {
     private val roomScope = CoroutineScope(
         Dispatchers.Default.limitedParallelism(1) + CoroutineName("roomId"),
     )
+
+    @After
+    fun tearDown() {
+        unmockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
+    }
 
     @Test
     fun `(CHA-RL5a) Retry detaches all contributors except the one that's provided (based on underlying channel CHA-RL5a)`() = runTest {
@@ -179,8 +186,9 @@ class RetryTest {
 
         val contributors = createRoomFeatureMocks()
         val messagesContributor = contributors.first { it.featureName == "messages" }
-        messagesContributor.channel.setState(ChannelState.failed)
-        messagesContributor.channel.reason = ErrorInfo("Failed channel messages", HttpStatusCode.InternalServerError)
+
+        val errorInfo = ErrorInfo("Failed channel messages", HttpStatusCode.InternalServerError)
+        messagesContributor.channel.setState(ChannelState.failed, errorInfo)
 
         val roomLifecycle = spyk(RoomLifecycleManager(roomScope, statusLifecycle, contributors, logger))
 
