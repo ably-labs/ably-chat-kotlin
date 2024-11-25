@@ -167,5 +167,5 @@ internal class DefaultRooms(
      * Spec: CHA-RC1f3
      */
     private fun makeRoom(roomId: String, options: RoomOptions): DefaultRoom =
-        DefaultRoom(roomId, options, realtimeClient, chatApi, clientId, logger)
+        DefaultRoom(roomId, options.copy(), realtimeClient, chatApi, clientId, logger)
 }

@@ -2,7 +2,6 @@ package com.ably.chat
 
 import io.ably.lib.types.ErrorInfo
 import io.ably.lib.util.EventEmitter
-import io.ably.lib.util.Log
 import io.ably.lib.realtime.ChannelBase as AblyRealtimeChannel
 
 /**
@@ -44,12 +43,15 @@ interface EmitsDiscontinuities {
     }
 }
 
-class DiscontinuityEmitter : EventEmitter<String, EmitsDiscontinuities.Listener>() {
+internal class DiscontinuityEmitter(logger: Logger) : EventEmitter<String, EmitsDiscontinuities.Listener>() {
+    private val logger = logger.withContext("DiscontinuityEmitter")
+
     override fun apply(listener: EmitsDiscontinuities.Listener?, event: String?, vararg args: Any?) {
         try {
-            listener?.discontinuityEmitted(args[0] as? ErrorInfo?)
+            val reason = args.firstOrNull() as? ErrorInfo?
+            listener?.discontinuityEmitted(reason)
         } catch (t: Throwable) {
-            Log.e("DiscontinuityEmitter", "Unexpected exception calling Discontinuity Listener", t)
+            logger.error("Unexpected exception calling Discontinuity Listener", t)
         }
     }
 }

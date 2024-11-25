@@ -2,7 +2,6 @@ package com.ably.chat
 
 import io.ably.lib.types.ErrorInfo
 import io.ably.lib.util.EventEmitter
-import io.ably.lib.util.Log
 
 /**
  * (CHA-RS1)
@@ -156,13 +155,18 @@ interface InternalRoomLifecycle : RoomLifecycle {
     fun setStatus(params: NewRoomStatus)
 }
 
-class RoomStatusEventEmitter : EventEmitter<RoomStatus, RoomLifecycle.Listener>() {
+internal class RoomStatusEventEmitter(logger: Logger) : EventEmitter<RoomStatus, RoomLifecycle.Listener>() {
+    private val logger = logger.withContext("RoomEventEmitter")
 
     override fun apply(listener: RoomLifecycle.Listener?, event: RoomStatus?, vararg args: Any?) {
         try {
-            listener?.roomStatusChanged(args[0] as RoomStatusChange)
+            if (args.isNotEmpty() && args[0] is RoomStatusChange) {
+                listener?.roomStatusChanged(args[0] as RoomStatusChange)
+            } else {
+                logger.error("Invalid arguments received in apply method")
+            }
         } catch (t: Throwable) {
-            Log.e("RoomEventEmitter", "Unexpected exception calling Room Status Listener", t)
+            logger.error("Unexpected exception calling Room Status Listener", t)
         }
     }
 }
@@ -177,8 +181,8 @@ internal class DefaultRoomLifecycle(logger: Logger) : InternalRoomLifecycle {
     override val error: ErrorInfo?
         get() = _error
 
-    private val externalEmitter = RoomStatusEventEmitter()
-    private val internalEmitter = RoomStatusEventEmitter()
+    private val externalEmitter = RoomStatusEventEmitter(logger)
+    private val internalEmitter = RoomStatusEventEmitter(logger)
 
     override fun onChange(listener: RoomLifecycle.Listener): Subscription {
         externalEmitter.on(listener)

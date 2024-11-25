@@ -107,7 +107,8 @@ internal class DefaultRoomReactions(
     roomId: String,
     private val clientId: String,
     private val realtimeChannels: AblyRealtime.Channels,
-) : RoomReactions, ContributesToRoomLifecycleImpl() {
+    private val logger: Logger,
+) : RoomReactions, ContributesToRoomLifecycleImpl(logger) {
 
     override val featureName = "reactions"
 

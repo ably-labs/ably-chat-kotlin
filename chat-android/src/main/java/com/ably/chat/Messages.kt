@@ -225,7 +225,8 @@ internal class DefaultMessages(
     private val roomId: String,
     private val realtimeChannels: AblyRealtime.Channels,
     private val chatApi: ChatApi,
-) : Messages, ContributesToRoomLifecycleImpl() {
+    private val logger: Logger,
+) : Messages, ContributesToRoomLifecycleImpl(logger) {
 
     override val featureName: String = "messages"
 

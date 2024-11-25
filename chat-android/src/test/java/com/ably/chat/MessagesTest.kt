@@ -1,5 +1,6 @@
 package com.ably.chat
 
+import com.ably.chat.room.createMockLogger
 import com.google.gson.JsonObject
 import io.ably.lib.realtime.AblyRealtime.Channels
 import io.ably.lib.realtime.Channel
@@ -30,6 +31,7 @@ class MessagesTest {
     private val realtimeChannel = spyk<Channel>(buildRealtimeChannel())
     private val chatApi = spyk(ChatApi(realtimeClient, "clientId", EmptyLogger(LogContext(tag = "TEST"))))
     private lateinit var messages: DefaultMessages
+    private val logger = createMockLogger()
 
     private val channelStateListenerSlot = slot<ChannelStateListener>()
 
@@ -45,6 +47,7 @@ class MessagesTest {
             roomId = "room1",
             realtimeChannels = realtimeChannels,
             chatApi = chatApi,
+            logger,
         )
     }
 

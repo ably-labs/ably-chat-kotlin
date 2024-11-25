@@ -128,6 +128,7 @@ internal class DefaultRoom(
         roomId = roomId,
         realtimeChannels = realtimeClient.channels,
         chatApi = chatApi,
+        logger = logger.withContext(tag = "Messages"),
     )
 
     private var _presence: Presence? = null
@@ -186,6 +187,7 @@ internal class DefaultRoom(
                 clientId = clientId,
                 channel = messages.channel,
                 presence = messages.channel.presence,
+                logger = logger.withContext(tag = "Presence"),
             )
             roomFeatures.add(presenceContributor)
             _presence = presenceContributor
@@ -208,6 +210,7 @@ internal class DefaultRoom(
                 roomId = roomId,
                 clientId = clientId,
                 realtimeChannels = realtimeClient.channels,
+                logger = logger.withContext(tag = "Reactions"),
             )
             roomFeatures.add(reactionsContributor)
             _reactions = reactionsContributor

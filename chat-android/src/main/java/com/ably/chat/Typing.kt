@@ -96,7 +96,7 @@ internal class DefaultTyping(
     private val clientId: String,
     private val options: TypingOptions?,
     private val logger: Logger,
-) : Typing, ContributesToRoomLifecycleImpl() {
+) : Typing, ContributesToRoomLifecycleImpl(logger) {
     private val typingIndicatorsChannelName = "$roomId::\$chat::\$typingIndicators"
 
     override val featureName = "typing"

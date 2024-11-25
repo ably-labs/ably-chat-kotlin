@@ -77,7 +77,7 @@ internal class DefaultOccupancy(
     private val chatApi: ChatApi,
     private val roomId: String,
     private val logger: Logger,
-) : Occupancy, ContributesToRoomLifecycleImpl() {
+) : Occupancy, ContributesToRoomLifecycleImpl(logger) {
 
     override val featureName: String = "occupancy"
 

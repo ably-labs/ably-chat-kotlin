@@ -215,24 +215,18 @@ internal class DeferredValue<T> {
 fun lifeCycleErrorInfo(
     errorMessage: String,
     errorCode: ErrorCode,
-    statusCode: Int = HttpStatusCode.InternalServerError,
-) = ErrorInfo(errorMessage, statusCode, errorCode.code)
+) = createErrorInfo(errorMessage, errorCode, HttpStatusCode.InternalServerError)
 
 fun lifeCycleException(
     errorMessage: String,
     errorCode: ErrorCode,
-    statusCode: Int = HttpStatusCode.InternalServerError,
     cause: Throwable? = null,
-): AblyException = ablyException(errorMessage, errorCode, statusCode, cause)
+): AblyException = createAblyException(lifeCycleErrorInfo(errorMessage, errorCode), cause)
 
-fun lifeCycleException(errorInfo: ErrorInfo, cause: Throwable? = null) = ablyException(errorInfo, cause)
-
-fun ablyException(errorInfo: ErrorInfo, cause: Throwable? = null): AblyException {
-    cause?.let {
-        return AblyException.fromErrorInfo(cause, errorInfo)
-    }
-    return AblyException.fromErrorInfo(errorInfo)
-}
+fun lifeCycleException(
+    errorInfo: ErrorInfo,
+    cause: Throwable? = null,
+): AblyException = createAblyException(errorInfo, cause)
 
 fun ablyException(
     errorMessage: String,
@@ -240,8 +234,23 @@ fun ablyException(
     statusCode: Int = HttpStatusCode.BadRequest,
     cause: Throwable? = null,
 ): AblyException {
-    cause?.let {
-        return AblyException.fromErrorInfo(cause, ErrorInfo(errorMessage, statusCode, errorCode.code))
-    }
-    return AblyException.fromErrorInfo(ErrorInfo(errorMessage, statusCode, errorCode.code))
+    val errorInfo = createErrorInfo(errorMessage, errorCode, statusCode)
+    return createAblyException(errorInfo, cause)
 }
+
+fun ablyException(
+    errorInfo: ErrorInfo,
+    cause: Throwable? = null,
+): AblyException = createAblyException(errorInfo, cause)
+
+private fun createErrorInfo(
+    errorMessage: String,
+    errorCode: ErrorCode,
+    statusCode: Int,
+) = ErrorInfo(errorMessage, statusCode, errorCode.code)
+
+private fun createAblyException(
+    errorInfo: ErrorInfo,
+    cause: Throwable?,
+) = cause?.let { AblyException.fromErrorInfo(it, errorInfo) }
+    ?: AblyException.fromErrorInfo(errorInfo)

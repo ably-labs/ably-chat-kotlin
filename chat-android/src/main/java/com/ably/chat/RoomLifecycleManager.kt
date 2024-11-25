@@ -17,6 +17,7 @@ import io.ably.lib.realtime.Channel as AblyRealtimeChannel
  * An interface for features that contribute to the room status.
  */
 interface ContributesToRoomLifecycle : EmitsDiscontinuities, HandlesDiscontinuity {
+
     /**
      * Name of the feature
      */
@@ -47,9 +48,9 @@ interface ContributesToRoomLifecycle : EmitsDiscontinuities, HandlesDiscontinuit
     fun release()
 }
 
-abstract class ContributesToRoomLifecycleImpl : ContributesToRoomLifecycle {
+internal abstract class ContributesToRoomLifecycleImpl(logger: Logger) : ContributesToRoomLifecycle {
 
-    private val discontinuityEmitter = DiscontinuityEmitter()
+    private val discontinuityEmitter = DiscontinuityEmitter(logger)
 
     override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
         discontinuityEmitter.on(listener)

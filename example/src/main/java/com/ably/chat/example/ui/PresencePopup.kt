@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import com.ably.chat.ChatClient
 import com.ably.chat.PresenceMember
+import com.ably.chat.RoomOptions
 import com.ably.chat.Subscription
 import com.ably.chat.example.Settings
 import com.google.gson.JsonObject
@@ -33,7 +34,9 @@ import kotlinx.coroutines.runBlocking
 fun PresencePopup(chatClient: ChatClient, onDismiss: () -> Unit) {
     var members by remember { mutableStateOf(listOf<PresenceMember>()) }
     val coroutineScope = rememberCoroutineScope()
-    val presence = runBlocking { chatClient.rooms.get(Settings.ROOM_ID).presence }
+    val presence = runBlocking {
+        chatClient.rooms.get(Settings.ROOM_ID, RoomOptions.default).presence
+    }
 
     DisposableEffect(Unit) {
         var subscription: Subscription? = null

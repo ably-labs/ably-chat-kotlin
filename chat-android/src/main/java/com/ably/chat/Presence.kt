@@ -137,7 +137,8 @@ internal class DefaultPresence(
     private val clientId: String,
     override val channel: Channel,
     private val presence: PubSubPresence,
-) : Presence, ContributesToRoomLifecycleImpl() {
+    private val logger: Logger,
+) : Presence, ContributesToRoomLifecycleImpl(logger) {
 
     override val featureName = "presence"
 
