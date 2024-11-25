@@ -215,7 +215,10 @@ internal class DefaultRoom(
 
         options.occupancy?.let {
             val occupancyContributor = DefaultOccupancy(
-                messages = messages,
+                roomId = roomId,
+                realtimeChannels = realtimeClient.channels,
+                chatApi = chatApi,
+                logger = logger.withContext(tag = "Occupancy"),
             )
             roomFeatures.add(occupancyContributor)
             _occupancy = occupancyContributor

@@ -63,7 +63,7 @@ fun createRoomFeatureMocks(roomId: String = "1234"): List<ContributesToRoomLifec
         DefaultPresence(clientId, messagesContributor.channel, messagesContributor.channel.presence),
         recordPrivateCalls = true,
     )
-    val occupancyContributor = spyk(DefaultOccupancy(messagesContributor), recordPrivateCalls = true)
+    val occupancyContributor = spyk(DefaultOccupancy(realtimeClient.channels, chatApi, roomId, logger), recordPrivateCalls = true)
     val typingContributor = spyk(
         DefaultTyping(roomId, realtimeClient, clientId, RoomOptions.default.typing, logger),
         recordPrivateCalls = true,

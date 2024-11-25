@@ -2,7 +2,18 @@
 
 package com.ably.chat
 
-import io.ably.lib.realtime.Channel as AblyRealtimeChannel
+import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
+import io.ably.lib.realtime.AblyRealtime
+import io.ably.lib.realtime.Channel
+import java.util.concurrent.CopyOnWriteArrayList
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
 
 /**
  * This interface is used to interact with occupancy in a chat room: subscribing to occupancy updates and
@@ -16,7 +27,7 @@ interface Occupancy : EmitsDiscontinuities {
      *
      * @returns The underlying Ably channel for occupancy events.
      */
-    val channel: AblyRealtimeChannel
+    val channel: Channel
 
     /**
      * Subscribe a given listener to occupancy updates of the chat room.
@@ -46,6 +57,8 @@ interface Occupancy : EmitsDiscontinuities {
 
 /**
  * Represents the occupancy of a chat room.
+ *
+ * (CHA-O2)
  */
 data class OccupancyEvent(
     /**
@@ -60,26 +73,147 @@ data class OccupancyEvent(
 )
 
 internal class DefaultOccupancy(
-    private val messages: Messages,
+    realtimeChannels: AblyRealtime.Channels,
+    private val chatApi: ChatApi,
+    private val roomId: String,
+    private val logger: Logger,
 ) : Occupancy, ContributesToRoomLifecycleImpl() {
 
     override val featureName: String = "occupancy"
-
-    override val channel = messages.channel
 
     override val attachmentErrorCode: ErrorCode = ErrorCode.OccupancyAttachmentFailed
 
     override val detachmentErrorCode: ErrorCode = ErrorCode.OccupancyDetachmentFailed
 
-    override fun subscribe(listener: Occupancy.Listener): Subscription {
-        TODO("Not yet implemented")
+    // (CHA-O1)
+    private val messagesChannelName = "$roomId::\$chat::\$chatMessages"
+
+    override val channel: Channel = realtimeChannels.get(
+        messagesChannelName,
+        ChatChannelOptions {
+            params = mapOf(
+                "occupancy" to "metrics",
+            )
+        },
+    )
+
+    private val listeners: MutableList<Occupancy.Listener> = CopyOnWriteArrayList()
+
+    private val eventBus = MutableSharedFlow<OccupancyEvent>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    private val occupancyScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1) + SupervisorJob())
+    private val occupancySubscription: Subscription
+
+    init {
+        occupancyScope.launch {
+            eventBus.collect { occupancyEvent ->
+                listeners.forEach {
+                    it.onEvent(occupancyEvent)
+                }
+            }
+        }
+
+        val occupancyListener = PubSubMessageListener {
+            internalChannelListener(it)
+        }
+
+        channel.subscribe(occupancyListener)
+
+        occupancySubscription = Subscription {
+            channel.unsubscribe(occupancyListener)
+        }
     }
 
+    // (CHA-O4)
+    override fun subscribe(listener: Occupancy.Listener): Subscription {
+        logger.trace("Occupancy.subscribe()")
+        listeners.add(listener)
+
+        return Subscription {
+            logger.trace("Occupancy.unsubscribe()")
+            // (CHA-04b)
+            listeners.remove(listener)
+        }
+    }
+
+    // (CHA-O3)
     override suspend fun get(): OccupancyEvent {
-        TODO("Not yet implemented")
+        logger.trace("Occupancy.get()")
+        return chatApi.getOccupancy(roomId)
     }
 
     override fun release() {
-        // No need to do anything, since it uses same channel as messages
+        occupancySubscription.unsubscribe()
+        occupancyScope.cancel()
+    }
+
+    /**
+     * An internal listener that listens for occupancy events from the underlying channel and translates them into
+     * occupancy events for the public API.
+     */
+    @Suppress("ReturnCount")
+    private fun internalChannelListener(message: PubSubMessage) {
+        val data = message.data as? JsonObject
+
+        if (data == null) {
+            logger.error(
+                "invalid occupancy event received; data is not an object",
+                staticContext = mapOf(
+                    "message" to message.toString(),
+                ),
+            )
+            // (CHA-04d)
+            return
+        }
+
+        val metrics = data.get("metrics") as? JsonObject
+
+        if (metrics == null) {
+            logger.error(
+                "invalid occupancy event received; metrics is missing",
+                staticContext = mapOf(
+                    "data" to data.toString(),
+                ),
+            )
+            // (CHA-04d)
+            return
+        }
+
+        val connections = metrics.get("connections") as? JsonPrimitive
+
+        if (connections == null) {
+            logger.error(
+                "invalid occupancy event received; connections is missing",
+                staticContext = mapOf(
+                    "data" to data.toString(),
+                ),
+            )
+            // (CHA-04d)
+            return
+        }
+
+        val presenceMembers = metrics.get("presenceMembers") as? JsonPrimitive
+
+        if (presenceMembers == null) {
+            logger.error(
+                "invalid occupancy event received; presenceMembers is missing",
+                staticContext = mapOf(
+                    "data" to data.toString(),
+                ),
+            )
+            // (CHA-04d)
+            return
+        }
+
+        eventBus.tryEmit(
+            // (CHA-04c)
+            OccupancyEvent(
+                connections = connections.asInt,
+                presenceMembers = presenceMembers.asInt,
+            ),
+        )
     }
 }

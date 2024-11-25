@@ -3,6 +3,7 @@
 package com.ably.chat
 
 import io.ably.lib.realtime.Channel
+import io.ably.lib.realtime.Presence.PresenceListener
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
 import java.util.concurrent.CopyOnWriteArrayList
@@ -119,6 +120,8 @@ internal class DefaultTyping(
 
     private var lastTyping: Set<String> = setOf()
 
+    private var presenceSubscription: Subscription
+
     init {
         typingScope.launch {
             eventBus.collect {
@@ -126,12 +129,18 @@ internal class DefaultTyping(
             }
         }
 
-        channel.presence.subscribe {
+        val presenceListener = PresenceListener {
             if (it.clientId == null) {
                 logger.error("unable to handle typing event; no clientId", staticContext = mapOf("member" to it.toString()))
             } else {
                 eventBus.tryEmit(Unit)
             }
+        }
+
+        channel.presence.subscribe(presenceListener)
+
+        presenceSubscription = Subscription {
+            channel.presence.unsubscribe(presenceListener)
         }
     }
 
@@ -173,11 +182,8 @@ internal class DefaultTyping(
         }.join()
     }
 
-    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
-        TODO("Not yet implemented")
-    }
-
     override fun release() {
+        presenceSubscription.unsubscribe()
         typingScope.cancel()
         realtimeClient.channels.release(channel.name)
     }

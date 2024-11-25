@@ -60,6 +60,14 @@ internal class EmptyLogger(override val context: LogContext) : Logger {
     override fun log(message: String, level: LogLevel, throwable: Throwable?, newTag: String?, newStaticContext: Map<String, String>) = Unit
 }
 
+fun Occupancy.subscribeOnce(listener: Occupancy.Listener) {
+    lateinit var subscription: Subscription
+    subscription = subscribe {
+        listener.onEvent(it)
+        subscription.unsubscribe()
+    }
+}
+
 suspend fun assertWaiter(timeoutInMs: Long = 10_000, block: () -> Boolean) {
     withContext(Dispatchers.Default) {
         withTimeout(timeoutInMs) {
