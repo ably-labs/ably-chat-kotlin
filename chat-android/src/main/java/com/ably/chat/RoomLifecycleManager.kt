@@ -3,11 +3,14 @@ package com.ably.chat
 import io.ably.lib.realtime.ChannelState
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
 import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
 /**
@@ -181,9 +184,102 @@ internal class RoomLifecycleManager(
      * @returns Returns when the room is attached, or the room enters a failed state.
      * Spec: CHA-RL5
      */
-    @Suppress("UnusedParameter")
+    @Suppress("CognitiveComplexMethod", "ThrowsCount")
     private suspend fun doRetry(contributor: ContributesToRoomLifecycle) {
-        // TODO - need to implement retry mechanism for suspended contributor
+        // CHA-RL5a - Handle the channel wind-down for other channels
+        var result = kotlin.runCatching { doChannelWindDown(contributor) }
+        while (result.isFailure) {
+            // CHA-RL5c - If in doing the wind down, we've entered failed state, then it's game over anyway
+            if (this.statusLifecycle.status === RoomStatus.Failed) {
+                throw result.exceptionOrNull() ?: IllegalStateException("room is in a failed state")
+            }
+            delay(retryDurationInMs)
+            result = kotlin.runCatching { doChannelWindDown(contributor) }
+        }
+
+        // A helper that allows us to retry the attach operation
+        val doAttachWithRetry: suspend () -> Unit = {
+            coroutineScope {
+                statusLifecycle.setStatus(RoomStatus.Attaching)
+                val attachmentResult = doAttach()
+
+                // CHA-RL5c - If we're in failed, then we should wind down all the channels, eventually - but we're done here
+                if (attachmentResult.status === RoomStatus.Failed) {
+                    atomicCoroutineScope.async(LifecycleOperationPrecedence.Internal.priority) {
+                        runDownChannelsOnFailedAttach()
+                    }
+                    return@coroutineScope
+                }
+
+                // If we're in suspended, then we should wait for the channel to reattach, but wait for it to do so
+                if (attachmentResult.status === RoomStatus.Suspended) {
+                    val failedFeature = attachmentResult.failedFeature
+                        ?: throw lifeCycleException(
+                            "no failed feature in doRetry",
+                            ErrorCode.RoomLifecycleError,
+                        )
+                    // No need to catch errors, rather they should propagate to caller method
+                    return@coroutineScope doRetry(failedFeature)
+                }
+                // We attached, huzzah!
+            }
+        }
+
+        // If given suspended contributor channel has reattached, then we can retry the attach
+        if (contributor.channel.state == ChannelState.attached) {
+            return doAttachWithRetry()
+        }
+
+        // CHA-RL5d - Otherwise, wait for our suspended contributor channel to re-attach and try again
+        try {
+            listenToChannelAttachOrFailure(contributor)
+            delay(retryDurationInMs) // Let other channels get into ATTACHING state
+            // Attach successful
+            return doAttachWithRetry()
+        } catch (ex: AblyException) {
+            // CHA-RL5c - Channel attach failed
+            statusLifecycle.setStatus(RoomStatus.Failed, ex.errorInfo)
+            throw ex
+        }
+    }
+
+    /**
+     * CHA-RL5f, CHA-RL5e
+     */
+    private suspend fun listenToChannelAttachOrFailure(
+        contributor: ContributesToRoomLifecycle,
+    ) = suspendCancellableCoroutine { continuation ->
+        // CHA-RL5f
+        val resumeIfAttached = {
+            if (continuation.isActive) {
+                continuation.resume(Unit)
+            }
+        }
+        contributor.channel.once(ChannelState.attached) {
+            resumeIfAttached()
+        }
+        if (contributor.channel.state == ChannelState.attached) { // Just being on the safer side, check if channel got into ATTACHED state
+            resumeIfAttached()
+        }
+
+        // CHA-RL5e
+        val resumeWithExceptionIfFailed = { reason: ErrorInfo? ->
+            if (continuation.isActive) {
+                val exception = lifeCycleException(
+                    reason ?: lifeCycleErrorInfo(
+                        "unknown error in doRetry",
+                        ErrorCode.RoomLifecycleError,
+                    ),
+                )
+                continuation.resumeWithException(exception)
+            }
+        }
+        contributor.channel.once(ChannelState.failed) {
+            resumeWithExceptionIfFailed(it.reason)
+        }
+        if (contributor.channel.state == ChannelState.failed) { // Just being on the safer side, check if channel got into FAILED state
+            resumeWithExceptionIfFailed(contributor.channel.reason)
+        }
     }
 
     /**
