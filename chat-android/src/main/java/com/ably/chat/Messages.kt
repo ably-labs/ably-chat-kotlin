@@ -225,6 +225,7 @@ internal class DefaultMessages(
     private val roomId: String,
     realtimeChannels: AblyRealtime.Channels,
     private val chatApi: ChatApi,
+    logger: Logger,
 ) : Messages {
 
     private var listeners: Map<Messages.Listener, DeferredValue<String>> = emptyMap()

@@ -107,6 +107,7 @@ internal class DefaultRoomReactions(
     roomId: String,
     private val clientId: String,
     realtimeChannels: AblyRealtime.Channels,
+    logger: Logger,
 ) : RoomReactions {
     // (CHA-ER1)
     private val roomReactionsChannelName = "$roomId::\$chat::\$reactions"

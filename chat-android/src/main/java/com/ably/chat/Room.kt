@@ -109,52 +109,54 @@ internal class DefaultRoom(
     private val realtimeClient: RealtimeClient,
     chatApi: ChatApi,
     clientId: String,
-    private val logger: Logger,
+    logger: Logger,
 ) : Room {
+    private val roomLogger = logger.withContext("Room", mapOf("roomId" to roomId))
 
-    private val _messages = DefaultMessages(
+    override val messages = DefaultMessages(
         roomId = roomId,
         realtimeChannels = realtimeClient.channels,
         chatApi = chatApi,
+        logger = roomLogger.withContext(tag = "Messages"),
     )
 
-    private val _typing: DefaultTyping = DefaultTyping(
-        roomId = roomId,
-        realtimeClient = realtimeClient,
-        options = options.typing,
-        clientId = clientId,
-        logger = logger.withContext(tag = "Typing"),
-    )
+    private var _presence: Presence? = null
+    override val presence: Presence
+        get() {
+            if (_presence == null) { // CHA-RC2b
+                throw ablyException("Presence is not enabled for this room", ErrorCode.BadRequest)
+            }
+            return _presence as Presence
+        }
 
-    private val _occupancy = DefaultOccupancy(
-        roomId = roomId,
-        realtimeChannels = realtimeClient.channels,
-        chatApi = chatApi,
-        logger = logger.withContext(tag = "Occupancy"),
-    )
+    private var _reactions: RoomReactions? = null
+    override val reactions: RoomReactions
+        get() {
+            if (_reactions == null) { // CHA-RC2b
+                throw ablyException("Reactions are not enabled for this room", ErrorCode.BadRequest)
+            }
+            return _reactions as RoomReactions
+        }
 
-    override val messages: Messages
-        get() = _messages
-
+    private var _typing: Typing? = null
     override val typing: Typing
-        get() = _typing
+        get() {
+            if (_typing == null) { // CHA-RC2b
+                throw ablyException("Typing is not enabled for this room", ErrorCode.BadRequest)
+            }
+            return _typing as Typing
+        }
 
+    private var _occupancy: Occupancy? = null
     override val occupancy: Occupancy
-        get() = _occupancy
+        get() {
+            if (_occupancy == null) { // CHA-RC2b
+                throw ablyException("Occupancy is not enabled for this room", ErrorCode.BadRequest)
+            }
+            return _occupancy as Occupancy
+        }
 
-    override val presence: Presence = DefaultPresence(
-        channel = messages.channel,
-        clientId = clientId,
-        presence = messages.channel.presence,
-    )
-
-    override val reactions: RoomReactions = DefaultRoomReactions(
-        roomId = roomId,
-        clientId = clientId,
-        realtimeChannels = realtimeClient.channels,
-    )
-
-    private val statusLifecycle = DefaultRoomLifecycle(logger)
+    private val statusLifecycle = DefaultRoomLifecycle(roomLogger)
 
     override val status: RoomStatus
         get() = statusLifecycle.status
@@ -162,7 +164,53 @@ internal class DefaultRoom(
     override val error: ErrorInfo?
         get() = statusLifecycle.error
 
-    override fun onStatusChange(listener: RoomLifecycle.Listener): Subscription = statusLifecycle.onChange(listener)
+    init {
+        options.validateRoomOptions() // CHA-RC2a
+
+        options.presence?.let {
+            val presenceContributor = DefaultPresence(
+                clientId = clientId,
+                channel = messages.channel,
+                presence = messages.channel.presence,
+                logger = roomLogger.withContext(tag = "Presence"),
+            )
+            _presence = presenceContributor
+        }
+
+        options.typing?.let {
+            val typingContributor = DefaultTyping(
+                roomId = roomId,
+                realtimeClient = realtimeClient,
+                clientId = clientId,
+                options = options.typing,
+                logger = roomLogger.withContext(tag = "Typing"),
+            )
+            _typing = typingContributor
+        }
+
+        options.reactions?.let {
+            val reactionsContributor = DefaultRoomReactions(
+                roomId = roomId,
+                clientId = clientId,
+                realtimeChannels = realtimeClient.channels,
+                logger = roomLogger.withContext(tag = "Reactions"),
+            )
+            _reactions = reactionsContributor
+        }
+
+        options.occupancy?.let {
+            val occupancyContributor = DefaultOccupancy(
+                roomId = roomId,
+                realtimeChannels = realtimeClient.channels,
+                chatApi = chatApi,
+                logger = roomLogger.withContext(tag = "Occupancy"),
+            )
+            _occupancy = occupancyContributor
+        }
+    }
+
+    override fun onStatusChange(listener: RoomLifecycle.Listener): Subscription =
+        statusLifecycle.onChange(listener)
 
     override fun offAllStatusChange() {
         statusLifecycle.offAll()
@@ -170,19 +218,17 @@ internal class DefaultRoom(
 
     override suspend fun attach() {
         messages.channel.attachCoroutine()
-        typing.channel.attachCoroutine()
-        reactions.channel.attachCoroutine()
+        _typing?.channel?.attachCoroutine()
+        _reactions?.channel?.attachCoroutine()
     }
 
     override suspend fun detach() {
         messages.channel.detachCoroutine()
-        typing.channel.detachCoroutine()
-        reactions.channel.detachCoroutine()
+        _typing?.channel?.detachCoroutine()
+        _reactions?.channel?.detachCoroutine()
     }
 
     suspend fun release() {
-        _messages.release()
-        _typing.release()
-        _occupancy.release()
+        messages.release()
     }
 }

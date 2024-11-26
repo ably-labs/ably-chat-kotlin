@@ -137,6 +137,7 @@ internal class DefaultPresence(
     private val clientId: String,
     override val channel: Channel,
     private val presence: PubSubPresence,
+    logger: Logger,
 ) : Presence {
 
     override suspend fun get(waitForSync: Boolean, clientId: String?, connectionId: String?): List<PresenceMember> {
