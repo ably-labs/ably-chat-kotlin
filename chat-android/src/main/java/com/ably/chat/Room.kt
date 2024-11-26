@@ -2,6 +2,8 @@
 
 package com.ably.chat
 
+import io.ably.lib.types.ErrorInfo
+
 /**
  * Represents a chat room.
  */
@@ -52,19 +54,36 @@ interface Room {
     val occupancy: Occupancy
 
     /**
-     * (CHA-RS2)
-     * Returns an object that can be used to observe the status of the room.
-     *
-     * @returns The status observable.
-     */
-    val status: RoomStatus
-
-    /**
      * Returns the room options.
      *
      * @returns A copy of the options used to create the room.
      */
     val options: RoomOptions
+
+    /**
+     * (CHA-RS2)
+     * The current status of the room.
+     *
+     * @returns The current status.
+     */
+    val status: RoomStatus
+
+    /**
+     * The current error, if any, that caused the room to enter the current status.
+     */
+    val error: ErrorInfo?
+
+    /**
+     * Registers a listener that will be called whenever the room status changes.
+     * @param listener The function to call when the status changes.
+     * @returns An object that can be used to unregister the listener.
+     */
+    fun onStatusChange(listener: RoomLifecycle.Listener): Subscription
+
+    /**
+     * Removes all listeners that were added by the `onStatusChange` method.
+     */
+    fun offAllStatusChange()
 
     /**
      * Attaches to the room to receive events in realtime.
@@ -135,10 +154,19 @@ internal class DefaultRoom(
         realtimeChannels = realtimeClient.channels,
     )
 
+    private val statusLifecycle = DefaultRoomLifecycle(logger)
+
     override val status: RoomStatus
-        get() {
-            TODO("Not yet implemented")
-        }
+        get() = statusLifecycle.status
+
+    override val error: ErrorInfo?
+        get() = statusLifecycle.error
+
+    override fun onStatusChange(listener: RoomLifecycle.Listener): Subscription = statusLifecycle.onChange(listener)
+
+    override fun offAllStatusChange() {
+        statusLifecycle.offAll()
+    }
 
     override suspend fun attach() {
         messages.channel.attachCoroutine()
