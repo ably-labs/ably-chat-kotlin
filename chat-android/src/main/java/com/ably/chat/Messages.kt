@@ -206,8 +206,8 @@ internal class DefaultMessagesSubscription(
             throw AblyException.fromErrorInfo(
                 ErrorInfo(
                     "The `end` parameter is specified and is more recent than the subscription point timeserial",
-                    HttpStatusCodes.BadRequest,
-                    ErrorCodes.BadRequest,
+                    HttpStatusCode.BadRequest,
+                    ErrorCode.BadRequest.code,
                 ),
             )
         }
@@ -253,7 +253,7 @@ internal class DefaultMessages(
         addListener(listener, deferredChannelSerial)
         val messageListener = PubSubMessageListener {
             val pubSubMessage = it ?: throw AblyException.fromErrorInfo(
-                ErrorInfo("Got empty pubsub channel message", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest),
+                ErrorInfo("Got empty pubsub channel message", HttpStatusCode.BadRequest, ErrorCode.BadRequest.code),
             )
             val data = parsePubSubMessageData(pubSubMessage.data)
             val chatMessage = Message(
@@ -283,8 +283,8 @@ internal class DefaultMessages(
                 listeners[listener] ?: throw AblyException.fromErrorInfo(
                     ErrorInfo(
                         "This messages subscription instance was already unsubscribed",
-                        HttpStatusCodes.BadRequest,
-                        ErrorCodes.BadRequest,
+                        HttpStatusCode.BadRequest,
+                        ErrorCode.BadRequest.code,
                     ),
                 )
             },
@@ -323,14 +323,22 @@ internal class DefaultMessages(
     private fun requireChannelSerial(): String {
         return channel.properties.channelSerial
             ?: throw AblyException.fromErrorInfo(
-                ErrorInfo("Channel has been attached, but channelSerial is not defined", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest),
+                ErrorInfo(
+                    "Channel has been attached, but channelSerial is not defined",
+                    HttpStatusCode.BadRequest,
+                    ErrorCode.BadRequest.code,
+                ),
             )
     }
 
     private fun requireAttachSerial(): String {
         return channel.properties.attachSerial
             ?: throw AblyException.fromErrorInfo(
-                ErrorInfo("Channel has been attached, but attachSerial is not defined", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest),
+                ErrorInfo(
+                    "Channel has been attached, but attachSerial is not defined",
+                    HttpStatusCode.BadRequest,
+                    ErrorCode.BadRequest.code,
+                ),
             )
     }
 
@@ -369,7 +377,7 @@ private data class PubSubMessageData(val text: String, val metadata: MessageMeta
 private fun parsePubSubMessageData(data: Any): PubSubMessageData {
     if (data !is JsonObject) {
         throw AblyException.fromErrorInfo(
-            ErrorInfo("Unrecognized Pub/Sub channel's message for `Message.created` event", HttpStatusCodes.InternalServerError),
+            ErrorInfo("Unrecognized Pub/Sub channel's message for `Message.created` event", HttpStatusCode.InternalServerError),
         )
     }
     return PubSubMessageData(

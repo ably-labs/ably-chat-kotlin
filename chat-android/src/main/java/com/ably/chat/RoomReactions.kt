@@ -136,10 +136,10 @@ internal class DefaultRoomReactions(
     override fun subscribe(listener: RoomReactions.Listener): Subscription {
         val messageListener = PubSubMessageListener {
             val pubSubMessage = it ?: throw AblyException.fromErrorInfo(
-                ErrorInfo("Got empty pubsub channel message", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest),
+                ErrorInfo("Got empty pubsub channel message", HttpStatusCode.BadRequest, ErrorCode.BadRequest.code),
             )
             val data = pubSubMessage.data as? JsonObject ?: throw AblyException.fromErrorInfo(
-                ErrorInfo("Unrecognized Pub/Sub channel's message for `roomReaction` event", HttpStatusCodes.InternalServerError),
+                ErrorInfo("Unrecognized Pub/Sub channel's message for `roomReaction` event", HttpStatusCode.InternalServerError),
             )
             val reaction = Reaction(
                 type = data.requireString("type"),

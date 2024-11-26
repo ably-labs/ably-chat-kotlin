@@ -189,7 +189,7 @@ internal class DefaultTyping(
         val timeout = options?.timeoutMs ?: throw AblyException.fromErrorInfo(
             ErrorInfo(
                 "Typing options hasn't been initialized",
-                ErrorCodes.BadRequest,
+                ErrorCode.BadRequest.code,
             ),
         )
         logger.trace("DefaultTyping.startTypingTimer()")

@@ -66,7 +66,7 @@ internal class DefaultRooms(
 
             if (room.options != options) {
                 throw AblyException.fromErrorInfo(
-                    ErrorInfo("Room already exists with different options", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest),
+                    ErrorInfo("Room already exists with different options", HttpStatusCode.BadRequest, ErrorCode.BadRequest.code),
                 )
             }
 
