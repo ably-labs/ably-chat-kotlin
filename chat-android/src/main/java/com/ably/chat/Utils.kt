@@ -221,6 +221,9 @@ fun lifeCycleException(
     cause: Throwable? = null,
 ): AblyException = createAblyException(errorInfo, cause)
 
+fun roomInvalidStateException(roomStatus: RoomStatus) =
+    ablyException("Can't perform operation, room is in an invalid state: $roomStatus", ErrorCode.RoomInInvalidState)
+
 fun ablyException(
     errorMessage: String,
     errorCode: ErrorCode,

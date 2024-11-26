@@ -4,6 +4,7 @@ import com.google.gson.JsonElement
 import io.ably.lib.types.AsyncHttpPaginatedResponse
 import io.mockk.every
 import io.mockk.mockk
+import java.lang.reflect.Field
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -80,16 +81,30 @@ suspend fun assertWaiter(timeoutInMs: Long = 10_000, block: () -> Boolean) {
 }
 
 fun Any.setPrivateField(name: String, value: Any?) {
-    val valueField = javaClass.getDeclaredField(name)
+    val valueField = javaClass.findField(name)
     valueField.isAccessible = true
-    return valueField.set(this, value)
+    valueField.set(this, value)
 }
 
 fun <T>Any.getPrivateField(name: String): T {
-    val valueField = javaClass.getDeclaredField(name)
+    val valueField = javaClass.findField(name)
     valueField.isAccessible = true
     @Suppress("UNCHECKED_CAST")
     return valueField.get(this) as T
+}
+
+private fun Class<*>.findField(name: String): Field {
+    var result = kotlin.runCatching { getDeclaredField(name) }
+    var currentClass = this
+    while (result.isFailure && currentClass.superclass != null) // stop when we got field or reached top of class hierarchy
+    {
+        currentClass = currentClass.superclass
+        result = kotlin.runCatching { currentClass.getDeclaredField(name) }
+    }
+    if (result.isFailure) {
+        throw result.exceptionOrNull() as Exception
+    }
+    return result.getOrNull() as Field
 }
 
 suspend fun <T>Any.invokePrivateSuspendMethod(methodName: String, vararg args: Any?) = suspendCancellableCoroutine<T> { cont ->

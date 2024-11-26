@@ -85,6 +85,11 @@ enum class ErrorCode(val code: Int) {
     RoomReleasedBeforeOperationCompleted(102_106),
 
     /**
+     * Room is not in valid state to perform any realtime operation.
+     */
+    RoomInInvalidState(102_107),
+
+    /**
      * Cannot perform operation because the previous operation failed.
      */
     PreviousOperationFailed(102_104),

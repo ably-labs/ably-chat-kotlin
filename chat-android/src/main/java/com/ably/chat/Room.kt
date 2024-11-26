@@ -3,10 +3,12 @@
 package com.ably.chat
 
 import io.ably.lib.types.ErrorInfo
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Represents a chat room.
@@ -252,5 +254,30 @@ internal class DefaultRoom(
      */
     internal suspend fun release() {
         lifecycleManager.release()
+    }
+
+    internal suspend fun ensureAttached() {
+        if (statusLifecycle.status == RoomStatus.Attached) {
+            return
+        }
+        if (statusLifecycle.status == RoomStatus.Attaching) {
+            val attachDeferred = CompletableDeferred<Unit>()
+            roomScope.launch {
+                when (statusLifecycle.status) {
+                    RoomStatus.Attached -> attachDeferred.complete(Unit)
+                    RoomStatus.Attaching -> statusLifecycle.onChangeOnce {
+                        if (it.current == RoomStatus.Attached) {
+                            attachDeferred.complete(Unit)
+                        } else {
+                            attachDeferred.completeExceptionally(roomInvalidStateException(statusLifecycle.status))
+                        }
+                    }
+                    else -> attachDeferred.completeExceptionally(roomInvalidStateException(statusLifecycle.status))
+                }
+            }
+            attachDeferred.await()
+            return
+        }
+        throw roomInvalidStateException(statusLifecycle.status)
     }
 }

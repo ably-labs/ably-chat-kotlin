@@ -15,6 +15,7 @@ import com.ably.chat.Logger
 import com.ably.chat.Room
 import com.ably.chat.RoomLifecycleManager
 import com.ably.chat.RoomOptions
+import com.ably.chat.RoomStatusEventEmitter
 import com.ably.chat.Rooms
 import com.ably.chat.getPrivateField
 import com.ably.chat.invokePrivateSuspendMethod
@@ -22,6 +23,7 @@ import io.ably.lib.realtime.AblyRealtime
 import io.ably.lib.realtime.ChannelState
 import io.ably.lib.types.ClientOptions
 import io.ably.lib.types.ErrorInfo
+import io.ably.lib.util.EventEmitter
 import io.mockk.mockk
 import io.mockk.spyk
 import kotlinx.coroutines.CompletableDeferred
@@ -38,6 +40,13 @@ val Rooms.RoomReleaseDeferred get() = getPrivateField<MutableMap<String, Complet
 // Room mocks
 internal val Room.StatusLifecycle get() = getPrivateField<DefaultRoomLifecycle>("statusLifecycle")
 internal val Room.LifecycleManager get() = getPrivateField<RoomLifecycleManager>("lifecycleManager")
+
+// DefaultRoomLifecycle mocks
+internal val DefaultRoomLifecycle.InternalEmitter get() = getPrivateField<RoomStatusEventEmitter>("internalEmitter")
+
+// EventEmitter mocks
+internal val EventEmitter<*, *>.Listeners get() = getPrivateField<List<Any>>("listeners")
+internal val EventEmitter<*, *>.Filters get() = getPrivateField<Map<Any, Any>>("filters")
 
 // RoomLifeCycleManager Mocks
 internal fun RoomLifecycleManager.atomicCoroutineScope(): AtomicCoroutineScope = getPrivateField("atomicCoroutineScope")

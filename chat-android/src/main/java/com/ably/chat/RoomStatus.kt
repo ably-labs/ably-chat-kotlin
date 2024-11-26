@@ -179,10 +179,12 @@ internal class RoomStatusEventEmitter(logger: Logger) : EventEmitter<RoomStatus,
 
 internal class DefaultRoomLifecycle(logger: Logger) : InternalRoomLifecycle {
 
+    @Volatile
     private var _status = RoomStatus.Initialized // CHA-RS3
     override val status: RoomStatus
         get() = _status
 
+    @Volatile
     private var _error: ErrorInfo? = null
     override val error: ErrorInfo?
         get() = _error
