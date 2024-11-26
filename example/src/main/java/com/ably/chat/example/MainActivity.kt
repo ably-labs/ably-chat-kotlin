@@ -58,6 +58,7 @@ import io.ably.lib.types.ClientOptions
 import java.util.UUID
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 val randomClientId = UUID.randomUUID().toString()
 
@@ -88,10 +89,12 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun App(chatClient: ChatClient) {
     var showPopup by remember { mutableStateOf(false) }
-    val room = chatClient.rooms.get(
-        Settings.ROOM_ID,
-        RoomOptions(typing = TypingOptions(), presence = PresenceOptions(), reactions = RoomReactionsOptions),
-    )
+    val room = runBlocking {
+        chatClient.rooms.get(
+            Settings.ROOM_ID,
+            RoomOptions(typing = TypingOptions(), presence = PresenceOptions(), reactions = RoomReactionsOptions),
+        )
+    }
     val coroutineScope = rememberCoroutineScope()
     val currentlyTyping by typingUsers(room.typing)
 

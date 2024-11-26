@@ -127,6 +127,13 @@ suspend fun PubSubPresence.leaveClientCoroutine(clientId: String, data: JsonElem
         )
     }
 
+val Channel.errorMessage: String
+    get() = if (reason == null) {
+        ""
+    } else {
+        ", ${reason.message}"
+    }
+
 @Suppress("FunctionName")
 fun ChatChannelOptions(init: (ChannelOptions.() -> Unit)? = null): ChannelOptions {
     val options = ChannelOptions()
@@ -197,3 +204,46 @@ internal class DeferredValue<T> {
         return result
     }
 }
+
+fun lifeCycleErrorInfo(
+    errorMessage: String,
+    errorCode: ErrorCode,
+) = createErrorInfo(errorMessage, errorCode, HttpStatusCode.InternalServerError)
+
+fun lifeCycleException(
+    errorMessage: String,
+    errorCode: ErrorCode,
+    cause: Throwable? = null,
+): AblyException = createAblyException(lifeCycleErrorInfo(errorMessage, errorCode), cause)
+
+fun lifeCycleException(
+    errorInfo: ErrorInfo,
+    cause: Throwable? = null,
+): AblyException = createAblyException(errorInfo, cause)
+
+fun ablyException(
+    errorMessage: String,
+    errorCode: ErrorCode,
+    statusCode: Int = HttpStatusCode.BadRequest,
+    cause: Throwable? = null,
+): AblyException {
+    val errorInfo = createErrorInfo(errorMessage, errorCode, statusCode)
+    return createAblyException(errorInfo, cause)
+}
+
+fun ablyException(
+    errorInfo: ErrorInfo,
+    cause: Throwable? = null,
+): AblyException = createAblyException(errorInfo, cause)
+
+private fun createErrorInfo(
+    errorMessage: String,
+    errorCode: ErrorCode,
+    statusCode: Int,
+) = ErrorInfo(errorMessage, statusCode, errorCode.code)
+
+private fun createAblyException(
+    errorInfo: ErrorInfo,
+    cause: Throwable?,
+) = cause?.let { AblyException.fromErrorInfo(it, errorInfo) }
+    ?: AblyException.fromErrorInfo(errorInfo)

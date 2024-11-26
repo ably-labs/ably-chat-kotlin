@@ -1,5 +1,6 @@
 package com.ably.chat
 
+import com.ably.chat.room.createMockLogger
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
 import io.ably.lib.realtime.Channel
@@ -20,6 +21,7 @@ class PresenceTest {
     private val pubSubChannel = spyk<Channel>(buildRealtimeChannel("room1::\$chat::\$messages"))
     private val pubSubPresence = mockk<PubSubPresence>(relaxed = true)
     private lateinit var presence: DefaultPresence
+    private val logger = createMockLogger()
 
     @Before
     fun setUp() {
@@ -27,6 +29,7 @@ class PresenceTest {
             clientId = "client1",
             channel = pubSubChannel,
             presence = pubSubPresence,
+            logger,
         )
     }
 

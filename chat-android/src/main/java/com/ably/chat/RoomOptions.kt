@@ -28,7 +28,19 @@ data class RoomOptions(
      * {@link RoomOptionsDefaults.occupancy} to enable occupancy with default options.
      */
     val occupancy: OccupancyOptions? = null,
-)
+) {
+    companion object {
+        /**
+         * Supports all room options with default values
+         */
+        val default = RoomOptions(
+            typing = TypingOptions(),
+            presence = PresenceOptions(),
+            reactions = RoomReactionsOptions,
+            occupancy = OccupancyOptions,
+        )
+    }
+}
 
 /**
  * Represents the presence options for a chat room.
@@ -58,9 +70,9 @@ data class TypingOptions(
     /**
      * The timeout for typing events in milliseconds. If typing.start() is not called for this amount of time, a stop
      * typing event will be fired, resulting in the user being removed from the currently typing set.
-     * @defaultValue 10000
+     * @defaultValue 5000
      */
-    val timeoutMs: Long = 10_000,
+    val timeoutMs: Long = 5000,
 )
 
 /**
@@ -72,3 +84,15 @@ object RoomReactionsOptions
  * Represents the occupancy options for a chat room.
  */
 object OccupancyOptions
+
+/**
+ * Throws AblyException for invalid room configuration.
+ * Spec: CHA-RC2a
+ */
+fun RoomOptions.validateRoomOptions() {
+    typing?.let {
+        if (typing.timeoutMs <= 0) {
+            throw ablyException("Typing timeout must be greater than 0", ErrorCode.InvalidRequestBody)
+        }
+    }
+}

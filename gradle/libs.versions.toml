@@ -3,7 +3,7 @@
 
 [versions]
 ably-chat = "0.0.1"
-ably = "1.2.43"
+ably = "1.2.45"
 desugar-jdk-libs = "2.1.2"
 junit = "4.13.2"
 agp = "8.5.2"
@@ -18,7 +18,7 @@ lifecycle-runtime-ktx = "2.8.4"
 activity-compose = "1.9.1"
 compose-bom = "2024.06.00"
 gson = "2.11.0"
-mockk = "1.13.12"
+mockk = "1.13.13"
 coroutine = "1.9.0"
 build-config = "5.4.0"
 ktor = "3.0.1"

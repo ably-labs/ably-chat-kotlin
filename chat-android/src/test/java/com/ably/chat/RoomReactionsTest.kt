@@ -1,5 +1,6 @@
 package com.ably.chat
 
+import com.ably.chat.room.createMockLogger
 import com.google.gson.JsonObject
 import io.ably.lib.realtime.AblyRealtime.Channels
 import io.ably.lib.realtime.Channel
@@ -19,6 +20,7 @@ class RoomReactionsTest {
     private val realtimeChannels = mockk<Channels>(relaxed = true)
     private val realtimeChannel = spyk<Channel>(buildRealtimeChannel("room1::\$chat::\$reactions"))
     private lateinit var roomReactions: DefaultRoomReactions
+    private val logger = createMockLogger()
 
     @Before
     fun setUp() {
@@ -35,6 +37,7 @@ class RoomReactionsTest {
             roomId = "room1",
             clientId = "client1",
             realtimeChannels = realtimeChannels,
+            logger,
         )
     }
 
@@ -47,6 +50,7 @@ class RoomReactionsTest {
             roomId = "foo",
             clientId = "client1",
             realtimeChannels = realtimeChannels,
+            logger,
         )
 
         assertEquals(

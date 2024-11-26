@@ -5,13 +5,13 @@ package com.ably.chat
 import com.ably.chat.QueryOptions.MessageOrder.NewestFirst
 import com.google.gson.JsonObject
 import io.ably.lib.realtime.AblyRealtime
-import io.ably.lib.realtime.Channel
 import io.ably.lib.realtime.ChannelState
 import io.ably.lib.realtime.ChannelStateListener
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
+import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
-typealias PubSubMessageListener = Channel.MessageListener
+typealias PubSubMessageListener = AblyRealtimeChannel.MessageListener
 typealias PubSubMessage = io.ably.lib.types.Message
 
 /**
@@ -26,7 +26,7 @@ interface Messages : EmitsDiscontinuities {
      *
      * @returns the realtime channel
      */
-    val channel: Channel
+    val channel: AblyRealtimeChannel
 
     /**
      * Subscribe to new messages in this chat room.
@@ -206,8 +206,8 @@ internal class DefaultMessagesSubscription(
             throw AblyException.fromErrorInfo(
                 ErrorInfo(
                     "The `end` parameter is specified and is more recent than the subscription point timeserial",
-                    HttpStatusCodes.BadRequest,
-                    ErrorCodes.BadRequest,
+                    HttpStatusCode.BadRequest,
+                    ErrorCode.BadRequest.code,
                 ),
             )
         }
@@ -223,9 +223,12 @@ internal class DefaultMessagesSubscription(
 
 internal class DefaultMessages(
     private val roomId: String,
-    realtimeChannels: AblyRealtime.Channels,
+    private val realtimeChannels: AblyRealtime.Channels,
     private val chatApi: ChatApi,
-) : Messages {
+    private val logger: Logger,
+) : Messages, ContributesToRoomLifecycleImpl(logger) {
+
+    override val featureName: String = "messages"
 
     private var listeners: Map<Messages.Listener, DeferredValue<String>> = emptyMap()
 
@@ -239,7 +242,11 @@ internal class DefaultMessages(
      */
     private val messagesChannelName = "$roomId::\$chat::\$chatMessages"
 
-    override val channel: Channel = realtimeChannels.get(messagesChannelName, ChatChannelOptions())
+    override val channel = realtimeChannels.get(messagesChannelName, ChatChannelOptions())
+
+    override val attachmentErrorCode: ErrorCode = ErrorCode.MessagesAttachmentFailed
+
+    override val detachmentErrorCode: ErrorCode = ErrorCode.MessagesDetachmentFailed
 
     init {
         channelStateListener = ChannelStateListener {
@@ -253,7 +260,7 @@ internal class DefaultMessages(
         addListener(listener, deferredChannelSerial)
         val messageListener = PubSubMessageListener {
             val pubSubMessage = it ?: throw AblyException.fromErrorInfo(
-                ErrorInfo("Got empty pubsub channel message", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest),
+                ErrorInfo("Got empty pubsub channel message", HttpStatusCode.BadRequest, ErrorCode.BadRequest.code),
             )
             val data = parsePubSubMessageData(pubSubMessage.data)
             val chatMessage = Message(
@@ -283,8 +290,8 @@ internal class DefaultMessages(
                 listeners[listener] ?: throw AblyException.fromErrorInfo(
                     ErrorInfo(
                         "This messages subscription instance was already unsubscribed",
-                        HttpStatusCodes.BadRequest,
-                        ErrorCodes.BadRequest,
+                        HttpStatusCode.BadRequest,
+                        ErrorCode.BadRequest.code,
                     ),
                 )
             },
@@ -294,14 +301,6 @@ internal class DefaultMessages(
     override suspend fun get(options: QueryOptions): PaginatedResult<Message> = chatApi.getMessages(roomId, options)
 
     override suspend fun send(params: SendMessageParams): Message = chatApi.sendMessage(roomId, params)
-
-    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
-        TODO("Not yet implemented")
-    }
-
-    fun release() {
-        channel.off(channelStateListener)
-    }
 
     /**
      * Associate deferred channel serial value with the current channel's serial
@@ -323,14 +322,22 @@ internal class DefaultMessages(
     private fun requireChannelSerial(): String {
         return channel.properties.channelSerial
             ?: throw AblyException.fromErrorInfo(
-                ErrorInfo("Channel has been attached, but channelSerial is not defined", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest),
+                ErrorInfo(
+                    "Channel has been attached, but channelSerial is not defined",
+                    HttpStatusCode.BadRequest,
+                    ErrorCode.BadRequest.code,
+                ),
             )
     }
 
     private fun requireAttachSerial(): String {
         return channel.properties.attachSerial
             ?: throw AblyException.fromErrorInfo(
-                ErrorInfo("Channel has been attached, but attachSerial is not defined", HttpStatusCodes.BadRequest, ErrorCodes.BadRequest),
+                ErrorInfo(
+                    "Channel has been attached, but attachSerial is not defined",
+                    HttpStatusCode.BadRequest,
+                    ErrorCode.BadRequest.code,
+                ),
             )
     }
 
@@ -359,6 +366,11 @@ internal class DefaultMessages(
             }
         }
     }
+
+    override fun release() {
+        channel.off(channelStateListener)
+        realtimeChannels.release(channel.name)
+    }
 }
 
 /**
@@ -369,7 +381,7 @@ private data class PubSubMessageData(val text: String, val metadata: MessageMeta
 private fun parsePubSubMessageData(data: Any): PubSubMessageData {
     if (data !is JsonObject) {
         throw AblyException.fromErrorInfo(
-            ErrorInfo("Unrecognized Pub/Sub channel's message for `Message.created` event", HttpStatusCodes.InternalServerError),
+            ErrorInfo("Unrecognized Pub/Sub channel's message for `Message.created` event", HttpStatusCode.InternalServerError),
         )
     }
     return PubSubMessageData(

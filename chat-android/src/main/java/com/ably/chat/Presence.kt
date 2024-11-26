@@ -137,7 +137,14 @@ internal class DefaultPresence(
     private val clientId: String,
     override val channel: Channel,
     private val presence: PubSubPresence,
-) : Presence {
+    private val logger: Logger,
+) : Presence, ContributesToRoomLifecycleImpl(logger) {
+
+    override val featureName = "presence"
+
+    override val attachmentErrorCode: ErrorCode = ErrorCode.PresenceAttachmentFailed
+
+    override val detachmentErrorCode: ErrorCode = ErrorCode.PresenceDetachmentFailed
 
     override suspend fun get(waitForSync: Boolean, clientId: String?, connectionId: String?): List<PresenceMember> {
         return presence.getCoroutine(waitForSync, clientId, connectionId).map { user ->
@@ -182,13 +189,13 @@ internal class DefaultPresence(
         }
     }
 
-    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
-        TODO("Not yet implemented")
-    }
-
     private fun wrapInUserCustomData(data: PresenceData?) = data?.let {
         JsonObject().apply {
             add("userCustomData", data)
         }
+    }
+
+    override fun release() {
+        // No need to do anything, since it uses same channel as messages
     }
 }

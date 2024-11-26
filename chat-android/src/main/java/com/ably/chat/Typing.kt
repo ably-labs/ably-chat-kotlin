@@ -92,12 +92,18 @@ data class TypingEvent(val currentlyTyping: Set<String>)
 
 internal class DefaultTyping(
     roomId: String,
-    realtimeClient: RealtimeClient,
+    private val realtimeClient: RealtimeClient,
     private val clientId: String,
     private val options: TypingOptions?,
     private val logger: Logger,
-) : Typing {
+) : Typing, ContributesToRoomLifecycleImpl(logger) {
     private val typingIndicatorsChannelName = "$roomId::\$chat::\$typingIndicators"
+
+    override val featureName = "typing"
+
+    override val attachmentErrorCode: ErrorCode = ErrorCode.TypingAttachmentFailed
+
+    override val detachmentErrorCode: ErrorCode = ErrorCode.TypingDetachmentFailed
 
     private val typingScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1) + SupervisorJob())
 
@@ -176,20 +182,17 @@ internal class DefaultTyping(
         }.join()
     }
 
-    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
-        TODO("Not yet implemented")
-    }
-
-    fun release() {
+    override fun release() {
         presenceSubscription.unsubscribe()
         typingScope.cancel()
+        realtimeClient.channels.release(channel.name)
     }
 
     private fun startTypingTimer() {
         val timeout = options?.timeoutMs ?: throw AblyException.fromErrorInfo(
             ErrorInfo(
                 "Typing options hasn't been initialized",
-                ErrorCodes.BadRequest,
+                ErrorCode.BadRequest.code,
             ),
         )
         logger.trace("DefaultTyping.startTypingTimer()")

@@ -4,6 +4,11 @@ import com.google.gson.JsonElement
 import io.ably.lib.types.AsyncHttpPaginatedResponse
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 fun buildAsyncHttpPaginatedResponse(items: List<JsonElement>): AsyncHttpPaginatedResponse {
     val response = mockk<AsyncHttpPaginatedResponse>()
@@ -62,3 +67,39 @@ fun Occupancy.subscribeOnce(listener: Occupancy.Listener) {
         subscription.unsubscribe()
     }
 }
+
+suspend fun assertWaiter(timeoutInMs: Long = 10_000, block: () -> Boolean) {
+    withContext(Dispatchers.Default) {
+        withTimeout(timeoutInMs) {
+            do {
+                val success = block()
+                delay(100)
+            } while (!success)
+        }
+    }
+}
+
+fun Any.setPrivateField(name: String, value: Any?) {
+    val valueField = javaClass.getDeclaredField(name)
+    valueField.isAccessible = true
+    return valueField.set(this, value)
+}
+
+fun <T>Any.getPrivateField(name: String): T {
+    val valueField = javaClass.getDeclaredField(name)
+    valueField.isAccessible = true
+    @Suppress("UNCHECKED_CAST")
+    return valueField.get(this) as T
+}
+
+suspend fun <T>Any.invokePrivateSuspendMethod(methodName: String, vararg args: Any?) = suspendCancellableCoroutine<T> { cont ->
+    val suspendMethod = javaClass.declaredMethods.find { it.name == methodName }
+    suspendMethod?.let {
+        it.isAccessible = true
+        it.invoke(this, *args, cont)
+    }
+}
+
+fun clientError(errorMessage: String) = ablyException(errorMessage, ErrorCode.BadRequest, HttpStatusCode.BadRequest)
+
+fun serverError(errorMessage: String) = ablyException(errorMessage, ErrorCode.InternalError, HttpStatusCode.InternalServerError)

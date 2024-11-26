@@ -3,6 +3,8 @@ package com.ably.chat
 import com.google.gson.JsonElement
 import com.google.gson.JsonParser
 import io.ably.lib.realtime.AblyRealtime
+import io.ably.lib.realtime.ConnectionEvent
+import io.ably.lib.realtime.ConnectionState
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpRequestRetry
@@ -15,6 +17,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.CompletableDeferred
 
 private val client = HttpClient(CIO) {
     install(HttpRequestRetry) {
@@ -60,6 +63,30 @@ internal fun Sandbox.createSandboxRealtime(chatClientId: String): AblyRealtime =
             clientId = chatClientId
         },
     )
+
+internal suspend fun Sandbox.getConnectedChatClient(chatClientId: String = "sandbox-client"): DefaultChatClient {
+    val realtime = createSandboxRealtime(chatClientId)
+    realtime.ensureConnected()
+    return DefaultChatClient(realtime, ClientOptions())
+}
+
+private suspend fun AblyRealtime.ensureConnected() {
+    if (this.connection.state == ConnectionState.connected) {
+        return
+    }
+    val connectedDeferred = CompletableDeferred<Unit>()
+    this.connection.on {
+        if (it.event == ConnectionEvent.connected) {
+            connectedDeferred.complete(Unit)
+            this.connection.off()
+        } else if (it.event != ConnectionEvent.connecting) {
+            connectedDeferred.completeExceptionally(serverError("ably connection failed"))
+            this.connection.off()
+            this.close()
+        }
+    }
+    connectedDeferred.await()
+}
 
 private suspend fun loadAppCreationRequestBody(): JsonElement =
     JsonParser.parseString(

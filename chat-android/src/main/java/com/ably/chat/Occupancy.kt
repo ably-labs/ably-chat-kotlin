@@ -77,7 +77,14 @@ internal class DefaultOccupancy(
     private val chatApi: ChatApi,
     private val roomId: String,
     private val logger: Logger,
-) : Occupancy {
+) : Occupancy, ContributesToRoomLifecycleImpl(logger) {
+
+    override val featureName: String = "occupancy"
+
+    override val attachmentErrorCode: ErrorCode = ErrorCode.OccupancyAttachmentFailed
+
+    override val detachmentErrorCode: ErrorCode = ErrorCode.OccupancyDetachmentFailed
+
     // (CHA-O1)
     private val messagesChannelName = "$roomId::\$chat::\$chatMessages"
 
@@ -138,12 +145,7 @@ internal class DefaultOccupancy(
         return chatApi.getOccupancy(roomId)
     }
 
-    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
-        // (CHA-O5)
-        TODO("Not yet implemented")
-    }
-
-    fun release() {
+    override fun release() {
         occupancySubscription.unsubscribe()
         occupancyScope.cancel()
     }

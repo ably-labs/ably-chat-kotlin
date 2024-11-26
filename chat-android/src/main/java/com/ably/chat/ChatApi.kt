@@ -81,7 +81,7 @@ internal class ChatApi(
                 metadata = params.metadata ?: mapOf(),
                 headers = params.headers ?: mapOf(),
             )
-        } ?: throw AblyException.fromErrorInfo(ErrorInfo("Send message endpoint returned empty value", HttpStatusCodes.InternalServerError))
+        } ?: throw AblyException.fromErrorInfo(ErrorInfo("Send message endpoint returned empty value", HttpStatusCode.InternalServerError))
     }
 
     private fun validateSendMessageParams(params: SendMessageParams) {
@@ -90,8 +90,8 @@ internal class ChatApi(
             throw AblyException.fromErrorInfo(
                 ErrorInfo(
                     "Metadata contains reserved 'ably-chat' key",
-                    HttpStatusCodes.BadRequest,
-                    ErrorCodes.InvalidRequestBody,
+                    HttpStatusCode.BadRequest,
+                    ErrorCode.InvalidRequestBody.code,
                 ),
             )
         }
@@ -101,8 +101,8 @@ internal class ChatApi(
             throw AblyException.fromErrorInfo(
                 ErrorInfo(
                     "Headers contains reserved key with reserved 'ably-chat' prefix",
-                    HttpStatusCodes.BadRequest,
-                    ErrorCodes.InvalidRequestBody,
+                    HttpStatusCode.BadRequest,
+                    ErrorCode.InvalidRequestBody.code,
                 ),
             )
         }
@@ -117,7 +117,7 @@ internal class ChatApi(
                 connections = it.requireInt("connections"),
                 presenceMembers = it.requireInt("presenceMembers"),
             )
-        } ?: throw AblyException.fromErrorInfo(ErrorInfo("Occupancy endpoint returned empty value", HttpStatusCodes.InternalServerError))
+        } ?: throw AblyException.fromErrorInfo(ErrorInfo("Occupancy endpoint returned empty value", HttpStatusCode.InternalServerError))
     }
 
     private suspend fun makeAuthorizedRequest(

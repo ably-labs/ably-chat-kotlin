@@ -99,7 +99,7 @@ complexity:
       - 'with'
   LabeledExpression:
     active: true
-    ignoredLabels: [ ]
+    ignoredLabels: [ 'async', 'coroutineScope' ]
   LargeClass:
     active: true
     threshold: 600
@@ -952,7 +952,7 @@ style:
   UnderscoresInNumericLiterals:
     active: true
     acceptableLength: 4
-    allowNonStandardGrouping: false
+    allowNonStandardGrouping: true
   UnnecessaryAbstractClass:
     active: false
   UnnecessaryAnnotationUseSiteTarget:
@@ -990,7 +990,7 @@ style:
       - 'Preview'
   UnusedPrivateProperty:
     active: true
-    allowedNames: '_|ignored|expected|serialVersionUID'
+    allowedNames: '_|ignored|expected|serialVersionUID|logger'
   UseAnyOrNoneInsteadOfFind:
     active: false
   UseArrayLiteralsInAnnotations:

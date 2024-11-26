@@ -2,6 +2,12 @@
 
 package com.ably.chat
 
+import io.ably.lib.types.ErrorInfo
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+
 /**
  * Represents a chat room.
  */
@@ -52,19 +58,36 @@ interface Room {
     val occupancy: Occupancy
 
     /**
-     * (CHA-RS2)
-     * Returns an object that can be used to observe the status of the room.
-     *
-     * @returns The status observable.
-     */
-    val status: RoomStatus
-
-    /**
      * Returns the room options.
      *
      * @returns A copy of the options used to create the room.
      */
     val options: RoomOptions
+
+    /**
+     * (CHA-RS2)
+     * The current status of the room.
+     *
+     * @returns The current status.
+     */
+    val status: RoomStatus
+
+    /**
+     * The current error, if any, that caused the room to enter the current status.
+     */
+    val error: ErrorInfo?
+
+    /**
+     * Registers a listener that will be called whenever the room status changes.
+     * @param listener The function to call when the status changes.
+     * @returns An object that can be used to unregister the listener.
+     */
+    fun onStatusChange(listener: RoomLifecycle.Listener): Subscription
+
+    /**
+     * Removes all listeners that were added by the `onStatusChange` method.
+     */
+    fun offAllStatusChange()
 
     /**
      * Attaches to the room to receive events in realtime.
@@ -90,71 +113,144 @@ internal class DefaultRoom(
     private val realtimeClient: RealtimeClient,
     chatApi: ChatApi,
     clientId: String,
-    private val logger: Logger,
+    logger: Logger,
 ) : Room {
+    private val roomLogger = logger.withContext("Room", mapOf("roomId" to roomId))
 
-    private val _messages = DefaultMessages(
+    /**
+     * RoomScope is a crucial part of the Room lifecycle. It manages sequential and atomic operations.
+     * Parallelism is intentionally limited to 1 to ensure that only one coroutine runs at a time,
+     * preventing concurrency issues. Every operation within Room must be performed through this scope.
+     */
+    private val roomScope =
+        CoroutineScope(Dispatchers.Default.limitedParallelism(1) + CoroutineName(roomId) + SupervisorJob())
+
+    override val messages = DefaultMessages(
         roomId = roomId,
         realtimeChannels = realtimeClient.channels,
         chatApi = chatApi,
+        logger = roomLogger.withContext(tag = "Messages"),
     )
 
-    private val _typing: DefaultTyping = DefaultTyping(
-        roomId = roomId,
-        realtimeClient = realtimeClient,
-        options = options.typing,
-        clientId = clientId,
-        logger = logger.withContext(tag = "Typing"),
-    )
-
-    private val _occupancy = DefaultOccupancy(
-        roomId = roomId,
-        realtimeChannels = realtimeClient.channels,
-        chatApi = chatApi,
-        logger = logger.withContext(tag = "Occupancy"),
-    )
-
-    override val messages: Messages
-        get() = _messages
-
-    override val typing: Typing
-        get() = _typing
-
-    override val occupancy: Occupancy
-        get() = _occupancy
-
-    override val presence: Presence = DefaultPresence(
-        channel = messages.channel,
-        clientId = clientId,
-        presence = messages.channel.presence,
-    )
-
-    override val reactions: RoomReactions = DefaultRoomReactions(
-        roomId = roomId,
-        clientId = clientId,
-        realtimeChannels = realtimeClient.channels,
-    )
-
-    override val status: RoomStatus
+    private var _presence: Presence? = null
+    override val presence: Presence
         get() {
-            TODO("Not yet implemented")
+            if (_presence == null) { // CHA-RC2b
+                throw ablyException("Presence is not enabled for this room", ErrorCode.BadRequest)
+            }
+            return _presence as Presence
         }
 
+    private var _reactions: RoomReactions? = null
+    override val reactions: RoomReactions
+        get() {
+            if (_reactions == null) { // CHA-RC2b
+                throw ablyException("Reactions are not enabled for this room", ErrorCode.BadRequest)
+            }
+            return _reactions as RoomReactions
+        }
+
+    private var _typing: Typing? = null
+    override val typing: Typing
+        get() {
+            if (_typing == null) { // CHA-RC2b
+                throw ablyException("Typing is not enabled for this room", ErrorCode.BadRequest)
+            }
+            return _typing as Typing
+        }
+
+    private var _occupancy: Occupancy? = null
+    override val occupancy: Occupancy
+        get() {
+            if (_occupancy == null) { // CHA-RC2b
+                throw ablyException("Occupancy is not enabled for this room", ErrorCode.BadRequest)
+            }
+            return _occupancy as Occupancy
+        }
+
+    private val statusLifecycle = DefaultRoomLifecycle(roomLogger)
+
+    override val status: RoomStatus
+        get() = statusLifecycle.status
+
+    override val error: ErrorInfo?
+        get() = statusLifecycle.error
+
+    private var lifecycleManager: RoomLifecycleManager
+
+    init {
+        options.validateRoomOptions() // CHA-RC2a
+
+        val roomFeatures = mutableListOf<ContributesToRoomLifecycle>(messages)
+
+        options.presence?.let {
+            val presenceContributor = DefaultPresence(
+                clientId = clientId,
+                channel = messages.channel,
+                presence = messages.channel.presence,
+                logger = roomLogger.withContext(tag = "Presence"),
+            )
+            roomFeatures.add(presenceContributor)
+            _presence = presenceContributor
+        }
+
+        options.typing?.let {
+            val typingContributor = DefaultTyping(
+                roomId = roomId,
+                realtimeClient = realtimeClient,
+                clientId = clientId,
+                options = options.typing,
+                logger = roomLogger.withContext(tag = "Typing"),
+            )
+            roomFeatures.add(typingContributor)
+            _typing = typingContributor
+        }
+
+        options.reactions?.let {
+            val reactionsContributor = DefaultRoomReactions(
+                roomId = roomId,
+                clientId = clientId,
+                realtimeChannels = realtimeClient.channels,
+                logger = roomLogger.withContext(tag = "Reactions"),
+            )
+            roomFeatures.add(reactionsContributor)
+            _reactions = reactionsContributor
+        }
+
+        options.occupancy?.let {
+            val occupancyContributor = DefaultOccupancy(
+                roomId = roomId,
+                realtimeChannels = realtimeClient.channels,
+                chatApi = chatApi,
+                logger = roomLogger.withContext(tag = "Occupancy"),
+            )
+            roomFeatures.add(occupancyContributor)
+            _occupancy = occupancyContributor
+        }
+
+        lifecycleManager = RoomLifecycleManager(roomScope, statusLifecycle, roomFeatures, roomLogger)
+    }
+
+    override fun onStatusChange(listener: RoomLifecycle.Listener): Subscription =
+        statusLifecycle.onChange(listener)
+
+    override fun offAllStatusChange() {
+        statusLifecycle.offAll()
+    }
+
     override suspend fun attach() {
-        messages.channel.attachCoroutine()
-        typing.channel.attachCoroutine()
-        reactions.channel.attachCoroutine()
+        lifecycleManager.attach()
     }
 
     override suspend fun detach() {
-        messages.channel.detachCoroutine()
-        typing.channel.detachCoroutine()
-        reactions.channel.detachCoroutine()
+        lifecycleManager.detach()
     }
 
-    fun release() {
-        _messages.release()
-        _typing.release()
-        _occupancy.release()
+    /**
+     * Releases the room, underlying channels are removed from the core SDK to prevent leakage.
+     * This is an internal method and only called from Rooms interface implementation.
+     */
+    internal suspend fun release() {
+        lifecycleManager.release()
     }
 }
