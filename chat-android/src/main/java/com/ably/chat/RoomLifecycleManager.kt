@@ -56,6 +56,16 @@ internal abstract class ContributesToRoomLifecycleImpl(logger: Logger) : Contrib
 }
 
 /**
+ * The order of precedence for lifecycle operations, passed to PriorityQueueExecutor which allows
+ * us to ensure that internal operations take precedence over user-driven operations.
+ */
+enum class LifecycleOperationPrecedence(val priority: Int) {
+    Internal(1),
+    Release(2),
+    AttachOrDetach(3),
+}
+
+/**
  * An implementation of the `Status` interface.
  * @internal
  */
@@ -66,6 +76,13 @@ internal class RoomLifecycleManager(
     private val contributors: List<ContributesToRoomLifecycle>,
     private val logger: Logger,
 ) {
+
+    /**
+     * AtomicCoroutineScope makes sure all operations are atomic and run with given priority.
+     * See [Kotlin Dispatchers](https://kt.academy/article/cc-dispatchers) for more information.
+     * Spec: CHA-RL7
+     */
+    private val atomicCoroutineScope = AtomicCoroutineScope(roomScope)
 
     /**
      * Try to attach all the channels in a room.
@@ -79,9 +96,11 @@ internal class RoomLifecycleManager(
     @Suppress("ThrowsCount")
     internal suspend fun attach() {
         // TODO - Need to implement proper attach with fallback
-        for (contributor in contributors) {
-            contributor.channel.attachCoroutine()
-        }
+        return atomicCoroutineScope.async(LifecycleOperationPrecedence.AttachOrDetach.priority) {
+            for (contributor in contributors) {
+                contributor.channel.attachCoroutine()
+            }
+        }.await()
     }
 
     /**
@@ -93,9 +112,11 @@ internal class RoomLifecycleManager(
     @Suppress("ThrowsCount")
     internal suspend fun detach() {
         // TODO - Need to implement proper detach with fallback
-        for (contributor in contributors) {
-            contributor.channel.detachCoroutine()
-        }
+        return atomicCoroutineScope.async(LifecycleOperationPrecedence.AttachOrDetach.priority) {
+            for (contributor in contributors) {
+                contributor.channel.detachCoroutine()
+            }
+        }.await()
     }
 
     /**
@@ -109,8 +130,10 @@ internal class RoomLifecycleManager(
      */
     internal suspend fun release() {
         // TODO - Need to implement proper release with fallback
-        for (contributor in contributors) {
-            contributor.release()
-        }
+        return atomicCoroutineScope.async(LifecycleOperationPrecedence.Release.priority) {
+            for (contributor in contributors) {
+                contributor.release()
+            }
+        }.await()
     }
 }

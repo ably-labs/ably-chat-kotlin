@@ -90,3 +90,7 @@ fun <T>Any.getPrivateField(name: String): T {
     @Suppress("UNCHECKED_CAST")
     return valueField.get(this) as T
 }
+
+fun clientError(errorMessage: String) = ablyException(errorMessage, ErrorCode.BadRequest, HttpStatusCode.BadRequest)
+
+fun serverError(errorMessage: String) = ablyException(errorMessage, ErrorCode.InternalError, HttpStatusCode.InternalServerError)
