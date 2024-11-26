@@ -127,6 +127,13 @@ suspend fun PubSubPresence.leaveClientCoroutine(clientId: String, data: JsonElem
         )
     }
 
+val Channel.errorMessage: String
+    get() = if (reason == null) {
+        ""
+    } else {
+        ", ${reason.message}"
+    }
+
 @Suppress("FunctionName")
 fun ChatChannelOptions(init: (ChannelOptions.() -> Unit)? = null): ChannelOptions {
     val options = ChannelOptions()
@@ -197,6 +204,22 @@ internal class DeferredValue<T> {
         return result
     }
 }
+
+fun lifeCycleErrorInfo(
+    errorMessage: String,
+    errorCode: ErrorCode,
+) = createErrorInfo(errorMessage, errorCode, HttpStatusCode.InternalServerError)
+
+fun lifeCycleException(
+    errorMessage: String,
+    errorCode: ErrorCode,
+    cause: Throwable? = null,
+): AblyException = createAblyException(lifeCycleErrorInfo(errorMessage, errorCode), cause)
+
+fun lifeCycleException(
+    errorInfo: ErrorInfo,
+    cause: Throwable? = null,
+): AblyException = createAblyException(errorInfo, cause)
 
 fun ablyException(
     errorMessage: String,
