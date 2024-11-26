@@ -469,11 +469,75 @@ internal class RoomLifecycleManager(
      * Spec: CHA-RL3
      */
     internal suspend fun release() {
-        // TODO - Need to implement proper release with fallback
-        return atomicCoroutineScope.async(LifecycleOperationPrecedence.Release.priority) {
-            for (contributor in contributors) {
-                contributor.release()
+        val deferredRelease = atomicCoroutineScope.async(LifecycleOperationPrecedence.Release.priority) { // CHA-RL3k
+            // CHA-RL3a - If we're already released, this is a no-op
+            if (statusLifecycle.status === RoomStatus.Released) {
+                return@async
             }
-        }.await()
+
+            // CHA-RL3b, CHA-RL3j - If we're already detached or initialized, then we can transition to released immediately
+            if (statusLifecycle.status === RoomStatus.Detached ||
+                statusLifecycle.status === RoomStatus.Initialized
+            ) {
+                statusLifecycle.setStatus(RoomStatus.Released)
+                return@async
+            }
+            // CHA-RL3l - We force the room status to be releasing.
+            // Any transient disconnect timeouts shall be cleared.
+            clearAllTransientDetachTimeouts()
+            operationInProgress = true
+            statusLifecycle.setStatus(RoomStatus.Releasing)
+
+            // CHA-RL3f - Do the release until it completes
+            return@async releaseChannels()
+        }
+        deferredRelease.await()
+    }
+
+    /**
+     *  Releases the room by detaching all channels. If the release operation fails, we wait
+     *  a short period and then try again.
+     *  Spec: CHA-RL3f, CHA-RL3d
+     */
+    private suspend fun releaseChannels() {
+        var contributorsReleased = kotlin.runCatching { doRelease() }
+        while (contributorsReleased.isFailure) {
+            // Wait a short period and then try again
+            delay(retryDurationInMs)
+            contributorsReleased = kotlin.runCatching { doRelease() }
+        }
+    }
+
+    /**
+     * Performs the release operation. This will detach all channels in the room that aren't
+     * already detached or in the failed state.
+     * Spec: CHA-RL3d, CHA-RL3g
+     */
+    @Suppress("RethrowCaughtException")
+    private suspend fun doRelease() = coroutineScope {
+        contributors.map { contributor: ContributesToRoomLifecycle ->
+            async {
+                // CHA-RL3e - Failed channels, we can ignore
+                if (contributor.channel.state == ChannelState.failed) {
+                    return@async
+                }
+                // Detached channels, we can ignore
+                if (contributor.channel.state == ChannelState.detached) {
+                    return@async
+                }
+                try {
+                    contributor.channel.detachCoroutine()
+                } catch (ex: Throwable) {
+                    // TODO - log error here before rethrowing
+                    throw ex
+                }
+            }
+        }.awaitAll()
+
+        // CHA-RL3h - underlying Realtime Channels are released from the core SDK prevent leakage
+        contributors.forEach {
+            it.release()
+        }
+        statusLifecycle.setStatus(RoomStatus.Released) // CHA-RL3g
     }
 }
