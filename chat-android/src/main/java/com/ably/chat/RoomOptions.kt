@@ -28,7 +28,19 @@ data class RoomOptions(
      * {@link RoomOptionsDefaults.occupancy} to enable occupancy with default options.
      */
     val occupancy: OccupancyOptions? = null,
-)
+) {
+    companion object {
+        /**
+         * Supports all room options with default values
+         */
+        val default = RoomOptions(
+            typing = TypingOptions(),
+            presence = PresenceOptions(),
+            reactions = RoomReactionsOptions,
+            occupancy = OccupancyOptions,
+        )
+    }
+}
 
 /**
  * Represents the presence options for a chat room.

@@ -180,7 +180,7 @@ internal class DefaultRoom(
         reactions.channel.detachCoroutine()
     }
 
-    fun release() {
+    suspend fun release() {
         _messages.release()
         _typing.release()
         _occupancy.release()

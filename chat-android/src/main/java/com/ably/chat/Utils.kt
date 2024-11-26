@@ -197,3 +197,30 @@ internal class DeferredValue<T> {
         return result
     }
 }
+
+fun ablyException(
+    errorMessage: String,
+    errorCode: ErrorCode,
+    statusCode: Int = HttpStatusCode.BadRequest,
+    cause: Throwable? = null,
+): AblyException {
+    val errorInfo = createErrorInfo(errorMessage, errorCode, statusCode)
+    return createAblyException(errorInfo, cause)
+}
+
+fun ablyException(
+    errorInfo: ErrorInfo,
+    cause: Throwable? = null,
+): AblyException = createAblyException(errorInfo, cause)
+
+private fun createErrorInfo(
+    errorMessage: String,
+    errorCode: ErrorCode,
+    statusCode: Int,
+) = ErrorInfo(errorMessage, statusCode, errorCode.code)
+
+private fun createAblyException(
+    errorInfo: ErrorInfo,
+    cause: Throwable?,
+) = cause?.let { AblyException.fromErrorInfo(it, errorInfo) }
+    ?: AblyException.fromErrorInfo(errorInfo)

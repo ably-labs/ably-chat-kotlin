@@ -4,6 +4,10 @@ import com.google.gson.JsonElement
 import io.ably.lib.types.AsyncHttpPaginatedResponse
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 fun buildAsyncHttpPaginatedResponse(items: List<JsonElement>): AsyncHttpPaginatedResponse {
     val response = mockk<AsyncHttpPaginatedResponse>()
@@ -61,4 +65,28 @@ fun Occupancy.subscribeOnce(listener: Occupancy.Listener) {
         listener.onEvent(it)
         subscription.unsubscribe()
     }
+}
+
+suspend fun assertWaiter(timeoutInMs: Long = 10_000, block: () -> Boolean) {
+    withContext(Dispatchers.Default) {
+        withTimeout(timeoutInMs) {
+            do {
+                val success = block()
+                delay(100)
+            } while (!success)
+        }
+    }
+}
+
+fun Any.setPrivateField(name: String, value: Any?) {
+    val valueField = javaClass.getDeclaredField(name)
+    valueField.isAccessible = true
+    return valueField.set(this, value)
+}
+
+fun <T>Any.getPrivateField(name: String): T {
+    val valueField = javaClass.getDeclaredField(name)
+    valueField.isAccessible = true
+    @Suppress("UNCHECKED_CAST")
+    return valueField.get(this) as T
 }

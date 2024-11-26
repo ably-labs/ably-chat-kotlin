@@ -99,7 +99,7 @@ complexity:
       - 'with'
   LabeledExpression:
     active: true
-    ignoredLabels: [ ]
+    ignoredLabels: [ 'async' ]
   LargeClass:
     active: true
     threshold: 600
