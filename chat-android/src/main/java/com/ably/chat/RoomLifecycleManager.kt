@@ -387,12 +387,76 @@ internal class RoomLifecycleManager(
      */
     @Suppress("ThrowsCount")
     internal suspend fun detach() {
-        // TODO - Need to implement proper detach with fallback
-        return atomicCoroutineScope.async(LifecycleOperationPrecedence.AttachOrDetach.priority) {
-            for (contributor in contributors) {
-                contributor.channel.detachCoroutine()
+        val deferredDetach = atomicCoroutineScope.async(LifecycleOperationPrecedence.AttachOrDetach.priority) { // CHA-RL2i
+            // CHA-RL2a - If we're already detached, this is a no-op
+            if (statusLifecycle.status === RoomStatus.Detached) {
+                return@async
             }
-        }.await()
+            // CHA-RL2c - If the room is released, we can't detach
+            if (statusLifecycle.status === RoomStatus.Released) {
+                throw lifeCycleException(
+                    "unable to detach room; room is released",
+                    ErrorCode.RoomIsReleased,
+                )
+            }
+
+            // CHA-RL2b - If the room is releasing, we can't detach
+            if (statusLifecycle.status === RoomStatus.Releasing) {
+                throw lifeCycleException(
+                    "unable to detach room; room is releasing",
+                    ErrorCode.RoomIsReleasing,
+                )
+            }
+
+            // CHA-RL2d - If we're in failed, we should not attempt to detach
+            if (statusLifecycle.status === RoomStatus.Failed) {
+                throw lifeCycleException(
+                    "unable to detach room; room has failed",
+                    ErrorCode.RoomInFailedState,
+                )
+            }
+
+            // CHA-RL2e - We force the room status to be detaching
+            operationInProgress = true
+            clearAllTransientDetachTimeouts()
+            statusLifecycle.setStatus(RoomStatus.Detaching)
+
+            // CHA-RL2f - We now perform an all-channel wind down.
+            // We keep trying until we reach a suitable conclusion.
+            return@async doDetach()
+        }
+        return deferredDetach.await()
+    }
+
+    /**
+     * Perform a detach.
+     * If detaching a channel fails, we should retry until every channel is either in the detached state, or in the failed state.
+     * Spec: CHA-RL2f
+     */
+    private suspend fun doDetach() {
+        var channelWindDown = kotlin.runCatching { doChannelWindDown() }
+        var firstContributorFailedError: AblyException? = null
+        while (channelWindDown.isFailure) { // CHA-RL2h
+            val err = channelWindDown.exceptionOrNull()
+            if (err is AblyException && err.errorInfo?.code != -1 && firstContributorFailedError == null) {
+                firstContributorFailedError = err // CHA-RL2h1- First failed contributor error is captured
+            }
+            delay(retryDurationInMs)
+            channelWindDown = kotlin.runCatching { doChannelWindDown() }
+        }
+
+        // CHA-RL2g - If we aren't in the failed state, then we're detached
+        if (statusLifecycle.status !== RoomStatus.Failed) {
+            statusLifecycle.setStatus(RoomStatus.Detached)
+            return
+        }
+
+        // CHA-RL2h1 - If we're in the failed state, then we need to throw the error
+        throw firstContributorFailedError
+            ?: lifeCycleException(
+                "unknown error in doDetach",
+                ErrorCode.RoomLifecycleError,
+            )
     }
 
     /**
