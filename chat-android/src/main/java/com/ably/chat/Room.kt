@@ -3,6 +3,10 @@
 package com.ably.chat
 
 import io.ably.lib.types.ErrorInfo
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 /**
  * Represents a chat room.
@@ -113,6 +117,14 @@ internal class DefaultRoom(
 ) : Room {
     private val roomLogger = logger.withContext("Room", mapOf("roomId" to roomId))
 
+    /**
+     * RoomScope is a crucial part of the Room lifecycle. It manages sequential and atomic operations.
+     * Parallelism is intentionally limited to 1 to ensure that only one coroutine runs at a time,
+     * preventing concurrency issues. Every operation within Room must be performed through this scope.
+     */
+    private val roomScope =
+        CoroutineScope(Dispatchers.Default.limitedParallelism(1) + CoroutineName(roomId) + SupervisorJob())
+
     override val messages = DefaultMessages(
         roomId = roomId,
         realtimeChannels = realtimeClient.channels,
@@ -164,8 +176,12 @@ internal class DefaultRoom(
     override val error: ErrorInfo?
         get() = statusLifecycle.error
 
+    private var lifecycleManager: RoomLifecycleManager
+
     init {
         options.validateRoomOptions() // CHA-RC2a
+
+        val roomFeatures = mutableListOf<ContributesToRoomLifecycle>(messages)
 
         options.presence?.let {
             val presenceContributor = DefaultPresence(
@@ -174,6 +190,7 @@ internal class DefaultRoom(
                 presence = messages.channel.presence,
                 logger = roomLogger.withContext(tag = "Presence"),
             )
+            roomFeatures.add(presenceContributor)
             _presence = presenceContributor
         }
 
@@ -185,6 +202,7 @@ internal class DefaultRoom(
                 options = options.typing,
                 logger = roomLogger.withContext(tag = "Typing"),
             )
+            roomFeatures.add(typingContributor)
             _typing = typingContributor
         }
 
@@ -195,6 +213,7 @@ internal class DefaultRoom(
                 realtimeChannels = realtimeClient.channels,
                 logger = roomLogger.withContext(tag = "Reactions"),
             )
+            roomFeatures.add(reactionsContributor)
             _reactions = reactionsContributor
         }
 
@@ -205,8 +224,11 @@ internal class DefaultRoom(
                 chatApi = chatApi,
                 logger = roomLogger.withContext(tag = "Occupancy"),
             )
+            roomFeatures.add(occupancyContributor)
             _occupancy = occupancyContributor
         }
+
+        lifecycleManager = RoomLifecycleManager(roomScope, statusLifecycle, roomFeatures, roomLogger)
     }
 
     override fun onStatusChange(listener: RoomLifecycle.Listener): Subscription =
@@ -217,18 +239,18 @@ internal class DefaultRoom(
     }
 
     override suspend fun attach() {
-        messages.channel.attachCoroutine()
-        _typing?.channel?.attachCoroutine()
-        _reactions?.channel?.attachCoroutine()
+        lifecycleManager.attach()
     }
 
     override suspend fun detach() {
-        messages.channel.detachCoroutine()
-        _typing?.channel?.detachCoroutine()
-        _reactions?.channel?.detachCoroutine()
+        lifecycleManager.detach()
     }
 
-    suspend fun release() {
-        messages.release()
+    /**
+     * Releases the room, underlying channels are removed from the core SDK to prevent leakage.
+     * This is an internal method and only called from Rooms interface implementation.
+     */
+    internal suspend fun release() {
+        lifecycleManager.release()
     }
 }

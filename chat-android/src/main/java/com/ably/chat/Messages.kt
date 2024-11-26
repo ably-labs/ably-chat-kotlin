@@ -5,13 +5,13 @@ package com.ably.chat
 import com.ably.chat.QueryOptions.MessageOrder.NewestFirst
 import com.google.gson.JsonObject
 import io.ably.lib.realtime.AblyRealtime
-import io.ably.lib.realtime.Channel
 import io.ably.lib.realtime.ChannelState
 import io.ably.lib.realtime.ChannelStateListener
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
+import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
-typealias PubSubMessageListener = Channel.MessageListener
+typealias PubSubMessageListener = AblyRealtimeChannel.MessageListener
 typealias PubSubMessage = io.ably.lib.types.Message
 
 /**
@@ -26,7 +26,7 @@ interface Messages : EmitsDiscontinuities {
      *
      * @returns the realtime channel
      */
-    val channel: Channel
+    val channel: AblyRealtimeChannel
 
     /**
      * Subscribe to new messages in this chat room.
@@ -223,10 +223,12 @@ internal class DefaultMessagesSubscription(
 
 internal class DefaultMessages(
     private val roomId: String,
-    realtimeChannels: AblyRealtime.Channels,
+    private val realtimeChannels: AblyRealtime.Channels,
     private val chatApi: ChatApi,
-    logger: Logger,
-) : Messages {
+    private val logger: Logger,
+) : Messages, ContributesToRoomLifecycleImpl(logger) {
+
+    override val featureName: String = "messages"
 
     private var listeners: Map<Messages.Listener, DeferredValue<String>> = emptyMap()
 
@@ -240,7 +242,11 @@ internal class DefaultMessages(
      */
     private val messagesChannelName = "$roomId::\$chat::\$chatMessages"
 
-    override val channel: Channel = realtimeChannels.get(messagesChannelName, ChatChannelOptions())
+    override val channel = realtimeChannels.get(messagesChannelName, ChatChannelOptions())
+
+    override val attachmentErrorCode: ErrorCode = ErrorCode.MessagesAttachmentFailed
+
+    override val detachmentErrorCode: ErrorCode = ErrorCode.MessagesDetachmentFailed
 
     init {
         channelStateListener = ChannelStateListener {
@@ -295,14 +301,6 @@ internal class DefaultMessages(
     override suspend fun get(options: QueryOptions): PaginatedResult<Message> = chatApi.getMessages(roomId, options)
 
     override suspend fun send(params: SendMessageParams): Message = chatApi.sendMessage(roomId, params)
-
-    override fun onDiscontinuity(listener: EmitsDiscontinuities.Listener): Subscription {
-        TODO("Not yet implemented")
-    }
-
-    fun release() {
-        channel.off(channelStateListener)
-    }
 
     /**
      * Associate deferred channel serial value with the current channel's serial
@@ -367,6 +365,11 @@ internal class DefaultMessages(
                 if (it.value.completed) deferredChannelSerial else it.value
             }
         }
+    }
+
+    override fun release() {
+        channel.off(channelStateListener)
+        realtimeChannels.release(channel.name)
     }
 }
 
