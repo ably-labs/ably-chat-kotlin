@@ -139,7 +139,7 @@ val subscription = chat.connection.onStatusChange { statusChange: ConnectionStat
 }
 ```
 
-To stop listening to changes, `unsubscribe` method on returned subscription instance:
+To stop listening to changes, call the `unsubscribe` method on the returned subscription instance:
 
 ```kotlin
 subscription.unsubscribe()
