@@ -1,6 +1,16 @@
 package com.ably.chat
 
+import io.ably.lib.realtime.ConnectionState
 import io.ably.lib.types.ErrorInfo
+import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import io.ably.lib.realtime.Connection as PubSubConnection
 
 /**
  * Default timeout for transient states before we attempt handle them as a state change.
@@ -8,36 +18,36 @@ import io.ably.lib.types.ErrorInfo
 const val TRANSIENT_TIMEOUT = 5000
 
 /**
- * The different states that the connection can be in through its lifecycle.
+ * (CHA-CS1) The different states that the connection can be in through its lifecycle.
  */
 enum class ConnectionStatus(val stateName: String) {
     /**
-     * A temporary state for when the library is first initialized.
+     * (CHA-CS1a) A temporary state for when the library is first initialized.
      */
     Initialized("initialized"),
 
     /**
-     * The library is currently connecting to Ably.
+     * (CHA-CS1b) The library is currently connecting to Ably.
      */
     Connecting("connecting"),
 
     /**
-     * The library is currently connected to Ably.
+     * (CHA-CS1c) The library is currently connected to Ably.
      */
     Connected("connected"),
 
     /**
-     * The library is currently disconnected from Ably, but will attempt to reconnect.
+     * (CHA-CS1d) The library is currently disconnected from Ably, but will attempt to reconnect.
      */
     Disconnected("disconnected"),
 
     /**
-     * The library is in an extended state of disconnection, but will attempt to reconnect.
+     * (CHA-CS1e) The library is in an extended state of disconnection, but will attempt to reconnect.
      */
     Suspended("suspended"),
 
     /**
-     * The library is currently disconnected from Ably and will not attempt to reconnect.
+     * (CHA-CS1f) The library is currently disconnected from Ably and will not attempt to reconnect.
      */
     Failed("failed"),
 }
@@ -73,17 +83,17 @@ data class ConnectionStatusChange(
  */
 interface Connection {
     /**
-     * The current status of the connection.
+     * (CHA-CS2a) The current status of the connection.
      */
     val status: ConnectionStatus
 
     /**
-     * The current error, if any, that caused the connection to enter the current status.
+     * (CHA-CS2b) The current error, if any, that caused the connection to enter the current status.
      */
     val error: ErrorInfo?
 
     /**
-     * Registers a listener that will be called whenever the connection status changes.
+     * (CHA-CS4) Registers a listener that will be called whenever the connection status changes.
      * @param listener The function to call when the status changes.
      * @returns An object that can be used to unregister the listener.
      */
@@ -99,9 +109,92 @@ interface Connection {
          */
         fun connectionStatusChanged(change: ConnectionStatusChange)
     }
+}
 
-    /**
-     * Removes all listeners that were added by the `onStatusChange` method.
-     */
-    fun offAllStatusChange()
+internal class DefaultConnection(
+    pubSubConnection: PubSubConnection,
+    private val logger: Logger,
+) : Connection {
+
+    private val connectionScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1) + SupervisorJob())
+
+    private val listeners: MutableList<Connection.Listener> = CopyOnWriteArrayList()
+
+    private var transientDisconnectJob: Job? = null
+
+    // (CHA-CS3)
+    override var status: ConnectionStatus = mapPubSubStatusToChat(pubSubConnection.state)
+        private set
+
+    override var error: ErrorInfo? = pubSubConnection.reason
+        private set
+
+    init {
+        pubSubConnection.on { stateChange ->
+            val nextStatus = mapPubSubStatusToChat(stateChange.current)
+
+            val transientDisconnectTimerIsActive = transientDisconnectJob != null
+
+            // (CHA-CS5a2)
+            if (transientDisconnectTimerIsActive && nextStatus in listOf(ConnectionStatus.Connecting, ConnectionStatus.Disconnected)) {
+                return@on
+            }
+
+            // (CHA-CS5a1)
+            if (nextStatus == ConnectionStatus.Disconnected && status == ConnectionStatus.Connected) {
+                transientDisconnectJob = connectionScope.launch {
+                    delay(TRANSIENT_TIMEOUT.milliseconds)
+                    applyStatusChange(nextStatus, stateChange.reason, stateChange.retryIn)
+                    transientDisconnectJob = null
+                }
+            } else {
+                // (CHA-CS5a3)
+                transientDisconnectJob?.cancel()
+                transientDisconnectJob = null
+                applyStatusChange(nextStatus, stateChange.reason, stateChange.retryIn)
+            }
+        }
+    }
+
+    override fun onStatusChange(listener: Connection.Listener): Subscription {
+        logger.trace("Connection.onStatusChange()")
+        listeners.add(listener)
+
+        return Subscription {
+            logger.trace("Connection.offStatusChange()")
+            listeners.remove(listener)
+        }
+    }
+
+    private fun applyStatusChange(nextStatus: ConnectionStatus, error: ErrorInfo?, retryIn: Long?) {
+        val previous = status
+        this.status = nextStatus
+        this.error = error
+        logger.info("Connection state changed from ${previous.stateName} to ${nextStatus.stateName}")
+        emitStateChange(
+            ConnectionStatusChange(
+                current = status,
+                previous = previous,
+                error = error,
+                retryIn = retryIn,
+            ),
+        )
+    }
+
+    private fun emitStateChange(statusChange: ConnectionStatusChange) {
+        listeners.forEach { it.connectionStatusChanged(statusChange) }
+    }
+}
+
+private fun mapPubSubStatusToChat(status: ConnectionState): ConnectionStatus {
+    return when (status) {
+        ConnectionState.initialized -> ConnectionStatus.Initialized
+        ConnectionState.connecting -> ConnectionStatus.Connecting
+        ConnectionState.connected -> ConnectionStatus.Connected
+        ConnectionState.disconnected -> ConnectionStatus.Disconnected
+        ConnectionState.suspended -> ConnectionStatus.Suspended
+        ConnectionState.failed -> ConnectionStatus.Failed
+        ConnectionState.closing -> ConnectionStatus.Failed
+        ConnectionState.closed -> ConnectionStatus.Failed
+    }
 }

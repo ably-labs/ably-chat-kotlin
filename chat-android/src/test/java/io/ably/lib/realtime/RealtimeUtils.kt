@@ -26,3 +26,14 @@ fun buildRealtimeChannel(channelName: String = "channel") = AblyRealtime(
         autoConnect = false
     },
 ).channels.get(channelName)
+
+/**
+ * This function build realtime Connection object, it has backlink to the realtime client
+ * and also package-private constructor.
+ */
+fun buildRealtimeConnection() = AblyRealtime(
+    ClientOptions().apply {
+        key = "dummy-key"
+        autoConnect = false
+    },
+).connection

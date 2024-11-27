@@ -98,8 +98,7 @@ complexity:
       - 'use'
       - 'with'
   LabeledExpression:
-    active: true
-    ignoredLabels: [ 'async', 'coroutineScope' ]
+    active: false
   LargeClass:
     active: true
     threshold: 600
