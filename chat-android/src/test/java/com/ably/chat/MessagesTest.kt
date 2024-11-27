@@ -10,6 +10,7 @@ import io.ably.lib.realtime.ChannelStateListener
 import io.ably.lib.realtime.buildChannelStateChange
 import io.ably.lib.realtime.buildRealtimeChannel
 import io.ably.lib.types.AblyException
+import io.ably.lib.types.MessageAction
 import io.ably.lib.types.MessageExtras
 import io.mockk.every
 import io.mockk.mockk
@@ -59,7 +60,7 @@ class MessagesTest {
         mockSendMessageApiResponse(
             realtimeClient,
             JsonObject().apply {
-                addProperty("timeserial", "abcdefghij@1672531200000-123")
+                addProperty("serial", "abcdefghij@1672531200000-123")
                 addProperty("createdAt", 1_000_000)
             },
             roomId = "room1",
@@ -75,13 +76,14 @@ class MessagesTest {
 
         assertEquals(
             Message(
-                timeserial = "abcdefghij@1672531200000-123",
+                serial = "abcdefghij@1672531200000-123",
                 clientId = "clientId",
                 roomId = "room1",
                 text = "lala",
                 createdAt = 1_000_000,
                 metadata = mapOf("meta" to "data"),
                 headers = mapOf("foo" to "bar"),
+                latestAction = MessageAction.MESSAGE_CREATE,
             ),
             sentMessage,
         )
@@ -94,7 +96,7 @@ class MessagesTest {
     fun `should be able to subscribe to incoming messages`() = runTest {
         val pubSubMessageListenerSlot = slot<PubSubMessageListener>()
 
-        every { realtimeChannel.subscribe("message.created", capture(pubSubMessageListenerSlot)) } answers {
+        every { realtimeChannel.subscribe("chat.message", capture(pubSubMessageListenerSlot)) } answers {
             println("Pub/Sub message listener registered")
         }
 
@@ -104,18 +106,19 @@ class MessagesTest {
             deferredValue.completeWith(it)
         }
 
-        verify { realtimeChannel.subscribe("message.created", any()) }
+        verify { realtimeChannel.subscribe("chat.message", any()) }
 
         pubSubMessageListenerSlot.captured.onMessage(
             PubSubMessage().apply {
                 data = JsonObject().apply {
                     addProperty("text", "some text")
                 }
+                serial = "abcdefghij@1672531200000-123"
                 clientId = "clientId"
                 timestamp = 1000L
+                createdAt = 1000L
                 extras = MessageExtras(
                     JsonObject().apply {
-                        addProperty("timeserial", "abcdefghij@1672531200000-123")
                         add(
                             "headers",
                             JsonObject().apply {
@@ -124,6 +127,7 @@ class MessagesTest {
                         )
                     },
                 )
+                action = MessageAction.MESSAGE_CREATE
             },
         )
 
@@ -135,10 +139,11 @@ class MessagesTest {
                 roomId = "room1",
                 createdAt = 1000L,
                 clientId = "clientId",
-                timeserial = "abcdefghij@1672531200000-123",
+                serial = "abcdefghij@1672531200000-123",
                 text = "some text",
                 metadata = mapOf(),
                 headers = mapOf("foo" to "bar"),
+                latestAction = MessageAction.MESSAGE_CREATE,
             ),
             messageEvent.message,
         )
@@ -256,20 +261,6 @@ class MessagesTest {
         }
         assertEquals(40_001, exception.errorInfo.code)
     }
-
-    /**
-     * @spec CHA-M5j
-     */
-    @Test
-    fun `should throw exception if end is more recent than the subscription point timeserial`() = runTest {
-        messages.channel.properties.channelSerial = "abcdefghij@1672531200000-123"
-        messages.channel.state = ChannelState.attached
-        val subscription = messages.subscribe {}
-        val exception = assertThrows(AblyException::class.java) {
-            runBlocking { subscription.getPreviousMessages(end = 1_672_551_200_000L) }
-        }
-        assertEquals(40_000, exception.errorInfo.code)
-    }
 }
 
 private val Channel.channelMulticaster: ChannelBase.MessageListener
@@ -277,18 +268,19 @@ private val Channel.channelMulticaster: ChannelBase.MessageListener
         val field: Field = (ChannelBase::class.java).getDeclaredField("eventListeners")
         field.isAccessible = true
         val eventListeners = field.get(this) as HashMap<*, *>
-        return eventListeners["message.created"] as ChannelBase.MessageListener
+        return eventListeners["chat.message"] as ChannelBase.MessageListener
     }
 
 private fun buildDummyPubSubMessage() = PubSubMessage().apply {
     data = JsonObject().apply {
         addProperty("text", "dummy text")
     }
+    serial = "abcdefghij@1672531200000-123"
     clientId = "dummy"
     timestamp = 1000L
+    createdAt = 1000L
     extras = MessageExtras(
-        JsonObject().apply {
-            addProperty("timeserial", "abcdefghij@1672531200000-123")
-        },
+        JsonObject().apply {},
     )
+    action = MessageAction.MESSAGE_CREATE
 }

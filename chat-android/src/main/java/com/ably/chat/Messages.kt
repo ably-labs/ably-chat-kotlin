@@ -9,6 +9,7 @@ import io.ably.lib.realtime.ChannelState
 import io.ably.lib.realtime.ChannelStateListener
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
+import io.ably.lib.types.MessageAction
 import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
 typealias PubSubMessageListener = AblyRealtimeChannel.MessageListener
@@ -200,18 +201,6 @@ internal class DefaultMessagesSubscription(
 
     override suspend fun getPreviousMessages(start: Long?, end: Long?, limit: Int): PaginatedResult<Message> {
         val fromSerial = fromSerialProvider().await()
-
-        // (CHA-M5j)
-        if (end != null && end > Timeserial.parse(fromSerial).timestamp) {
-            throw AblyException.fromErrorInfo(
-                ErrorInfo(
-                    "The `end` parameter is specified and is more recent than the subscription point timeserial",
-                    HttpStatusCode.BadRequest,
-                    ErrorCode.BadRequest.code,
-                ),
-            )
-        }
-
         val queryOptions = QueryOptions(start = start, end = end, limit = limit, orderBy = NewestFirst)
         return chatApi.getMessages(
             roomId = roomId,
@@ -262,20 +251,25 @@ internal class DefaultMessages(
             val pubSubMessage = it ?: throw AblyException.fromErrorInfo(
                 ErrorInfo("Got empty pubsub channel message", HttpStatusCode.BadRequest, ErrorCode.BadRequest.code),
             )
+
+            // Ignore any action that is not message.create
+            if (pubSubMessage.action != MessageAction.MESSAGE_CREATE) return@PubSubMessageListener
+
             val data = parsePubSubMessageData(pubSubMessage.data)
             val chatMessage = Message(
                 roomId = roomId,
-                createdAt = pubSubMessage.timestamp,
+                createdAt = pubSubMessage.createdAt,
                 clientId = pubSubMessage.clientId,
-                timeserial = pubSubMessage.extras.asJsonObject().requireString("timeserial"),
+                serial = pubSubMessage.serial,
                 text = data.text,
                 metadata = data.metadata,
                 headers = pubSubMessage.extras.asJsonObject().get("headers")?.toMap() ?: mapOf(),
+                latestAction = MessageAction.MESSAGE_CREATE,
             )
             listener.onEvent(MessageEvent(type = MessageEventType.Created, message = chatMessage))
         }
         // (CHA-M4d)
-        channel.subscribe(MessageEventType.Created.eventName, messageListener)
+        channel.subscribe(PubSubMessageNames.ChatMessage, messageListener)
         // (CHA-M5) setting subscription point
         associateWithCurrentChannelSerial(deferredChannelSerial)
 
@@ -284,7 +278,7 @@ internal class DefaultMessages(
             roomId = roomId,
             subscription = {
                 removeListener(listener)
-                channel.unsubscribe(MessageEventType.Created.eventName, messageListener)
+                channel.unsubscribe(PubSubMessageNames.ChatMessage, messageListener)
             },
             fromSerialProvider = {
                 listeners[listener] ?: throw AblyException.fromErrorInfo(

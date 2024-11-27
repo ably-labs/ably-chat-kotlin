@@ -55,8 +55,8 @@ import com.ably.chat.TypingOptions
 import com.ably.chat.example.ui.PresencePopup
 import com.ably.chat.example.ui.theme.AblyChatExampleTheme
 import io.ably.lib.types.ClientOptions
+import io.ably.lib.types.MessageAction
 import java.util.UUID
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
@@ -319,12 +319,13 @@ fun MessageBubblePreview() {
         MessageBubble(
             message = Message(
                 text = "Hello World!",
-                timeserial = "fake",
+                serial = "fake",
                 roomId = "roomId",
                 clientId = "clientId",
                 createdAt = System.currentTimeMillis(),
                 metadata = mapOf(),
                 headers = mapOf(),
+                latestAction = MessageAction.MESSAGE_CREATE,
             ),
         )
     }
