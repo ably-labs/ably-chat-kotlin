@@ -309,7 +309,7 @@ println("End of messages")
 
 In addition to being able to unsubscribe from messages, the return value from `messages.subscribe` also includes the `getPreviousMessages`
 method. It can be used to request
-historical messages in the chat room that were sent up to the point a that particular listener was subscribed. It returns a
+historical messages in the chat room that were sent up to the point that a particular listener was subscribed. It returns a
 paginated response that can be used to request for more messages.
 
 ```kotlin
