@@ -25,27 +25,13 @@ jobs:
       - name: Run tests and generate coverage report
         run: ./gradlew koverXmlReport
 
-      - name: Install xmllint
-        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
-
-      - name: Extract coverage from XML
-        run: |
-          # Extract missed and covered lines from the XML
-          MISSED=$(xmllint --xpath 'string(//report/counter[@type="LINE"]/@missed)' chat-android/build/reports/kover/report.xml)
-          COVERED=$(xmllint --xpath 'string(//report/counter[@type="LINE"]/@covered)' chat-android/build/reports/kover/report.xml)
-
-          # Calculate line coverage percentage
-          TOTAL=$((MISSED + COVERED))
-          LINE_COVERAGE=$(echo "scale=2; $COVERED / $TOTAL * 100" | bc)
-
-          echo "Line Coverage: ${LINE_COVERAGE}%"
-          echo "coverage=${LINE_COVERAGE}" >> $GITHUB_ENV
-
-      - name: Fail if coverage is too low
-        run: |
-          MIN_COVERAGE=80.0
-          COVERAGE=${{ env.coverage }}
-          if (( $(echo "$COVERAGE < $MIN_COVERAGE" | bc -l) )); then
-            echo "Coverage ($COVERAGE) is below the minimum threshold ($MIN_COVERAGE)."
-            exit 1
-          fi
+      - name: Add coverage report to PR
+        id: kover
+        uses: mi-kas/kover-report@v1
+        with:
+          path: |
+            ${{ github.workspace }}/chat-android/build/reports/kover/report.xml
+          title: Code Coverage
+          update-comment: true
+          min-coverage-overall: 80
+          coverage-counter-type: LINE
