@@ -4,7 +4,6 @@ package com.ably.chat
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
-import io.ably.lib.realtime.AblyRealtime
 import io.ably.lib.realtime.Channel
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.CoroutineScope
@@ -73,11 +72,8 @@ data class OccupancyEvent(
 )
 
 internal class DefaultOccupancy(
-    realtimeChannels: AblyRealtime.Channels,
-    private val chatApi: ChatApi,
-    private val roomId: String,
-    private val logger: Logger,
-) : Occupancy, ContributesToRoomLifecycleImpl(logger) {
+    private val room: DefaultRoom,
+) : Occupancy, ContributesToRoomLifecycleImpl(room.roomLogger) {
 
     override val featureName: String = "occupancy"
 
@@ -85,8 +81,12 @@ internal class DefaultOccupancy(
 
     override val detachmentErrorCode: ErrorCode = ErrorCode.OccupancyDetachmentFailed
 
+    private val realtimeChannels = room.realtimeClient.channels
+
+    private val logger = room.roomLogger.withContext(tag = "Occupancy")
+
     // (CHA-O1)
-    private val messagesChannelName = "$roomId::\$chat::\$chatMessages"
+    private val messagesChannelName = "${room.roomId}::\$chat::\$chatMessages"
 
     override val channel: Channel = realtimeChannels.get(
         messagesChannelName,
@@ -142,7 +142,7 @@ internal class DefaultOccupancy(
     // (CHA-O3)
     override suspend fun get(): OccupancyEvent {
         logger.trace("Occupancy.get()")
-        return chatApi.getOccupancy(roomId)
+        return room.chatApi.getOccupancy(room.roomId)
     }
 
     override fun release() {

@@ -1,13 +1,12 @@
 package com.ably.chat
 
+import com.ably.chat.room.createMockChannel
+import com.ably.chat.room.createMockChatApi
+import com.ably.chat.room.createMockRealtimeClient
+import com.ably.chat.room.createMockRoom
 import com.google.gson.JsonObject
-import io.ably.lib.realtime.AblyRealtime.Channels
-import io.ably.lib.realtime.Channel
-import io.ably.lib.realtime.buildRealtimeChannel
 import io.mockk.every
-import io.mockk.mockk
 import io.mockk.slot
-import io.mockk.spyk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -16,24 +15,20 @@ import org.junit.Test
 
 class OccupancyTest {
 
-    private val realtimeClient = mockk<RealtimeClient>(relaxed = true)
-    private val realtimeChannels = mockk<Channels>(relaxed = true)
-    private val realtimeChannel = spyk<Channel>(buildRealtimeChannel())
-    private val chatApi = spyk(ChatApi(realtimeClient, "clientId", EmptyLogger(LogContext(tag = "TEST"))))
     private lateinit var occupancy: Occupancy
     private val pubSubMessageListenerSlot = slot<PubSubMessageListener>()
+    private val realtimeClient = createMockRealtimeClient()
 
     @Before
     fun setUp() {
-        every { realtimeChannels.get(any(), any()) } returns realtimeChannel
-        every { realtimeChannel.subscribe(capture(pubSubMessageListenerSlot)) } returns Unit
+        val mockRealtimeChannel = realtimeClient.createMockChannel()
+        every { mockRealtimeChannel.subscribe(capture(pubSubMessageListenerSlot)) } returns Unit
 
-        occupancy = DefaultOccupancy(
-            roomId = "room1",
-            realtimeChannels = realtimeChannels,
-            chatApi = chatApi,
-            logger = EmptyLogger(LogContext(tag = "TEST")),
-        )
+        every { realtimeClient.channels.get(any(), any()) } returns mockRealtimeChannel
+
+        val mockChatApi = createMockChatApi(realtimeClient)
+        val room = createMockRoom("room1", realtimeClient = realtimeClient, chatApi = mockChatApi)
+        occupancy = DefaultOccupancy(room)
     }
 
     /**

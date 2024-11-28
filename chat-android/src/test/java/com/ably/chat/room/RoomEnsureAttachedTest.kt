@@ -4,6 +4,7 @@ import com.ably.chat.ChatApi
 import com.ably.chat.DefaultRoom
 import com.ably.chat.DefaultRoomLifecycle
 import com.ably.chat.ErrorCode
+import com.ably.chat.HttpStatusCode
 import com.ably.chat.RoomLifecycle
 import com.ably.chat.RoomOptions
 import com.ably.chat.RoomStatus
@@ -72,7 +73,8 @@ class RoomEnsureAttachedTest {
             Assert.assertTrue(result.isFailure)
             val exception = result.exceptionOrNull() as AblyException
             Assert.assertEquals(ErrorCode.RoomInInvalidState.code, exception.errorInfo.code)
-            val errMsg = "Can't perform operation, room is in an invalid state: $invalidStatus"
+            Assert.assertEquals(HttpStatusCode.BadRequest, exception.errorInfo.statusCode)
+            val errMsg = "Can't perform operation; the room '$roomId' is in an invalid state: $invalidStatus"
             Assert.assertEquals(errMsg, exception.errorInfo.message)
         }
     }
@@ -160,7 +162,8 @@ class RoomEnsureAttachedTest {
             Assert.assertTrue(result.isFailure)
             val exception = result.exceptionOrNull() as AblyException
             Assert.assertEquals(ErrorCode.RoomInInvalidState.code, exception.errorInfo.code)
-            val errMsg = "Can't perform operation, room is in an invalid state: $invalidStatus"
+            Assert.assertEquals(HttpStatusCode.InternalServerError, exception.errorInfo.statusCode)
+            val errMsg = "Can't perform operation; the room '$roomId' is in an invalid state: $invalidStatus"
             Assert.assertEquals(errMsg, exception.errorInfo.message)
 
             Assert.assertEquals(0, room.StatusLifecycle.InternalEmitter.Filters.size) // Emitted event processed

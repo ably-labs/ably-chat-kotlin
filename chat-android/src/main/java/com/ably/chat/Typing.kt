@@ -91,19 +91,17 @@ interface Typing : EmitsDiscontinuities {
 data class TypingEvent(val currentlyTyping: Set<String>)
 
 internal class DefaultTyping(
-    roomId: String,
-    private val realtimeClient: RealtimeClient,
-    private val clientId: String,
-    private val options: TypingOptions?,
-    private val logger: Logger,
-) : Typing, ContributesToRoomLifecycleImpl(logger) {
-    private val typingIndicatorsChannelName = "$roomId::\$chat::\$typingIndicators"
+    private val room: DefaultRoom,
+) : Typing, ContributesToRoomLifecycleImpl(room.roomLogger) {
+    private val typingIndicatorsChannelName = "${room.roomId}::\$chat::\$typingIndicators"
 
     override val featureName = "typing"
 
     override val attachmentErrorCode: ErrorCode = ErrorCode.TypingAttachmentFailed
 
     override val detachmentErrorCode: ErrorCode = ErrorCode.TypingDetachmentFailed
+
+    private val logger = room.roomLogger.withContext(tag = "Typing")
 
     private val typingScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1) + SupervisorJob())
 
@@ -112,7 +110,7 @@ internal class DefaultTyping(
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 
-    override val channel: Channel = realtimeClient.channels.get(typingIndicatorsChannelName, ChatChannelOptions())
+    override val channel: Channel = room.realtimeClient.channels.get(typingIndicatorsChannelName, ChatChannelOptions())
 
     private var typingJob: Job? = null
 
@@ -155,6 +153,7 @@ internal class DefaultTyping(
 
     override suspend fun get(): Set<String> {
         logger.trace("DefaultTyping.get()")
+        room.ensureAttached() // CHA-T2c, CHA-T2g
         return channel.presence.getCoroutine().map { it.clientId }.toSet()
     }
 
@@ -169,7 +168,8 @@ internal class DefaultTyping(
                 startTypingTimer()
             } else {
                 startTypingTimer()
-                channel.presence.enterClientCoroutine(clientId)
+                room.ensureAttached()
+                channel.presence.enterClientCoroutine(room.clientId)
             }
         }.join()
     }
@@ -178,18 +178,19 @@ internal class DefaultTyping(
         logger.trace("DefaultTyping.stop()")
         typingScope.launch {
             typingJob?.cancel()
-            channel.presence.leaveClientCoroutine(clientId)
+            room.ensureAttached()
+            channel.presence.leaveClientCoroutine(room.clientId)
         }.join()
     }
 
     override fun release() {
         presenceSubscription.unsubscribe()
         typingScope.cancel()
-        realtimeClient.channels.release(channel.name)
+        room.realtimeClient.channels.release(channel.name)
     }
 
     private fun startTypingTimer() {
-        val timeout = options?.timeoutMs ?: throw AblyException.fromErrorInfo(
+        val timeout = room.options.typing?.timeoutMs ?: throw AblyException.fromErrorInfo(
             ErrorInfo(
                 "Typing options hasn't been initialized",
                 ErrorCode.BadRequest.code,

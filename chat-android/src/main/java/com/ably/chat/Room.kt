@@ -112,12 +112,12 @@ interface Room {
 internal class DefaultRoom(
     override val roomId: String,
     override val options: RoomOptions,
-    private val realtimeClient: RealtimeClient,
-    chatApi: ChatApi,
-    clientId: String,
+    internal val realtimeClient: RealtimeClient,
+    internal val chatApi: ChatApi,
+    internal val clientId: String,
     logger: Logger,
 ) : Room {
-    private val roomLogger = logger.withContext("Room", mapOf("roomId" to roomId))
+    internal val roomLogger = logger.withContext("Room", mapOf("roomId" to roomId))
 
     /**
      * RoomScope is a crucial part of the Room lifecycle. It manages sequential and atomic operations.
@@ -186,46 +186,25 @@ internal class DefaultRoom(
         val roomFeatures = mutableListOf<ContributesToRoomLifecycle>(messages)
 
         options.presence?.let {
-            val presenceContributor = DefaultPresence(
-                clientId = clientId,
-                channel = messages.channel,
-                presence = messages.channel.presence,
-                logger = roomLogger.withContext(tag = "Presence"),
-            )
+            val presenceContributor = DefaultPresence(room = this)
             roomFeatures.add(presenceContributor)
             _presence = presenceContributor
         }
 
         options.typing?.let {
-            val typingContributor = DefaultTyping(
-                roomId = roomId,
-                realtimeClient = realtimeClient,
-                clientId = clientId,
-                options = options.typing,
-                logger = roomLogger.withContext(tag = "Typing"),
-            )
+            val typingContributor = DefaultTyping(room = this)
             roomFeatures.add(typingContributor)
             _typing = typingContributor
         }
 
         options.reactions?.let {
-            val reactionsContributor = DefaultRoomReactions(
-                roomId = roomId,
-                clientId = clientId,
-                realtimeChannels = realtimeClient.channels,
-                logger = roomLogger.withContext(tag = "Reactions"),
-            )
+            val reactionsContributor = DefaultRoomReactions(room = this)
             roomFeatures.add(reactionsContributor)
             _reactions = reactionsContributor
         }
 
         options.occupancy?.let {
-            val occupancyContributor = DefaultOccupancy(
-                roomId = roomId,
-                realtimeChannels = realtimeClient.channels,
-                chatApi = chatApi,
-                logger = roomLogger.withContext(tag = "Occupancy"),
-            )
+            val occupancyContributor = DefaultOccupancy(room = this)
             roomFeatures.add(occupancyContributor)
             _occupancy = occupancyContributor
         }
@@ -256,11 +235,17 @@ internal class DefaultRoom(
         lifecycleManager.release()
     }
 
+    /**
+     * Ensures that the room is attached before performing any realtime room operation.
+     * @throws roomInvalidStateException if room is not in ATTACHING/ATTACHED state.
+     * Spec: CHA-RL9
+     */
     internal suspend fun ensureAttached() {
+        // CHA-PR3d, CHA-PR10d, CHA-PR6c, CHA-PR6c
         if (statusLifecycle.status == RoomStatus.Attached) {
             return
         }
-        if (statusLifecycle.status == RoomStatus.Attaching) {
+        if (statusLifecycle.status == RoomStatus.Attaching) { // CHA-RL9
             val attachDeferred = CompletableDeferred<Unit>()
             roomScope.launch {
                 when (statusLifecycle.status) {
@@ -269,15 +254,20 @@ internal class DefaultRoom(
                         if (it.current == RoomStatus.Attached) {
                             attachDeferred.complete(Unit)
                         } else {
-                            attachDeferred.completeExceptionally(roomInvalidStateException(statusLifecycle.status))
+                            val exception = roomInvalidStateException(roomId, statusLifecycle.status, HttpStatusCode.InternalServerError)
+                            attachDeferred.completeExceptionally(exception)
                         }
                     }
-                    else -> attachDeferred.completeExceptionally(roomInvalidStateException(statusLifecycle.status))
+                    else -> {
+                        val exception = roomInvalidStateException(roomId, statusLifecycle.status, HttpStatusCode.InternalServerError)
+                        attachDeferred.completeExceptionally(exception)
+                    }
                 }
             }
             attachDeferred.await()
             return
         }
-        throw roomInvalidStateException(statusLifecycle.status)
+        // CHA-PR3h, CHA-PR10h, CHA-PR6h, CHA-T2g
+        throw roomInvalidStateException(roomId, statusLifecycle.status, HttpStatusCode.BadRequest)
     }
 }

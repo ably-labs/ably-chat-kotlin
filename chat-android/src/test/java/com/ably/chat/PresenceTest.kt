@@ -1,16 +1,16 @@
 package com.ably.chat
 
-import com.ably.chat.room.createMockLogger
+import com.ably.chat.room.createMockChannel
+import com.ably.chat.room.createMockRealtimeClient
+import com.ably.chat.room.createMockRoom
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
-import io.ably.lib.realtime.Channel
 import io.ably.lib.realtime.Presence.PresenceListener
-import io.ably.lib.realtime.buildRealtimeChannel
+import io.ably.lib.types.ChannelOptions
 import io.ably.lib.types.PresenceMessage
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
-import io.mockk.spyk
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -18,19 +18,19 @@ import org.junit.Test
 import io.ably.lib.realtime.Presence as PubSubPresence
 
 class PresenceTest {
-    private val pubSubChannel = spyk<Channel>(buildRealtimeChannel("room1::\$chat::\$messages"))
+
     private val pubSubPresence = mockk<PubSubPresence>(relaxed = true)
     private lateinit var presence: DefaultPresence
-    private val logger = createMockLogger()
 
     @Before
     fun setUp() {
-        presence = DefaultPresence(
-            clientId = "client1",
-            channel = pubSubChannel,
-            presence = pubSubPresence,
-            logger,
-        )
+        val realtimeClient = createMockRealtimeClient()
+        val mockRealtimeChannel = realtimeClient.createMockChannel("room1::\$chat::\$messages")
+        mockRealtimeChannel.setPrivateField("presence", pubSubPresence)
+
+        every { realtimeClient.channels.get(any<String>(), any<ChannelOptions>()) } returns mockRealtimeChannel
+
+        presence = DefaultPresence(createMockRoom(realtimeClient = realtimeClient))
     }
 
     /**

@@ -6,7 +6,6 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import io.ably.lib.realtime.Channel
 import io.ably.lib.types.PresenceMessage
-import io.ably.lib.realtime.Presence as PubSubPresence
 import io.ably.lib.realtime.Presence.PresenceListener as PubSubPresenceListener
 
 typealias PresenceData = JsonElement
@@ -134,11 +133,8 @@ data class PresenceEvent(
 )
 
 internal class DefaultPresence(
-    private val clientId: String,
-    override val channel: Channel,
-    private val presence: PubSubPresence,
-    private val logger: Logger,
-) : Presence, ContributesToRoomLifecycleImpl(logger) {
+    private val room: DefaultRoom,
+) : Presence, ContributesToRoomLifecycleImpl(room.roomLogger) {
 
     override val featureName = "presence"
 
@@ -146,7 +142,14 @@ internal class DefaultPresence(
 
     override val detachmentErrorCode: ErrorCode = ErrorCode.PresenceDetachmentFailed
 
+    override val channel: Channel = room.messages.channel
+
+    private val logger = room.roomLogger.withContext(tag = "Presence")
+
+    private val presence = channel.presence
+
     override suspend fun get(waitForSync: Boolean, clientId: String?, connectionId: String?): List<PresenceMember> {
+        room.ensureAttached() // CHA-PR6c, CHA-PR6h
         return presence.getCoroutine(waitForSync, clientId, connectionId).map { user ->
             PresenceMember(
                 clientId = user.clientId,
@@ -160,15 +163,18 @@ internal class DefaultPresence(
     override suspend fun isUserPresent(clientId: String): Boolean = presence.getCoroutine(clientId = clientId).isNotEmpty()
 
     override suspend fun enter(data: PresenceData?) {
-        presence.enterClientCoroutine(clientId, wrapInUserCustomData(data))
+        room.ensureAttached() // CHA-PR3d, CHA-PR3h
+        presence.enterClientCoroutine(room.clientId, wrapInUserCustomData(data))
     }
 
     override suspend fun update(data: PresenceData?) {
-        presence.updateClientCoroutine(clientId, wrapInUserCustomData(data))
+        room.ensureAttached() // CHA-PR10d, CHA-PR10h
+        presence.updateClientCoroutine(room.clientId, wrapInUserCustomData(data))
     }
 
     override suspend fun leave(data: PresenceData?) {
-        presence.leaveClientCoroutine(clientId, wrapInUserCustomData(data))
+        room.ensureAttached()
+        presence.leaveClientCoroutine(room.clientId, wrapInUserCustomData(data))
     }
 
     override fun subscribe(listener: Presence.Listener): Subscription {
