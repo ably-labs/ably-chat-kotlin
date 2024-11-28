@@ -15,7 +15,6 @@ import io.ably.lib.types.PresenceMessage
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -23,7 +22,7 @@ import io.ably.lib.realtime.Presence as PubSubPresence
 
 const val AGENT_PARAMETER_NAME = "agent"
 
-suspend fun Channel.attachCoroutine() = suspendCoroutine { continuation ->
+suspend fun Channel.attachCoroutine() = suspendCancellableCoroutine { continuation ->
     attach(object : CompletionListener {
         override fun onSuccess() {
             continuation.resume(Unit)
@@ -35,7 +34,7 @@ suspend fun Channel.attachCoroutine() = suspendCoroutine { continuation ->
     })
 }
 
-suspend fun Channel.detachCoroutine() = suspendCoroutine { continuation ->
+suspend fun Channel.detachCoroutine() = suspendCancellableCoroutine { continuation ->
     detach(object : CompletionListener {
         override fun onSuccess() {
             continuation.resume(Unit)
@@ -47,7 +46,7 @@ suspend fun Channel.detachCoroutine() = suspendCoroutine { continuation ->
     })
 }
 
-suspend fun Channel.publishCoroutine(message: PubSubMessage) = suspendCoroutine { continuation ->
+suspend fun Channel.publishCoroutine(message: PubSubMessage) = suspendCancellableCoroutine { continuation ->
     publish(
         message,
         object : CompletionListener {
@@ -192,7 +191,7 @@ internal class DeferredValue<T> {
      * @return completed value
      */
     suspend fun await(): T {
-        val result = suspendCoroutine { continuation ->
+        val result = suspendCancellableCoroutine { continuation ->
             synchronized(lock) {
                 if (_completed) continuation.resume(value!!)
                 val observer: (T) -> Unit = {

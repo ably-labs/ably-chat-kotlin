@@ -6,7 +6,7 @@ import io.ably.lib.types.AsyncHttpPaginatedResponse
 import io.ably.lib.types.ErrorInfo
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
  * Represents the result of a paginated query.
@@ -49,7 +49,7 @@ private class AsyncPaginatedResultWrapper<T>(
 ) : PaginatedResult<T> {
     override val items: List<T> = asyncPaginatedResult.items()?.map(transform) ?: emptyList()
 
-    override suspend fun next(): PaginatedResult<T> = suspendCoroutine { continuation ->
+    override suspend fun next(): PaginatedResult<T> = suspendCancellableCoroutine { continuation ->
         asyncPaginatedResult.next(object : AsyncHttpPaginatedResponse.Callback {
             override fun onResponse(response: AsyncHttpPaginatedResponse?) {
                 continuation.resume(response.toPaginatedResult(transform))
