@@ -3,7 +3,6 @@
 package com.ably.chat
 
 import com.google.gson.JsonObject
-import io.ably.lib.realtime.AblyRealtime
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.ErrorInfo
 import io.ably.lib.types.MessageExtras
@@ -104,21 +103,20 @@ data class SendReactionParams(
 )
 
 internal class DefaultRoomReactions(
-    roomId: String,
-    private val clientId: String,
-    private val realtimeChannels: AblyRealtime.Channels,
-    private val logger: Logger,
-) : RoomReactions, ContributesToRoomLifecycleImpl(logger) {
+    private val room: DefaultRoom,
+) : RoomReactions, ContributesToRoomLifecycleImpl(room.roomLogger) {
 
     override val featureName = "reactions"
 
-    private val roomReactionsChannelName = "$roomId::\$chat::\$reactions"
+    private val roomReactionsChannelName = "${room.roomId}::\$chat::\$reactions"
 
-    override val channel: AblyRealtimeChannel = realtimeChannels.get(roomReactionsChannelName, ChatChannelOptions())
+    override val channel: AblyRealtimeChannel = room.realtimeClient.channels.get(roomReactionsChannelName, ChatChannelOptions())
 
     override val attachmentErrorCode: ErrorCode = ErrorCode.ReactionsAttachmentFailed
 
     override val detachmentErrorCode: ErrorCode = ErrorCode.ReactionsDetachmentFailed
+
+    private val logger = room.roomLogger.withContext(tag = "Reactions")
 
     // (CHA-ER3) Ephemeral room reactions are sent to Ably via the Realtime connection via a send method.
     // (CHA-ER3a) Reactions are sent on the channel using a message in a particular format - see spec for format.
@@ -137,6 +135,7 @@ internal class DefaultRoomReactions(
                 )
             }
         }
+        room.ensureAttached() // TODO - This check might be removed in the future due to core spec change
         channel.publishCoroutine(pubSubMessage)
     }
 
@@ -154,7 +153,7 @@ internal class DefaultRoomReactions(
                 clientId = pubSubMessage.clientId,
                 metadata = data.get("metadata")?.toMap() ?: mapOf(),
                 headers = pubSubMessage.extras?.asJsonObject()?.get("headers")?.toMap() ?: mapOf(),
-                isSelf = pubSubMessage.clientId == clientId,
+                isSelf = pubSubMessage.clientId == room.clientId,
             )
             listener.onReaction(reaction)
         }
@@ -163,6 +162,6 @@ internal class DefaultRoomReactions(
     }
 
     override fun release() {
-        realtimeChannels.release(channel.name)
+        room.realtimeClient.channels.release(channel.name)
     }
 }
