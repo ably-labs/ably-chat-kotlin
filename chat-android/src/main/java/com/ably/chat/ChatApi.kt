@@ -8,7 +8,7 @@ import io.ably.lib.types.ErrorInfo
 import io.ably.lib.types.Param
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 private const val API_PROTOCOL_VERSION = 3
 private const val PROTOCOL_VERSION_PARAM_NAME = "v"
@@ -124,7 +124,7 @@ internal class ChatApi(
         url: String,
         method: String,
         body: JsonElement? = null,
-    ): JsonElement? = suspendCoroutine { continuation ->
+    ): JsonElement? = suspendCancellableCoroutine { continuation ->
         val requestBody = body.toRequestBody()
         realtimeClient.requestAsync(
             method,
@@ -159,7 +159,7 @@ internal class ChatApi(
         method: String,
         params: List<Param> = listOf(),
         transform: (JsonElement) -> T,
-    ): PaginatedResult<T> = suspendCoroutine { continuation ->
+    ): PaginatedResult<T> = suspendCancellableCoroutine { continuation ->
         realtimeClient.requestAsync(
             method,
             url,
