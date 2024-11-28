@@ -69,6 +69,24 @@ class SandboxTest {
         assertEquals(OccupancyEvent(1, 0), firstOccupancyEvent.await())
     }
 
+    @Test
+    fun `should observe connection status`() = runTest {
+        val chatClient = sandbox.createSandboxChatClient()
+        val connectionStatusChange = CompletableDeferred<ConnectionStatusChange>()
+        chatClient.connection.onStatusChange {
+            if (it.current == ConnectionStatus.Connected) connectionStatusChange.complete(it)
+        }
+        assertEquals(
+            ConnectionStatusChange(
+                current = ConnectionStatus.Connected,
+                previous = ConnectionStatus.Connecting,
+                error = null,
+                retryIn = 0,
+            ),
+            connectionStatusChange.await(),
+        )
+    }
+
     companion object {
 
         private lateinit var sandbox: Sandbox

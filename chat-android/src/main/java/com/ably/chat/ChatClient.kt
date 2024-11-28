@@ -65,8 +65,10 @@ internal class DefaultChatClient(
         logger = logger,
     )
 
-    override val connection: Connection
-        get() = TODO("Not yet implemented")
+    override val connection: Connection = DefaultConnection(
+        pubSubConnection = realtime.connection,
+        logger = logger.withContext(tag = "RealtimeConnection"),
+    )
 
     override val clientId: String
         get() = realtime.auth.clientId
