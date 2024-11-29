@@ -5,6 +5,7 @@ import com.google.gson.JsonObject
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.AsyncHttpPaginatedResponse
 import io.ably.lib.types.ErrorInfo
+import io.ably.lib.types.MessageAction
 import io.ably.lib.types.Param
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -30,19 +31,25 @@ internal class ChatApi(
         val baseParams = options.toParams()
         val params = fromSerial?.let { baseParams + Param("fromSerial", it) } ?: baseParams
         return makeAuthorizedPaginatedRequest(
-            url = "/chat/v1/rooms/$roomId/messages",
+            url = "/chat/v2/rooms/$roomId/messages",
             method = "GET",
             params = params,
         ) {
-            Message(
-                timeserial = it.requireString("timeserial"),
-                clientId = it.requireString("clientId"),
-                roomId = it.requireString("roomId"),
-                text = it.requireString("text"),
-                createdAt = it.requireLong("createdAt"),
-                metadata = it.asJsonObject.get("metadata")?.toMap() ?: mapOf(),
-                headers = it.asJsonObject.get("headers")?.toMap() ?: mapOf(),
-            )
+            val latestActionName = it.requireJsonObject().get("latestAction")?.asString
+            val latestAction = latestActionName?.let { name -> messageActionNameToAction[name] }
+
+            latestAction?.let { action ->
+                Message(
+                    serial = it.requireString("serial"),
+                    clientId = it.requireString("clientId"),
+                    roomId = it.requireString("roomId"),
+                    text = it.requireString("text"),
+                    createdAt = it.requireLong("createdAt"),
+                    metadata = it.asJsonObject.get("metadata")?.toMap() ?: mapOf(),
+                    headers = it.asJsonObject.get("headers")?.toMap() ?: mapOf(),
+                    latestAction = action,
+                )
+            }
         }
     }
 
@@ -67,19 +74,20 @@ internal class ChatApi(
         }
 
         return makeAuthorizedRequest(
-            "/chat/v1/rooms/$roomId/messages",
+            "/chat/v2/rooms/$roomId/messages",
             "POST",
             body,
         )?.let {
             // (CHA-M3a)
             Message(
-                timeserial = it.requireString("timeserial"),
+                serial = it.requireString("serial"),
                 clientId = clientId,
                 roomId = roomId,
                 text = params.text,
                 createdAt = it.requireLong("createdAt"),
                 metadata = params.metadata ?: mapOf(),
                 headers = params.headers ?: mapOf(),
+                latestAction = MessageAction.MESSAGE_CREATE,
             )
         } ?: throw AblyException.fromErrorInfo(ErrorInfo("Send message endpoint returned empty value", HttpStatusCode.InternalServerError))
     }
@@ -112,7 +120,7 @@ internal class ChatApi(
      * return occupancy for specified room
      */
     suspend fun getOccupancy(roomId: String): OccupancyEvent {
-        return this.makeAuthorizedRequest("/chat/v1/rooms/$roomId/occupancy", "GET")?.let {
+        return this.makeAuthorizedRequest("/chat/v2/rooms/$roomId/occupancy", "GET")?.let {
             OccupancyEvent(
                 connections = it.requireInt("connections"),
                 presenceMembers = it.requireInt("presenceMembers"),
@@ -158,7 +166,7 @@ internal class ChatApi(
         url: String,
         method: String,
         params: List<Param> = listOf(),
-        transform: (JsonElement) -> T,
+        transform: (JsonElement) -> T?,
     ): PaginatedResult<T> = suspendCancellableCoroutine { continuation ->
         realtimeClient.requestAsync(
             method,

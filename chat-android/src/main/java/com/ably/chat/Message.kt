@@ -1,5 +1,7 @@
 package com.ably.chat
 
+import io.ably.lib.types.MessageAction
+
 /**
  * {@link Headers} type for chat messages.
  */
@@ -17,7 +19,7 @@ data class Message(
     /**
      * The unique identifier of the message.
      */
-    val timeserial: String,
+    val serial: String,
 
     /**
      * The clientId of the user who created the message.
@@ -67,22 +69,9 @@ data class Message(
      * validation. When reading the headers treat them like user input.
      */
     val headers: MessageHeaders,
+
+    /**
+     * The latest action of the message. This can be used to determine if the message was created, updated, or deleted.
+     */
+    val latestAction: MessageAction,
 )
-
-/**
- * (CHA-M2a)
- * @return true if the timeserial of the corresponding realtime channel message comes first.
- */
-fun Message.isBefore(other: Message): Boolean = Timeserial.parse(timeserial) < Timeserial.parse(other.timeserial)
-
-/**
- * (CHA-M2b)
- * @return true if the timeserial of the corresponding realtime channel message comes second.
- */
-fun Message.isAfter(other: Message): Boolean = Timeserial.parse(timeserial) > Timeserial.parse(other.timeserial)
-
-/**
- * (CHA-M2c)
- * @return true if they have the same timeserial.
- */
-fun Message.isAtTheSameTime(other: Message): Boolean = Timeserial.parse(timeserial) == Timeserial.parse(other.timeserial)

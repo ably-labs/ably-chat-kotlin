@@ -2,6 +2,7 @@ package com.ably.chat
 
 import com.google.gson.JsonObject
 import io.ably.lib.types.AblyException
+import io.ably.lib.types.MessageAction
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -26,11 +27,12 @@ class ChatApiTest {
             listOf(
                 JsonObject().apply {
                     addProperty("foo", "bar")
-                    addProperty("timeserial", "timeserial")
+                    addProperty("serial", "timeserial")
                     addProperty("roomId", "roomId")
                     addProperty("clientId", "clientId")
                     addProperty("text", "hello")
                     addProperty("createdAt", 1_000_000)
+                    addProperty("latestAction", "message.create")
                 },
             ),
         )
@@ -40,13 +42,14 @@ class ChatApiTest {
         assertEquals(
             listOf(
                 Message(
-                    timeserial = "timeserial",
+                    serial = "timeserial",
                     roomId = "roomId",
                     clientId = "clientId",
                     text = "hello",
                     createdAt = 1_000_000L,
                     metadata = mapOf(),
                     headers = mapOf(),
+                    latestAction = MessageAction.MESSAGE_CREATE,
                 ),
             ),
             messages.items,
@@ -63,6 +66,7 @@ class ChatApiTest {
             listOf(
                 JsonObject().apply {
                     addProperty("foo", "bar")
+                    addProperty("latestAction", "message.create")
                 },
             ),
         )
@@ -83,7 +87,7 @@ class ChatApiTest {
             realtime,
             JsonObject().apply {
                 addProperty("foo", "bar")
-                addProperty("timeserial", "timeserial")
+                addProperty("serial", "timeserial")
                 addProperty("createdAt", 1_000_000)
             },
         )
@@ -92,13 +96,14 @@ class ChatApiTest {
 
         assertEquals(
             Message(
-                timeserial = "timeserial",
+                serial = "timeserial",
                 roomId = "roomId",
                 clientId = "clientId",
                 text = "hello",
                 createdAt = 1_000_000L,
                 headers = mapOf(),
                 metadata = mapOf(),
+                latestAction = MessageAction.MESSAGE_CREATE,
             ),
             message,
         )
@@ -108,7 +113,7 @@ class ChatApiTest {
      * @nospec
      */
     @Test
-    fun `sendMessage should throw exception if 'timeserial' field is not presented`() = runTest {
+    fun `sendMessage should throw exception if 'serial' field is not presented`() = runTest {
         mockSendMessageApiResponse(
             realtime,
             JsonObject().apply {

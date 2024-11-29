@@ -3,7 +3,7 @@
 
 [versions]
 ably-chat = "0.0.1"
-ably = "1.2.45"
+ably = "1.2.46"
 desugar-jdk-libs = "2.1.2"
 junit = "4.13.2"
 agp = "8.5.2"

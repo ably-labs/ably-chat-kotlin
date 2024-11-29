@@ -31,7 +31,7 @@ interface PaginatedResult<T> {
     fun hasNext(): Boolean
 }
 
-fun <T> AsyncHttpPaginatedResponse?.toPaginatedResult(transform: (JsonElement) -> T): PaginatedResult<T> =
+fun <T> AsyncHttpPaginatedResponse?.toPaginatedResult(transform: (JsonElement) -> T?): PaginatedResult<T> =
     this?.let { AsyncPaginatedResultWrapper(it, transform) } ?: EmptyPaginatedResult()
 
 private class EmptyPaginatedResult<T> : PaginatedResult<T> {
@@ -45,9 +45,9 @@ private class EmptyPaginatedResult<T> : PaginatedResult<T> {
 
 private class AsyncPaginatedResultWrapper<T>(
     val asyncPaginatedResult: AsyncHttpPaginatedResponse,
-    val transform: (JsonElement) -> T,
+    val transform: (JsonElement) -> T?,
 ) : PaginatedResult<T> {
-    override val items: List<T> = asyncPaginatedResult.items()?.map(transform) ?: emptyList()
+    override val items: List<T> = asyncPaginatedResult.items()?.mapNotNull(transform) ?: emptyList()
 
     override suspend fun next(): PaginatedResult<T> = suspendCancellableCoroutine { continuation ->
         asyncPaginatedResult.next(object : AsyncHttpPaginatedResponse.Callback {
