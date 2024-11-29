@@ -1,3 +1,6 @@
+import com.vanniktech.maven.publish.MavenPublishBaseExtension
+import com.vanniktech.maven.publish.SonatypeHost
+
 plugins {
     alias(libs.plugins.detekt)
     alias(libs.plugins.android.library) apply false
@@ -5,6 +8,7 @@ plugins {
     alias(libs.plugins.android.kotlin) apply false
     alias(libs.plugins.compose.compiler) apply false
     alias(libs.plugins.build.config) apply false
+    alias(libs.plugins.maven.publish) apply false
 }
 
 dependencies {
@@ -42,4 +46,13 @@ tasks.detekt.configure {
 
 tasks.register("check") {
     // register check task for the root project so our detekt task will run on `gradlew check`
+}
+
+configure(subprojects) {
+    pluginManager.withPlugin("com.vanniktech.maven.publish") {
+        extensions.configure<MavenPublishBaseExtension> {
+            publishToMavenCentral(SonatypeHost.S01)
+            signAllPublications()
+        }
+    }
 }
