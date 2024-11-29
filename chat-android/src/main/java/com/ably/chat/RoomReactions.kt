@@ -11,30 +11,32 @@ import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 /**
  * This interface is used to interact with room-level reactions in a chat room: subscribing to reactions and sending them.
  *
- * Get an instance via {@link Room.reactions}.
+ * Get an instance via [Room.reactions].
  */
 interface RoomReactions : EmitsDiscontinuities {
     /**
      * Returns an instance of the Ably realtime channel used for room-level reactions.
      * Avoid using this directly unless special features that cannot otherwise be implemented are needed.
      *
-     * @returns The Ably realtime channel instance.
+     * @return The Ably realtime channel instance.
      */
     val channel: AblyRealtimeChannel
 
     /**
-     * Send a reaction to the room including some metadata.
+     * Sends a reaction to the specified room along with optional metadata.
      *
-     * This method accepts parameters for a room-level reaction. It accepts an object
+     * This method allows you to send a reaction at the room level.
+     * It accepts parameters for defining the type of reaction, metadata, and additional headers.
      *
+     * @param type The type of the reaction. See [SendReactionParams.type].
+     * @param metadata Optional metadata to include with the reaction. Defaults to `null`. See [SendReactionParams.metadata]
+     * @param headers Additional headers to include with the reaction. Defaults to an empty map. See [SendReactionParams.headers]
      *
-     * @param params an object containing {type, headers, metadata} for the room
-     * reaction to be sent. Type is required, metadata and headers are optional.
-     * @returns The returned promise resolves when the reaction was sent. Note
-     * that it is possible to receive your own reaction via the reactions
-     * listener before this promise resolves.
+     * @return Unit when the reaction has been successfully sent. Note that it is
+     * possible to receive your own reaction via the reactions listener before
+     * this method completes.
      */
-    suspend fun send(params: SendReactionParams)
+    suspend fun send(type: String, metadata: ReactionMetadata? = null, headers: ReactionHeaders? = null)
 
     /**
      * Subscribe to receive room-level reactions.
@@ -120,14 +122,14 @@ internal class DefaultRoomReactions(
 
     // (CHA-ER3) Ephemeral room reactions are sent to Ably via the Realtime connection via a send method.
     // (CHA-ER3a) Reactions are sent on the channel using a message in a particular format - see spec for format.
-    override suspend fun send(params: SendReactionParams) {
+    override suspend fun send(type: String, metadata: ReactionMetadata?, headers: ReactionHeaders?) {
         val pubSubMessage = PubSubMessage().apply {
             name = RoomReactionEventType.Reaction.eventName
             data = JsonObject().apply {
-                addProperty("type", params.type)
-                params.metadata?.let { add("metadata", it.toJson()) }
+                addProperty("type", type)
+                metadata?.let { add("metadata", it) }
             }
-            params.headers?.let {
+            headers?.let {
                 extras = MessageExtras(
                     JsonObject().apply {
                         add("headers", it.toJson())
@@ -151,7 +153,7 @@ internal class DefaultRoomReactions(
                 type = data.requireString("type"),
                 createdAt = pubSubMessage.timestamp,
                 clientId = pubSubMessage.clientId,
-                metadata = data.get("metadata")?.toMap() ?: mapOf(),
+                metadata = data.get("metadata"),
                 headers = pubSubMessage.extras?.asJsonObject()?.get("headers")?.toMap() ?: mapOf(),
                 isSelf = pubSubMessage.clientId == room.clientId,
             )

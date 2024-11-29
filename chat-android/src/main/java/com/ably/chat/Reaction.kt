@@ -22,7 +22,7 @@ data class Reaction(
     /**
      * Metadata of the reaction. If no metadata was set this is an empty object.
      */
-    val metadata: ReactionMetadata = mapOf(),
+    val metadata: ReactionMetadata?,
 
     /**
      * Headers of the reaction. If no headers were set this is an empty object.

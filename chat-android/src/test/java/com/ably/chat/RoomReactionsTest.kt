@@ -94,7 +94,7 @@ class RoomReactionsTest {
                 type = "like",
                 createdAt = 1000L,
                 clientId = "clientId",
-                metadata = mapOf(),
+                metadata = null,
                 headers = mapOf("foo" to "bar"),
                 isSelf = false,
             ),

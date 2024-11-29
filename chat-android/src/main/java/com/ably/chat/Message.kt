@@ -53,7 +53,7 @@ data class Message(
      * Do not use metadata for authoritative information. There is no server-side
      * validation. When reading the metadata treat it like user input.
      */
-    val metadata: MessageMetadata,
+    val metadata: MessageMetadata?,
 
     /**
      * The headers of a chat message. Headers enable attaching extra info to a message,

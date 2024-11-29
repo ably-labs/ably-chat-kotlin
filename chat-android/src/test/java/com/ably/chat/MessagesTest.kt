@@ -67,11 +67,9 @@ class MessagesTest {
         )
 
         val sentMessage = messages.send(
-            SendMessageParams(
-                text = "lala",
-                headers = mapOf("foo" to "bar"),
-                metadata = mapOf("meta" to "data"),
-            ),
+            text = "lala",
+            headers = mapOf("foo" to "bar"),
+            metadata = JsonObject().apply { addProperty("meta", "data") },
         )
 
         assertEquals(
@@ -81,7 +79,7 @@ class MessagesTest {
                 roomId = "room1",
                 text = "lala",
                 createdAt = 1_000_000,
-                metadata = mapOf("meta" to "data"),
+                metadata = JsonObject().apply { addProperty("meta", "data") },
                 headers = mapOf("foo" to "bar"),
                 latestAction = MessageAction.MESSAGE_CREATE,
             ),
@@ -141,7 +139,7 @@ class MessagesTest {
                 clientId = "clientId",
                 serial = "abcdefghij@1672531200000-123",
                 text = "some text",
-                metadata = mapOf(),
+                metadata = null,
                 headers = mapOf("foo" to "bar"),
                 latestAction = MessageAction.MESSAGE_CREATE,
             ),
@@ -234,10 +232,8 @@ class MessagesTest {
         val exception = assertThrows(AblyException::class.java) {
             runBlocking {
                 messages.send(
-                    SendMessageParams(
-                        text = "lala",
-                        headers = mapOf("ably-chat-foo" to "bar"),
-                    ),
+                    text = "lala",
+                    headers = mapOf("ably-chat-foo" to "bar"),
                 )
             }
         }
@@ -252,10 +248,8 @@ class MessagesTest {
         val exception = assertThrows(AblyException::class.java) {
             runBlocking {
                 messages.send(
-                    SendMessageParams(
-                        text = "lala",
-                        metadata = mapOf("ably-chat" to "data"),
-                    ),
+                    text = "lala",
+                    metadata = mapOf("ably-chat" to "data").toJson(),
                 )
             }
         }

@@ -290,7 +290,7 @@ To stop listening to discontinuities, `unsubscribe` method on returned subscript
 To send a message, simply call `send` on the `room.messages` property, with the message you want to send.
 
 ```kotlin
-val message = room.messages.send(SendMessageParams(text = "text"))
+val message = room.messages.send(text = "text")
 ```
 
 ### Unsubscribing from incoming messages
@@ -312,7 +312,7 @@ The messages object also exposes the `get` method which can be used to request h
 to the given criteria. It returns a paginated response that can be used to request more messages.
 
 ```kotlin
-var historicalMessages = room.messages.get(QueryParams(orderBy = NewestFirst, limit = 50))
+var historicalMessages = room.messages.get(orderBy = NewestFirst, limit = 50)
 println(historicalMessages.items.toString())
 
 while (historicalMessages.hasNext()) {
@@ -551,17 +551,17 @@ To send room-level reactions, you must be [attached](#attaching-to-a-room) to th
 To send a reaction such as `"like"`:
 
 ```kotlin
-room.reactions.send(SendReactionParams(type = "like"))
+room.reactions.send(type = "like")
 ```
 
 You can also add any metadata and headers to reactions:
 
 ```kotlin
-room.reactions.send(SendReactionParams(
+room.reactions.send(
     type ="like",
     metadata = mapOf("effect" to "fireworks"),
     headers = mapOf("streamId" to "basketball-stream"),
-))
+)
 ```
 
 ### Subscribing to room reactions

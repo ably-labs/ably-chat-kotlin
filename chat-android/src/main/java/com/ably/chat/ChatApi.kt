@@ -45,7 +45,7 @@ internal class ChatApi(
                     roomId = it.requireString("roomId"),
                     text = it.requireString("text"),
                     createdAt = it.requireLong("createdAt"),
-                    metadata = it.asJsonObject.get("metadata")?.toMap() ?: mapOf(),
+                    metadata = it.asJsonObject.get("metadata"),
                     headers = it.asJsonObject.get("headers")?.toMap() ?: mapOf(),
                     latestAction = action,
                 )
@@ -69,7 +69,7 @@ internal class ChatApi(
             }
             // (CHA-M3b)
             params.metadata?.let {
-                add("metadata", it.toJson())
+                add("metadata", it)
             }
         }
 
@@ -85,7 +85,7 @@ internal class ChatApi(
                 roomId = roomId,
                 text = params.text,
                 createdAt = it.requireLong("createdAt"),
-                metadata = params.metadata ?: mapOf(),
+                metadata = params.metadata,
                 headers = params.headers ?: mapOf(),
                 latestAction = MessageAction.MESSAGE_CREATE,
             )
@@ -94,7 +94,7 @@ internal class ChatApi(
 
     private fun validateSendMessageParams(params: SendMessageParams) {
         // (CHA-M3c)
-        if (params.metadata?.containsKey(RESERVED_ABLY_CHAT_KEY) == true) {
+        if ((params.metadata as? JsonObject)?.has(RESERVED_ABLY_CHAT_KEY) == true) {
             throw AblyException.fromErrorInfo(
                 ErrorInfo(
                     "Metadata contains reserved 'ably-chat' key",
