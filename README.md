@@ -3,6 +3,8 @@
 <p style="text-align: left">
     <img src="https://img.shields.io/badge/development_status-Private_Beta-ab7df8" alt="Development status"   />
     <img src="https://badgen.net/github/license/3scale/saas-operator" alt="License" />
+    <img src="https://img.shields.io/badge/version-0.1.0--SNAPSHOT-2ea44f" alt="version: 0.1.0-SNAPSHOT" />
+    <a href="https://github.com/ably/ably-chat-kotlin/actions/workflows/coverage.yml"><img src="https://img.shields.io/static/v1?label=coverage&message=80%2B%25&color=2ea44f" alt="coverage - 80+%"></a>
 </p>
 
 Ably Chat is a set of purpose-built APIs for a host of chat features enabling you to create 1:1, 1:Many, Many:1 and Many:Many chat rooms for
@@ -61,7 +63,7 @@ You will need the following prerequisites:
 [//]: # ()
 [//]: # (```groovy)
 
-[//]: # (implementation 'com.ably.chat:android')
+[//]: # (implementation 'com.ably.chat:chat-android')
 
 [//]: # (```)
 
@@ -71,7 +73,7 @@ You will need the following prerequisites:
 [//]: # ()
 [//]: # (```kotlin)
 
-[//]: # (implementation&#40;"com.ably.chat:android"&#41;)
+[//]: # (implementation&#40;"com.ably.chat:chat-android"&#41;)
 
 [//]: # (```)
 
@@ -114,6 +116,9 @@ environments.
 
 To use Chat you must also set a [`clientId`](https://ably.com/docs/auth/identified-clients) so that clients are
 identifiable. If you are prototyping, you can use `java.util.UUID` to generate an ID.
+
+In most cases, `clientId` can be set to `userId`, the user’s application-specific identifier, provided that `userId`
+is unique within the context of your application.
 
 ## Connections
 
@@ -158,6 +163,8 @@ val room = chat.rooms.get("basketball-stream", RoomOptions(reactions = RoomReact
 The second argument to `rooms.get` is a `RoomOptions` argument, which tells the Chat SDK what features you would like your room to use and
 how they should be configured.
 
+You can also use `RoomOptions.default` to enable all room features with the default configuration.
+
 For example, you can set the timeout between keystrokes for typing events as part of the room options. Sensible defaults for each of the
 features are provided for your convenience:
 
@@ -165,7 +172,16 @@ features are provided for your convenience:
 - Entry into, and subscription to, presence.
 
 The defaults options for each feature may be
-viewed [here](https://github.com/ably/ably-chat-js/blob/main/chat-android/src/main/java/com/ably/chat/RoomOptions.kt).
+viewed [here](https://github.com/ably/ably-chat-kotlin/blob/main/chat-android/src/main/java/com/ably/chat/RoomOptions.kt).
+
+Here’s an example demonstrating how to specify a custom typing timeout:
+
+```kotlin
+val room = chat.rooms.get(
+    "basketball-stream",
+    RoomOptions(typing = TypingOptions(timeoutMs = 3_000)),
+)
+```
 
 In order to use the same room but with different options, you must first `release` the room before requesting an instance with the changed
 options (see below for more information on releasing rooms).
@@ -212,7 +228,9 @@ rooms.release("basketball-stream")
 Once `release` is called, the room will become unusable and you will need to get a new instance using `rooms.get` should you wish to
 re-start the room.
 
-Note that releasing a room may be optional for many applications.
+> [!NOTE]
+> Releasing a room may be optional for many applications. If release is not called, the server will automatically tidy up
+connections and other resources associated with the room after a period of time.
 
 ### Monitoring room status
 
@@ -417,6 +435,9 @@ subscription.unsubscribe()
 
 ## Typing indicators
 
+> [!NOTE]
+> You should be attached to the room to enable this functionality.
+
 Typing events allow you to inform others that a client is typing and also subscribe to others' typing status.
 
 ### Retrieving the set of current typers
@@ -610,6 +631,6 @@ To see what has changed in recent versions, see the [changelog](CHANGELOG.md).
 
 ## Further reading
 
-- See a [simple chat example](/demo/) in this repo.
+- See a [simple chat example](/example/) in this repo.
 - [Sign up](https://forms.gle/gRZa51erqNp1mSxVA) to the private beta and get started.
 - [Share feedback or request](https://forms.gle/mBw9M53NYuCBLFpMA) a new feature.
