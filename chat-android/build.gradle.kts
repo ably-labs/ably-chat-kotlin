@@ -1,3 +1,5 @@
+import com.android.build.gradle.tasks.SourceJarTask
+import com.github.gmazzo.buildconfig.BuildConfigTask
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 
 plugins {
@@ -5,9 +7,10 @@ plugins {
     alias(libs.plugins.android.kotlin)
     alias(libs.plugins.build.config)
     alias(libs.plugins.kover)
+    alias(libs.plugins.maven.publish)
 }
 
-val version = libs.versions.ably.chat.get()
+val version = property("VERSION_NAME")
 
 android {
     namespace = "com.ably.chat"
@@ -31,12 +34,12 @@ android {
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = "1.8"
     }
 }
 
@@ -65,4 +68,8 @@ tasks.withType<Test>().configureEach {
     testLogging {
         exceptionFormat = TestExceptionFormat.FULL
     }
+}
+
+tasks.withType<SourceJarTask>().configureEach {
+    dependsOn(tasks.withType<BuildConfigTask>())
 }

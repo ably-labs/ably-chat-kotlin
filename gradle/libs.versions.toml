@@ -2,7 +2,6 @@
 # https://docs.gradle.org/current/userguide/platforms.html#sub::toml-dependencies-format
 
 [versions]
-ably-chat = "0.0.1"
 ably = "1.2.46"
 desugar-jdk-libs = "2.1.2"
 junit = "4.13.2"
@@ -20,7 +19,7 @@ compose-bom = "2024.06.00"
 gson = "2.11.0"
 mockk = "1.13.13"
 coroutine = "1.9.0"
-build-config = "5.4.0"
+build-config = "5.5.1"
 ktor = "3.0.1"
 
 [libraries]
@@ -47,7 +46,6 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 
-konfetti-compose = { module = "nl.dionsegijn:konfetti-compose", version.ref = "konfetti-compose" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 
 coroutine-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutine" }
@@ -67,3 +65,4 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 build-config = { id = "com.github.gmazzo.buildconfig", version.ref = "build-config" }
 kover = { id = "org.jetbrains.kotlinx.kover", version = "0.9.0-RC" }
+maven-publish = { id = "com.vanniktech.maven.publish", version = "0.30.0" }
