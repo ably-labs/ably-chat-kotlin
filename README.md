@@ -559,7 +559,7 @@ You can also add any metadata and headers to reactions:
 ```kotlin
 room.reactions.send(
     type ="like",
-    metadata = mapOf("effect" to "fireworks"),
+    metadata = JsonObject().apply { addProperty("effect", "fireworks") },
     headers = mapOf("streamId" to "basketball-stream"),
 )
 ```

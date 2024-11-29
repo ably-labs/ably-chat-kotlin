@@ -2,7 +2,7 @@
 
 package com.ably.chat
 
-import com.ably.chat.QueryOptions.MessageOrder.NewestFirst
+import com.ably.chat.QueryOptions.ResultOrder.NewestFirst
 import com.google.gson.JsonObject
 import io.ably.lib.realtime.AblyRealtime
 import io.ably.lib.realtime.ChannelState
@@ -50,7 +50,7 @@ interface Messages : EmitsDiscontinuities {
         start: Long? = null,
         end: Long? = null,
         limit: Int = 100,
-        orderBy: QueryOptions.MessageOrder = NewestFirst,
+        orderBy: QueryOptions.ResultOrder = NewestFirst,
     ): PaginatedResult<Message>
 
     /**
@@ -110,12 +110,12 @@ data class QueryOptions(
     /**
      * The order of messages in the query result.
      */
-    val orderBy: MessageOrder = NewestFirst,
+    val orderBy: ResultOrder = NewestFirst,
 ) {
     /**
      * Represents direction to query messages in.
      */
-    enum class MessageOrder {
+    enum class ResultOrder {
         /**
          * The response will include messages from the start of the time window to the end.
          */
@@ -300,7 +300,7 @@ internal class DefaultMessages(
         )
     }
 
-    override suspend fun get(start: Long?, end: Long?, limit: Int, orderBy: QueryOptions.MessageOrder): PaginatedResult<Message> =
+    override suspend fun get(start: Long?, end: Long?, limit: Int, orderBy: QueryOptions.ResultOrder): PaginatedResult<Message> =
         chatApi.getMessages(
             roomId,
             QueryOptions(start, end, limit, orderBy),
