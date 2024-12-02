@@ -30,7 +30,7 @@ interface Room {
     /**
      * Allows you to subscribe to presence events in the room.
      *
-     * @throws {@link ErrorInfo}} if presence is not enabled for the room.
+     * @throws [ErrorInfo] if presence is not enabled for the room.
      * @returns The presence instance for the room.
      */
     val presence: Presence
@@ -38,7 +38,7 @@ interface Room {
     /**
      * Allows you to interact with room-level reactions.
      *
-     * @throws {@link ErrorInfo} if reactions are not enabled for the room.
+     * @throws [ErrorInfo] if reactions are not enabled for the room.
      * @returns The room reactions instance for the room.
      */
     val reactions: RoomReactions
@@ -46,7 +46,7 @@ interface Room {
     /**
      * Allows you to interact with typing events in the room.
      *
-     * @throws {@link ErrorInfo} if typing is not enabled for the room.
+     * @throws [ErrorInfo] if typing is not enabled for the room.
      * @returns The typing instance for the room.
      */
     val typing: Typing
@@ -54,7 +54,7 @@ interface Room {
     /**
      * Allows you to interact with occupancy metrics for the room.
      *
-     * @throws {@link ErrorInfo} if occupancy is not enabled for the room.
+     * @throws [ErrorInfo] if occupancy is not enabled for the room.
      * @returns The occupancy instance for the room.
      */
     val occupancy: Occupancy
@@ -94,11 +94,11 @@ interface Room {
     /**
      * Attaches to the room to receive events in realtime.
      *
-     * If a room fails to attach, it will enter either the {@link RoomLifecycle.Suspended} or {@link RoomLifecycle.Failed} state.
+     * If a room fails to attach, it will enter either the [RoomLifecycle.Suspended] or [RoomLifecycle.Failed] state.
      *
      * If the room enters the failed state, then it will not automatically retry attaching and intervention is required.
      *
-     * If the room enters the suspended state, then the call to attach will reject with the {@link ErrorInfo} that caused the suspension. However,
+     * If the room enters the suspended state, then the call to attach will reject with the [ErrorInfo] that caused the suspension. However,
      * the room will automatically retry attaching after a delay.
      */
     suspend fun attach()

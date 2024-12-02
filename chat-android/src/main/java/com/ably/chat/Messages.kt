@@ -2,7 +2,7 @@
 
 package com.ably.chat
 
-import com.ably.chat.QueryOptions.MessageOrder.NewestFirst
+import com.ably.chat.QueryOptions.ResultOrder.NewestFirst
 import com.google.gson.JsonObject
 import io.ably.lib.realtime.Channel
 import io.ably.lib.realtime.ChannelState
@@ -19,7 +19,7 @@ typealias PubSubMessage = io.ably.lib.types.Message
  * This interface is used to interact with messages in a chat room: subscribing
  * to new messages, fetching history, or sending messages.
  *
- * Get an instance via {@link Room.messages}.
+ * Get an instance via [Room.messages].
  */
 interface Messages : EmitsDiscontinuities {
     /**
@@ -32,18 +32,26 @@ interface Messages : EmitsDiscontinuities {
     /**
      * Subscribe to new messages in this chat room.
      * @param listener callback that will be called
-     * @returns A response object that allows you to control the subscription.
+     * @return A response object that allows you to control the subscription.
      */
     fun subscribe(listener: Listener): MessagesSubscription
 
     /**
      * Get messages that have been previously sent to the chat room, based on the provided options.
      *
-     * @param options Options for the query.
-     * @returns A promise that resolves with the paginated result of messages. This paginated result can
-     * be used to fetch more messages if available.
+     * @param start The start of the time window to query from. See [QueryOptions.start]
+     * @param end The end of the time window to query from. See [QueryOptions.end]
+     * @param limit The maximum number of messages to return in the response. See [QueryOptions.limit]
+     * @param orderBy The order of messages in the query result. See [QueryOptions.orderBy]
+     *
+     * @return Paginated result of messages. This paginated result can be used to fetch more messages if available.
      */
-    suspend fun get(options: QueryOptions): PaginatedResult<Message>
+    suspend fun get(
+        start: Long? = null,
+        end: Long? = null,
+        limit: Int = 100,
+        orderBy: QueryOptions.ResultOrder = NewestFirst,
+    ): PaginatedResult<Message>
 
     /**
      * Send a message in the chat room.
@@ -54,13 +62,13 @@ interface Messages : EmitsDiscontinuities {
      * from the realtime channel. This means you may see the message that was just
      * sent in a callback to `subscribe` before the function resolves.
      *
-     * TODO: Revisit this resolution policy during implementation (it will be much better for DX if this behavior is deterministic).
+     * @param text The text of the message. See [SendMessageParams.text]
+     * @param metadata Optional metadata of the message. See [SendMessageParams.metadata]
+     * @param headers Optional headers of the message. See [SendMessageParams.headers]
      *
-     * @param params an object containing {text, headers, metadata} for the message
-     * to be sent. Text is required, metadata and headers are optional.
-     * @returns The message was published.
+     * @return The message was published.
      */
-    suspend fun send(params: SendMessageParams): Message
+    suspend fun send(text: String, metadata: MessageMetadata? = null, headers: MessageHeaders? = null): Message
 
     /**
      * An interface for listening to new messaging event
@@ -102,12 +110,12 @@ data class QueryOptions(
     /**
      * The order of messages in the query result.
      */
-    val orderBy: MessageOrder = NewestFirst,
+    val orderBy: ResultOrder = NewestFirst,
 ) {
     /**
      * Represents direction to query messages in.
      */
-    enum class MessageOrder {
+    enum class ResultOrder {
         /**
          * The response will include messages from the start of the time window to the end.
          */
@@ -297,9 +305,16 @@ internal class DefaultMessages(
         )
     }
 
-    override suspend fun get(options: QueryOptions): PaginatedResult<Message> = chatApi.getMessages(roomId, options)
+    override suspend fun get(start: Long?, end: Long?, limit: Int, orderBy: QueryOptions.ResultOrder): PaginatedResult<Message> =
+        chatApi.getMessages(
+            roomId,
+            QueryOptions(start, end, limit, orderBy),
+        )
 
-    override suspend fun send(params: SendMessageParams): Message = chatApi.sendMessage(roomId, params)
+    override suspend fun send(text: String, metadata: MessageMetadata?, headers: MessageHeaders?): Message = chatApi.sendMessage(
+        roomId,
+        SendMessageParams(text, metadata, headers),
+    )
 
     /**
      * Associate deferred channel serial value with the current channel's serial
@@ -375,7 +390,7 @@ internal class DefaultMessages(
 /**
  * Parsed data from the Pub/Sub channel's message data field
  */
-private data class PubSubMessageData(val text: String, val metadata: MessageMetadata)
+private data class PubSubMessageData(val text: String, val metadata: MessageMetadata?)
 
 private fun parsePubSubMessageData(data: Any): PubSubMessageData {
     if (data !is JsonObject) {
@@ -385,6 +400,6 @@ private fun parsePubSubMessageData(data: Any): PubSubMessageData {
     }
     return PubSubMessageData(
         text = data.requireString("text"),
-        metadata = data.get("metadata")?.toMap() ?: mapOf(),
+        metadata = data.get("metadata"),
     )
 }

@@ -48,8 +48,6 @@ import com.ably.chat.RealtimeClient
 import com.ably.chat.Room
 import com.ably.chat.RoomOptions
 import com.ably.chat.RoomReactionsOptions
-import com.ably.chat.SendMessageParams
-import com.ably.chat.SendReactionParams
 import com.ably.chat.Typing
 import com.ably.chat.TypingOptions
 import com.ably.chat.example.ui.PresencePopup
@@ -215,9 +213,7 @@ fun Chat(room: Room, modifier: Modifier = Modifier) {
                 sending = true
                 coroutineScope.launch {
                     room.messages.send(
-                        SendMessageParams(
-                            text = messageText.text,
-                        ),
+                        text = messageText.text,
                     )
                     messageText = TextFieldValue("")
                     sending = false
@@ -225,7 +221,7 @@ fun Chat(room: Room, modifier: Modifier = Modifier) {
             },
             onReactionClick = {
                 coroutineScope.launch {
-                    room.reactions.send(SendReactionParams(type = "\uD83D\uDC4D"))
+                    room.reactions.send(type = "\uD83D\uDC4D")
                 }
             },
         )
@@ -323,7 +319,7 @@ fun MessageBubblePreview() {
                 roomId = "roomId",
                 clientId = "clientId",
                 createdAt = System.currentTimeMillis(),
-                metadata = mapOf(),
+                metadata = null,
                 headers = mapOf(),
                 latestAction = MessageAction.MESSAGE_CREATE,
             ),

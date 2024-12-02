@@ -24,8 +24,7 @@ interface ContributesToRoomLifecycle : EmitsDiscontinuities, HandlesDiscontinuit
     val featureName: String
 
     /**
-     * Gets the channel on which the feature operates. This promise is never
-     * rejected except in the case where room initialization is canceled.
+     * The channel on which the feature operates
      */
     override val channel: AblyRealtimeChannel
 
@@ -285,10 +284,10 @@ internal class RoomLifecycleManager(
     /**
      * Try to attach all the channels in a room.
      *
-     * If the operation succeeds, the room enters the attached state and this promise resolves.
-     * If a channel enters the suspended state, then we reject, but we will retry after a short delay as is the case
+     * If the operation succeeds, the room enters the attached state.
+     * If a channel enters the suspended state, then we throw exception, but we will retry after a short delay as is the case
      * in the core SDK.
-     * If a channel enters the failed state, we reject and then begin to wind down the other channels.
+     * If a channel enters the failed state, we throw an exception and then begin to wind down the other channels.
      * Spec: CHA-RL1
      */
     @Suppress("ThrowsCount")

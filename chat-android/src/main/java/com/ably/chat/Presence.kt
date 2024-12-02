@@ -14,7 +14,7 @@ typealias PresenceData = JsonElement
  * This interface is used to interact with presence in a chat room: subscribing to presence events,
  * fetching presence members, or sending presence events (join,update,leave).
  *
- * Get an instance via {@link Room.presence}.
+ * Get an instance via [Room.presence].
  */
 interface Presence : EmitsDiscontinuities {
     /**
@@ -25,9 +25,11 @@ interface Presence : EmitsDiscontinuities {
 
     /**
      *  Method to get list of the current online users and returns the latest presence messages associated to it.
-     *  @param {Ably.RealtimePresenceParams} params - Parameters that control how the presence set is retrieved.
-     *  @throws {@link io.ably.lib.types.AblyException} object which explains the error.
-     *  @returns {List<PresenceMessage>}
+     *  @param waitForSync when false, the current list of members is returned without waiting for a complete synchronization.
+     *  @param clientId when provided, will filter array of members returned that match the provided `clientId` string.
+     *  @param connectionId when provided, will filter array of members returned that match the provided `connectionId`.
+     *  @throws [io.ably.lib.types.AblyException] object which explains the error.
+     *  @return list of the current online users
      */
     suspend fun get(waitForSync: Boolean = true, clientId: String? = null, connectionId: String? = null): List<PresenceMember>
 
@@ -40,22 +42,22 @@ interface Presence : EmitsDiscontinuities {
 
     /**
      * Method to join room presence, will emit an enter event to all subscribers. Repeat calls will trigger more enter events.
-     * @param {PresenceData} data - The users data, a JSON serializable object that will be sent to all subscribers.
-     * @throws {@link io.ably.lib.types.AblyException} object which explains the error.
+     * @param data The users data, a JSON serializable object that will be sent to all subscribers.
+     * @throws [io.ably.lib.types.AblyException] object which explains the error.
      */
     suspend fun enter(data: PresenceData? = null)
 
     /**
      * Method to update room presence, will emit an update event to all subscribers. If the user is not present, it will be treated as a join event.
-     * @param {PresenceData} data - The users data, a JSON serializable object that will be sent to all subscribers.
-     * @throws {@link io.ably.lib.types.AblyException} object which explains the error.
+     * @param data The users data, a JSON serializable object that will be sent to all subscribers.
+     * @throws [io.ably.lib.types.AblyException] object which explains the error.
      */
     suspend fun update(data: PresenceData? = null)
 
     /**
      * Method to leave room presence, will emit a leave event to all subscribers. If the user is not present, it will be treated as a no-op.
-     * @param {PresenceData} data - The users data, a JSON serializable object that will be sent to all subscribers.
-     * @throws {@link io.ably.lib.types.AblyException} object which explains the error.
+     * @param data The users data, a JSON serializable object that will be sent to all subscribers.
+     * @throws [io.ably.lib.types.AblyException] object which explains the error.
      */
     suspend fun leave(data: PresenceData? = null)
 

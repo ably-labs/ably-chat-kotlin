@@ -1,12 +1,12 @@
 package com.ably.chat
 
 /**
- * {@link Headers} type for chat messages.
+ * [Headers] type for chat messages.
  */
 typealias ReactionHeaders = Headers
 
 /**
- * {@link Metadata} type for chat messages.
+ * [Metadata] type for chat messages.
  */
 typealias ReactionMetadata = Metadata
 
@@ -22,7 +22,7 @@ data class Reaction(
     /**
      * Metadata of the reaction. If no metadata was set this is an empty object.
      */
-    val metadata: ReactionMetadata = mapOf(),
+    val metadata: ReactionMetadata?,
 
     /**
      * Headers of the reaction. If no headers were set this is an empty object.
