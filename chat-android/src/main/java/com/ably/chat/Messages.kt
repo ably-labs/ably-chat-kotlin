@@ -4,7 +4,7 @@ package com.ably.chat
 
 import com.ably.chat.QueryOptions.MessageOrder.NewestFirst
 import com.google.gson.JsonObject
-import io.ably.lib.realtime.AblyRealtime
+import io.ably.lib.realtime.Channel
 import io.ably.lib.realtime.ChannelState
 import io.ably.lib.realtime.ChannelStateListener
 import io.ably.lib.types.AblyException
@@ -211,11 +211,8 @@ internal class DefaultMessagesSubscription(
 }
 
 internal class DefaultMessages(
-    private val roomId: String,
-    private val realtimeChannels: AblyRealtime.Channels,
-    private val chatApi: ChatApi,
-    private val logger: Logger,
-) : Messages, ContributesToRoomLifecycleImpl(logger) {
+    val room: DefaultRoom,
+) : Messages, ContributesToRoomLifecycleImpl(room.roomLogger) {
 
     override val featureName: String = "messages"
 
@@ -223,15 +220,23 @@ internal class DefaultMessages(
 
     private var channelStateListener: ChannelStateListener
 
+    private val logger = room.roomLogger.withContext(tag = "Messages")
+
+    private val roomId = room.roomId
+
+    private val chatApi = room.chatApi
+
+    private val realtimeChannels = room.realtimeClient.channels
+
     private var lock = Any()
 
     /**
      * (CHA-M1)
      * the channel name for the chat messages channel.
      */
-    private val messagesChannelName = "$roomId::\$chat::\$chatMessages"
+    private val messagesChannelName = "${room.roomId}::\$chat::\$chatMessages"
 
-    override val channel = realtimeChannels.get(messagesChannelName, ChatChannelOptions())
+    override val channel: Channel = realtimeChannels.get(messagesChannelName, room.options.messagesChannelOptions())
 
     override val attachmentErrorCode: ErrorCode = ErrorCode.MessagesAttachmentFailed
 
