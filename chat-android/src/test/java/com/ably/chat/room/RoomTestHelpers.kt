@@ -98,7 +98,7 @@ fun createRoomFeatureMocks(roomId: String = DEFAULT_ROOM_ID, clientId: String = 
     val logger = createMockLogger()
     val room = createMockRoom(roomId, clientId, realtimeClient, chatApi, logger)
 
-    val messagesContributor = spyk(DefaultMessages(roomId, realtimeClient.channels, chatApi, logger), recordPrivateCalls = true)
+    val messagesContributor = spyk(DefaultMessages(room), recordPrivateCalls = true)
     val presenceContributor = spyk(DefaultPresence(room), recordPrivateCalls = true)
     val occupancyContributor = spyk(DefaultOccupancy(room), recordPrivateCalls = true)
     val typingContributor = spyk(DefaultTyping(room), recordPrivateCalls = true)

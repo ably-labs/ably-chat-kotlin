@@ -81,21 +81,9 @@ internal class DefaultOccupancy(
 
     override val detachmentErrorCode: ErrorCode = ErrorCode.OccupancyDetachmentFailed
 
-    private val realtimeChannels = room.realtimeClient.channels
-
     private val logger = room.roomLogger.withContext(tag = "Occupancy")
 
-    // (CHA-O1)
-    private val messagesChannelName = "${room.roomId}::\$chat::\$chatMessages"
-
-    override val channel: Channel = realtimeChannels.get(
-        messagesChannelName,
-        ChatChannelOptions {
-            params = mapOf(
-                "occupancy" to "metrics",
-            )
-        },
-    )
+    override val channel: Channel = room.messages.channel
 
     private val listeners: MutableList<Occupancy.Listener> = CopyOnWriteArrayList()
 

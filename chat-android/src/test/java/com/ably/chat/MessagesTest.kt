@@ -1,21 +1,21 @@
 package com.ably.chat
 
-import com.ably.chat.room.createMockLogger
+import com.ably.chat.room.createMockChannel
+import com.ably.chat.room.createMockChatApi
+import com.ably.chat.room.createMockRealtimeClient
+import com.ably.chat.room.createMockRoom
 import com.google.gson.JsonObject
-import io.ably.lib.realtime.AblyRealtime.Channels
 import io.ably.lib.realtime.Channel
 import io.ably.lib.realtime.ChannelBase
 import io.ably.lib.realtime.ChannelState
 import io.ably.lib.realtime.ChannelStateListener
 import io.ably.lib.realtime.buildChannelStateChange
-import io.ably.lib.realtime.buildRealtimeChannel
 import io.ably.lib.types.AblyException
 import io.ably.lib.types.MessageAction
 import io.ably.lib.types.MessageExtras
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
-import io.mockk.spyk
 import io.mockk.verify
 import java.lang.reflect.Field
 import kotlinx.coroutines.runBlocking
@@ -27,29 +27,23 @@ import org.junit.Test
 
 class MessagesTest {
 
-    private val realtimeClient = mockk<RealtimeClient>(relaxed = true)
-    private val realtimeChannels = mockk<Channels>(relaxed = true)
-    private val realtimeChannel = spyk<Channel>(buildRealtimeChannel())
-    private val chatApi = spyk(ChatApi(realtimeClient, "clientId", EmptyLogger(LogContext(tag = "TEST"))))
-    private lateinit var messages: DefaultMessages
-    private val logger = createMockLogger()
+    private val realtimeClient = createMockRealtimeClient()
+    private val realtimeChannel = realtimeClient.createMockChannel()
 
+    private lateinit var messages: DefaultMessages
     private val channelStateListenerSlot = slot<ChannelStateListener>()
 
     @Before
     fun setUp() {
-        every { realtimeChannels.get(any(), any()) } returns realtimeChannel
-
+        every { realtimeClient.channels.get(any(), any()) } returns realtimeChannel
         every { realtimeChannel.on(capture(channelStateListenerSlot)) } answers {
             println("Channel state listener registered")
         }
 
-        messages = DefaultMessages(
-            roomId = "room1",
-            realtimeChannels = realtimeChannels,
-            chatApi = chatApi,
-            logger,
-        )
+        val chatApi = createMockChatApi(realtimeClient)
+        val room = createMockRoom("room1", realtimeClient = realtimeClient, chatApi = chatApi)
+
+        messages = DefaultMessages(room)
     }
 
     /**

@@ -1,5 +1,8 @@
 package com.ably.chat
 
+import io.ably.lib.types.ChannelMode
+import io.ably.lib.types.ChannelOptions
+
 /**
  * Represents the options for a given chat room.
  */
@@ -89,10 +92,36 @@ object OccupancyOptions
  * Throws AblyException for invalid room configuration.
  * Spec: CHA-RC2a
  */
-fun RoomOptions.validateRoomOptions() {
+internal fun RoomOptions.validateRoomOptions() {
     typing?.let {
         if (typing.timeoutMs <= 0) {
             throw ablyException("Typing timeout must be greater than 0", ErrorCode.InvalidRequestBody)
+        }
+    }
+}
+
+/**
+ * Merges channel options/modes from presence and occupancy to be used for shared channel.
+ * This channel is shared by Room messages, presence and occupancy feature.
+ * @return channelOptions for shared channel with options/modes from presence and occupancy.
+ * Spec: CHA-RC3
+ */
+internal fun RoomOptions.messagesChannelOptions(): ChannelOptions {
+    return ChatChannelOptions {
+        presence?.let {
+            val presenceModes = mutableListOf<ChannelMode>()
+            if (presence.enter) {
+                presenceModes.add(ChannelMode.presence)
+            }
+            if (presence.subscribe) {
+                presenceModes.add(ChannelMode.presence_subscribe)
+            }
+            modes = presenceModes.toTypedArray()
+        }
+        occupancy?.let {
+            params = mapOf(
+                "occupancy" to "metrics",
+            )
         }
     }
 }

@@ -127,12 +127,7 @@ internal class DefaultRoom(
     private val roomScope =
         CoroutineScope(Dispatchers.Default.limitedParallelism(1) + CoroutineName(roomId) + SupervisorJob())
 
-    override val messages = DefaultMessages(
-        roomId = roomId,
-        realtimeChannels = realtimeClient.channels,
-        chatApi = chatApi,
-        logger = roomLogger.withContext(tag = "Messages"),
-    )
+    override val messages = DefaultMessages(room = this)
 
     private var _presence: Presence? = null
     override val presence: Presence
