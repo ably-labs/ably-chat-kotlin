@@ -43,13 +43,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ably.chat.ChatClient
 import com.ably.chat.Message
-import com.ably.chat.PresenceOptions
 import com.ably.chat.RealtimeClient
 import com.ably.chat.Room
 import com.ably.chat.RoomOptions
-import com.ably.chat.RoomReactionsOptions
 import com.ably.chat.Typing
-import com.ably.chat.TypingOptions
 import com.ably.chat.example.ui.PresencePopup
 import com.ably.chat.example.ui.theme.AblyChatExampleTheme
 import io.ably.lib.types.ClientOptions
@@ -87,11 +84,13 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun App(chatClient: ChatClient) {
     var showPopup by remember { mutableStateOf(false) }
-    val room = runBlocking {
-        chatClient.rooms.get(
-            Settings.ROOM_ID,
-            RoomOptions(typing = TypingOptions(), presence = PresenceOptions(), reactions = RoomReactionsOptions),
-        )
+    val room = remember {
+        runBlocking {
+            chatClient.rooms.get(
+                Settings.ROOM_ID,
+                RoomOptions.default,
+            )
+        }
     }
     val coroutineScope = rememberCoroutineScope()
     val currentlyTyping by typingUsers(room.typing)
