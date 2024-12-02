@@ -35,7 +35,8 @@ Ensure you have the following installed:
 5. View the App
 
     Once the build is complete, the app will be installed and launched on the selected device or emulator.
-    ![Ably Chat Example](/images/example-app-screenshot.png)
+
+    <img alt="Ably Chat Example" height="400" src="/images/example-app-screenshot.png"/>
 
 ## Troubleshooting
 
