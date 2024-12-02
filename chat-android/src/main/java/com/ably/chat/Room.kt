@@ -178,6 +178,7 @@ internal class DefaultRoom(
     init {
         options.validateRoomOptions() // CHA-RC2a
 
+        // CHA-RC2e - Add contributors/features as per the order of precedence
         val roomFeatures = mutableListOf<ContributesToRoomLifecycle>(messages)
 
         options.presence?.let {

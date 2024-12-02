@@ -103,7 +103,9 @@ fun createRoomFeatureMocks(roomId: String = DEFAULT_ROOM_ID, clientId: String = 
     val occupancyContributor = spyk(DefaultOccupancy(room), recordPrivateCalls = true)
     val typingContributor = spyk(DefaultTyping(room), recordPrivateCalls = true)
     val reactionsContributor = spyk(DefaultRoomReactions(room), recordPrivateCalls = true)
-    return listOf(messagesContributor, presenceContributor, occupancyContributor, typingContributor, reactionsContributor)
+
+    // CHA-RC2e - Add contributors/features as per the order of precedence
+    return listOf(messagesContributor, presenceContributor, typingContributor, reactionsContributor, occupancyContributor)
 }
 
 fun AblyRealtimeChannel.setState(state: ChannelState, errorInfo: ErrorInfo? = null) {

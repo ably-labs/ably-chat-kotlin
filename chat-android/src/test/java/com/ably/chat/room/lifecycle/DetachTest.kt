@@ -141,7 +141,7 @@ class DetachTest {
 
     @Suppress("MaximumLineLength")
     @Test
-    fun `(CHA-RL2f, CHA-RL2g) Detach op should detach each contributor channel sequentially and room should be considered DETACHED`() = runTest {
+    fun `(CHA-RL2f, CHA-RL2g, CHA-RC2e) Detach op should detach each contributor channel sequentially and room should be considered DETACHED`() = runTest {
         val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
 
         mockkStatic(io.ably.lib.realtime.Channel::detachCoroutine)
@@ -164,9 +164,9 @@ class DetachTest {
         }
         Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[0].name)
         Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[1].name)
-        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[2].name)
-        Assert.assertEquals("1234::\$chat::\$typingIndicators", capturedChannels[3].name)
-        Assert.assertEquals("1234::\$chat::\$reactions", capturedChannels[4].name)
+        Assert.assertEquals("1234::\$chat::\$typingIndicators", capturedChannels[2].name)
+        Assert.assertEquals("1234::\$chat::\$reactions", capturedChannels[3].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[4].name)
 
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
     }
