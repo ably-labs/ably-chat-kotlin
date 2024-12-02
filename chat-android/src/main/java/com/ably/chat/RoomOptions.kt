@@ -6,26 +6,26 @@ package com.ably.chat
 data class RoomOptions(
     /**
      * The presence options for the room. To enable presence in the room, set this property. You may
-     * use {@link RoomOptionsDefaults.presence} to enable presence with default options.
+     * use [RoomOptionsDefaults.presence] to enable presence with default options.
      * @defaultValue undefined
      */
     val presence: PresenceOptions? = null,
 
     /**
      * The typing options for the room. To enable typing in the room, set this property. You may use
-     * {@link RoomOptionsDefaults.typing} to enable typing with default options.
+     * [RoomOptionsDefaults.typing] to enable typing with default options.
      */
     val typing: TypingOptions? = null,
 
     /**
      * The reactions options for the room. To enable reactions in the room, set this property. You may use
-     * {@link RoomOptionsDefaults.reactions} to enable reactions with default options.
+     * [RoomOptionsDefaults.reactions] to enable reactions with default options.
      */
     val reactions: RoomReactionsOptions? = null,
 
     /**
      * The occupancy options for the room. To enable occupancy in the room, set this property. You may use
-     * {@link RoomOptionsDefaults.occupancy} to enable occupancy with default options.
+     * [RoomOptionsDefaults.occupancy] to enable occupancy with default options.
      */
     val occupancy: OccupancyOptions? = null,
 ) {
@@ -48,7 +48,7 @@ data class RoomOptions(
 data class PresenceOptions(
     /**
      * Whether the underlying Realtime channel should use the presence enter mode, allowing entry into presence.
-     * This property does not affect the presence lifecycle, and users must still call {@link Presence.enter}
+     * This property does not affect the presence lifecycle, and users must still call [Presence.enter]
      * in order to enter presence.
      * @defaultValue true
      */
@@ -56,7 +56,7 @@ data class PresenceOptions(
 
     /**
      * Whether the underlying Realtime channel should use the presence subscribe mode, allowing subscription to presence.
-     * This property does not affect the presence lifecycle, and users must still call {@link Presence.subscribe}
+     * This property does not affect the presence lifecycle, and users must still call [Presence.subscribe]
      * in order to subscribe to presence.
      * @defaultValue true
      */

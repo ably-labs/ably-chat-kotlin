@@ -3,12 +3,12 @@ package com.ably.chat
 import io.ably.lib.types.MessageAction
 
 /**
- * {@link Headers} type for chat messages.
+ * [Headers type for chat messages.
  */
 typealias MessageHeaders = Headers
 
 /**
- * {@link Metadata} type for chat messages.
+ * [Metadata] type for chat messages.
  */
 typealias MessageMetadata = Metadata
 

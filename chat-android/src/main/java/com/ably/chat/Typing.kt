@@ -38,7 +38,7 @@ const val PRESENCE_GET_MAX_RETRIES = 5
  * This interface is used to interact with typing in a chat room including subscribing to typing events and
  * fetching the current set of typing clients.
  *
- * Get an instance via {@link Room.typing}.
+ * Get an instance via [Room.typing].
  */
 interface Typing : EmitsDiscontinuities {
     /**
@@ -56,7 +56,7 @@ interface Typing : EmitsDiscontinuities {
 
     /**
      * Get the current typers, a set of clientIds.
-     * @returns A Promise of a set of clientIds that are currently typing.
+     * @return set of clientIds that are currently typing.
      */
     suspend fun get(): Set<String>
 

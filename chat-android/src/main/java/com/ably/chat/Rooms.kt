@@ -24,15 +24,15 @@ interface Rooms {
      *
      * Always call `release(roomId)` after the Room object is no longer needed.
      *
-     * If a call to `get` is made for a room that is currently being released, then the promise will resolve only when
+     * If a call to `get` is made for a room that is currently being released, then it will resolve only when
      * the release operation is complete.
      *
-     * If a call to `get` is made, followed by a subsequent call to `release` before the promise resolves, then the
-     * promise will reject with an error.
+     * If a call to `get` is made, followed by a subsequent call to `release` before it resolves, then `get` will
+     * throw an exception
      *
      * @param roomId The ID of the room.
      * @param options The options for the room.
-     * @throws {@link ErrorInfo} if a room with the same ID but different options already exists.
+     * @throws [io.ably.lib.types.ErrorInfo] if a room with the same ID but different options already exists.
      * @returns Room A new or existing Room object.
      * Spec: CHA-RC1f
      */
@@ -44,7 +44,7 @@ interface Rooms {
      * events.
      *
      * After calling this function, the room object is no-longer usable. If you wish to get the room object again,
-     * you must call {@link Rooms.get}.
+     * you must call [Rooms.get].
      *
      * Calling this function will abort any in-progress `get` calls for the same room.
      *

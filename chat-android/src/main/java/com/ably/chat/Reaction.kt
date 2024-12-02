@@ -1,12 +1,12 @@
 package com.ably.chat
 
 /**
- * {@link Headers} type for chat messages.
+ * [Headers] type for chat messages.
  */
 typealias ReactionHeaders = Headers
 
 /**
- * {@link Metadata} type for chat messages.
+ * [Metadata] type for chat messages.
  */
 typealias ReactionMetadata = Metadata
 

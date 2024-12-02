@@ -9,8 +9,7 @@ import io.ably.lib.realtime.ChannelBase as AblyRealtimeChannel
  */
 interface HandlesDiscontinuity {
     /**
-     * A promise of the channel that this object is associated with. The promise
-     * is resolved when the feature has finished initializing.
+     * The channel that this object is associated with.
      */
     val channel: AblyRealtimeChannel
 

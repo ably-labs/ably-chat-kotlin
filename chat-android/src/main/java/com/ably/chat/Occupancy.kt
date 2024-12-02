@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
  * This interface is used to interact with occupancy in a chat room: subscribing to occupancy updates and
  * fetching the current room occupancy metrics.
  *
- * Get an instance via {@link Room.occupancy}.
+ * Get an instance via [Room.occupancy].
  */
 interface Occupancy : EmitsDiscontinuities {
     /**

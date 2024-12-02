@@ -19,7 +19,7 @@ typealias PubSubMessage = io.ably.lib.types.Message
  * This interface is used to interact with messages in a chat room: subscribing
  * to new messages, fetching history, or sending messages.
  *
- * Get an instance via {@link Room.messages}.
+ * Get an instance via [Room.messages].
  */
 interface Messages : EmitsDiscontinuities {
     /**
