@@ -17,7 +17,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import java.lang.reflect.Field
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -94,10 +94,10 @@ class MessagesTest {
             println("Pub/Sub message listener registered")
         }
 
-        val deferredValue = DeferredValue<MessageEvent>()
+        val deferredValue = CompletableDeferred<MessageEvent>()
 
         messages.subscribe {
-            deferredValue.completeWith(it)
+            deferredValue.complete(it)
         }
 
         verify { realtimeChannel.subscribe("chat.message", any()) }
@@ -199,6 +199,13 @@ class MessagesTest {
         )
 
         assertEquals("attach-serial-2", subscription1.fromSerialProvider().await())
+
+        // Check channelSerial is used at the point of subscription when state is attached
+        messages.channel.properties.channelSerial = "channel-serial-3"
+        messages.channel.state = ChannelState.attached
+
+        val subscription2 = (messages.subscribe {}) as DefaultMessagesSubscription
+        assertEquals("channel-serial-3", subscription2.fromSerialProvider().await())
     }
 
     @Test
@@ -259,9 +266,7 @@ class MessagesTest {
 
 private val Channel.channelMulticaster: ChannelBase.MessageListener
     get() {
-        val field: Field = (ChannelBase::class.java).getDeclaredField("eventListeners")
-        field.isAccessible = true
-        val eventListeners = field.get(this) as HashMap<*, *>
+        val eventListeners = getPrivateField<HashMap<*, *>>("eventListeners")
         return eventListeners["chat.message"] as ChannelBase.MessageListener
     }
 

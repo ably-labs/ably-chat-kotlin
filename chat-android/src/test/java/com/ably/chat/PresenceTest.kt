@@ -11,6 +11,7 @@ import io.ably.lib.types.PresenceMessage
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -42,10 +43,10 @@ class PresenceTest {
 
         every { pubSubPresence.subscribe(capture(presenceListenerSlot)) } returns Unit
 
-        val deferredValue = DeferredValue<PresenceEvent>()
+        val deferredValue = CompletableDeferred<PresenceEvent>()
 
         presence.subscribe {
-            deferredValue.completeWith(it)
+            deferredValue.complete(it)
         }
 
         presenceListenerSlot.captured.onPresenceMessage(
@@ -78,10 +79,10 @@ class PresenceTest {
 
         every { pubSubPresence.subscribe(capture(presenceListenerSlot)) } returns Unit
 
-        val deferredValue = DeferredValue<PresenceEvent>()
+        val deferredValue = CompletableDeferred<PresenceEvent>()
 
         presence.subscribe {
-            deferredValue.completeWith(it)
+            deferredValue.complete(it)
         }
 
         presenceListenerSlot.captured.onPresenceMessage(
@@ -115,10 +116,10 @@ class PresenceTest {
 
         every { pubSubPresence.subscribe(capture(presenceListenerSlot)) } returns Unit
 
-        val deferredValue = DeferredValue<PresenceEvent>()
+        val deferredValue = CompletableDeferred<PresenceEvent>()
 
         presence.subscribe {
-            deferredValue.completeWith(it)
+            deferredValue.complete(it)
         }
 
         presenceListenerSlot.captured.onPresenceMessage(

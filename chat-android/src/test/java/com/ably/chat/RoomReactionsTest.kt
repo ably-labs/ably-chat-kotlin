@@ -10,6 +10,7 @@ import io.ably.lib.types.MessageExtras
 import io.mockk.every
 import io.mockk.slot
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -59,10 +60,10 @@ class RoomReactionsTest {
 
         every { realtimeChannel.subscribe("roomReaction", capture(pubSubMessageListenerSlot)) } returns Unit
 
-        val deferredValue = DeferredValue<Reaction>()
+        val deferredValue = CompletableDeferred<Reaction>()
 
         roomReactions.subscribe {
-            deferredValue.completeWith(it)
+            deferredValue.complete(it)
         }
 
         verify { realtimeChannel.subscribe("roomReaction", any()) }

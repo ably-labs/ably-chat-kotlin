@@ -7,9 +7,9 @@ import com.google.gson.JsonObject
 import io.ably.lib.realtime.Channel
 import io.ably.lib.realtime.ChannelState
 import io.ably.lib.realtime.ChannelStateListener
-import io.ably.lib.types.AblyException
-import io.ably.lib.types.ErrorInfo
 import io.ably.lib.types.MessageAction
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CompletableDeferred
 import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
 typealias PubSubMessageListener = AblyRealtimeChannel.MessageListener
@@ -193,7 +193,7 @@ internal class DefaultMessagesSubscription(
     private val chatApi: ChatApi,
     private val roomId: String,
     private val subscription: Subscription,
-    internal val fromSerialProvider: () -> DeferredValue<String>,
+    internal val fromSerialProvider: () -> CompletableDeferred<String>,
 ) : MessagesSubscription {
     override fun unsubscribe() {
         subscription.unsubscribe()
@@ -216,8 +216,6 @@ internal class DefaultMessages(
 
     override val featureName: String = "messages"
 
-    private var listeners: Map<Messages.Listener, DeferredValue<String>> = emptyMap()
-
     private var channelStateListener: ChannelStateListener
 
     private val logger = room.roomLogger.withContext(tag = "Messages")
@@ -227,8 +225,6 @@ internal class DefaultMessages(
     private val chatApi = room.chatApi
 
     private val realtimeChannels = room.realtimeClient.channels
-
-    private var lock = Any()
 
     /**
      * (CHA-M1)
@@ -242,20 +238,37 @@ internal class DefaultMessages(
 
     override val detachmentErrorCode: ErrorCode = ErrorCode.MessagesDetachmentFailed
 
+    private val channelSerialMap = ConcurrentHashMap<PubSubMessageListener, CompletableDeferred<String>>()
+
+    /**
+     * deferredChannelSerial is a thread safe reference to the channel serial.
+     * Provides common channel serial for all subscribers once discontinuity is detected.
+     */
+    private var deferredChannelSerial = CompletableDeferred<String>()
+
     init {
         channelStateListener = ChannelStateListener {
-            if (it.current == ChannelState.attached && !it.resumed) updateChannelSerialsAfterDiscontinuity()
+            if (it.current == ChannelState.attached && !it.resumed) {
+                updateChannelSerialsAfterDiscontinuity(requireAttachSerial())
+            }
         }
         channel.on(channelStateListener)
     }
 
+    // CHA-M5c, CHA-M5d - Updated channel serial after discontinuity
+    private fun updateChannelSerialsAfterDiscontinuity(value: String) {
+        if (deferredChannelSerial.isActive) {
+            deferredChannelSerial.complete(value)
+        } else {
+            deferredChannelSerial = CompletableDeferred(value)
+        }
+        // channel serials updated at the same time for all map entries
+        channelSerialMap.replaceAll { _, _ -> deferredChannelSerial }
+    }
+
     override fun subscribe(listener: Messages.Listener): MessagesSubscription {
-        val deferredChannelSerial = DeferredValue<String>()
-        addListener(listener, deferredChannelSerial)
         val messageListener = PubSubMessageListener {
-            val pubSubMessage = it ?: throw AblyException.fromErrorInfo(
-                ErrorInfo("Got empty pubsub channel message", HttpStatusCode.BadRequest, ErrorCode.BadRequest.code),
-            )
+            val pubSubMessage = it ?: throw clientError("Got empty pubsub channel message")
 
             // Ignore any action that is not message.create
             if (pubSubMessage.action != MessageAction.MESSAGE_CREATE) return@PubSubMessageListener
@@ -273,26 +286,24 @@ internal class DefaultMessages(
             )
             listener.onEvent(MessageEvent(type = MessageEventType.Created, message = chatMessage))
         }
+        channelSerialMap[messageListener] = deferredChannelSerial
         // (CHA-M4d)
         channel.subscribe(PubSubMessageNames.ChatMessage, messageListener)
         // (CHA-M5) setting subscription point
-        associateWithCurrentChannelSerial(deferredChannelSerial)
+        if (channel.state == ChannelState.attached) {
+            channelSerialMap[messageListener] = CompletableDeferred(requireChannelSerial())
+        }
 
         return DefaultMessagesSubscription(
             chatApi = chatApi,
             roomId = roomId,
             subscription = {
-                removeListener(listener)
+                channelSerialMap.remove(messageListener)
                 channel.unsubscribe(PubSubMessageNames.ChatMessage, messageListener)
             },
             fromSerialProvider = {
-                listeners[listener] ?: throw AblyException.fromErrorInfo(
-                    ErrorInfo(
-                        "This messages subscription instance was already unsubscribed",
-                        HttpStatusCode.BadRequest,
-                        ErrorCode.BadRequest.code,
-                    ),
-                )
+                channelSerialMap[messageListener]
+                    ?: throw clientError("This messages subscription instance was already unsubscribed")
             },
         )
     }
@@ -301,73 +312,19 @@ internal class DefaultMessages(
 
     override suspend fun send(params: SendMessageParams): Message = chatApi.sendMessage(roomId, params)
 
-    /**
-     * Associate deferred channel serial value with the current channel's serial
-     *
-     * WARN: it not deterministic because of race condition,
-     * this can lead to duplicated messages in `getPreviousMessages` calls
-     */
-    private fun associateWithCurrentChannelSerial(channelSerialProvider: DeferredValue<String>) {
-        if (channel.state === ChannelState.attached) {
-            channelSerialProvider.completeWith(requireChannelSerial())
-            return
-        }
-
-        channel.once(ChannelState.attached) {
-            channelSerialProvider.completeWith(requireAttachSerial())
-        }
-    }
-
     private fun requireChannelSerial(): String {
         return channel.properties.channelSerial
-            ?: throw AblyException.fromErrorInfo(
-                ErrorInfo(
-                    "Channel has been attached, but channelSerial is not defined",
-                    HttpStatusCode.BadRequest,
-                    ErrorCode.BadRequest.code,
-                ),
-            )
+            ?: throw clientError("Channel has been attached, but channelSerial is not defined")
     }
 
     private fun requireAttachSerial(): String {
         return channel.properties.attachSerial
-            ?: throw AblyException.fromErrorInfo(
-                ErrorInfo(
-                    "Channel has been attached, but attachSerial is not defined",
-                    HttpStatusCode.BadRequest,
-                    ErrorCode.BadRequest.code,
-                ),
-            )
-    }
-
-    private fun addListener(listener: Messages.Listener, deferredChannelSerial: DeferredValue<String>) {
-        synchronized(lock) {
-            listeners += listener to deferredChannelSerial
-        }
-    }
-
-    private fun removeListener(listener: Messages.Listener) {
-        synchronized(lock) {
-            listeners -= listener
-        }
-    }
-
-    /**
-     * (CHA-M5c), (CHA-M5d)
-     */
-    private fun updateChannelSerialsAfterDiscontinuity() {
-        val deferredChannelSerial = DeferredValue<String>()
-        deferredChannelSerial.completeWith(requireAttachSerial())
-
-        synchronized(lock) {
-            listeners = listeners.mapValues {
-                if (it.value.completed) deferredChannelSerial else it.value
-            }
-        }
+            ?: throw clientError("Channel has been attached, but attachSerial is not defined")
     }
 
     override fun release() {
         channel.off(channelStateListener)
+        channelSerialMap.clear()
         realtimeChannels.release(channel.name)
     }
 }
@@ -379,9 +336,7 @@ private data class PubSubMessageData(val text: String, val metadata: MessageMeta
 
 private fun parsePubSubMessageData(data: Any): PubSubMessageData {
     if (data !is JsonObject) {
-        throw AblyException.fromErrorInfo(
-            ErrorInfo("Unrecognized Pub/Sub channel's message for `Message.created` event", HttpStatusCode.InternalServerError),
-        )
+        throw serverError("Unrecognized Pub/Sub channel's message for `Message.created` event")
     }
     return PubSubMessageData(
         text = data.requireString("text"),

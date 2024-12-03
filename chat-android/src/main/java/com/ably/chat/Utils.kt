@@ -147,63 +147,6 @@ fun ChatChannelOptions(init: (ChannelOptions.() -> Unit)? = null): ChannelOption
 
 fun generateUUID() = UUID.randomUUID().toString()
 
-/**
- * A value that can be evaluated at a later time, similar to `kotlinx.coroutines.Deferred` or a JavaScript Promise.
- *
- * This class provides a thread-safe, simple blocking implementation. It is not designed for use in scenarios with
- * heavy concurrency.
- *
- * @param T the type of the value that will be evaluated.
- */
-internal class DeferredValue<T> {
-
-    private var value: T? = null
-
-    private val lock = Any()
-
-    private var observers: Set<(T) -> Unit> = setOf()
-
-    private var _completed = false
-
-    /**
-     * `true` if value has been set, `false` otherwise
-     */
-    val completed get() = _completed
-
-    /**
-     * Set value and mark DeferredValue completed, should be invoked only once
-     *
-     * @throws IllegalStateException if it's already `completed`
-     */
-    fun completeWith(completionValue: T) {
-        synchronized(lock) {
-            check(!_completed) { "DeferredValue has already been completed" }
-            value = completionValue
-            _completed = true
-            observers.forEach { it(completionValue) }
-            observers = setOf()
-        }
-    }
-
-    /**
-     * Wait until value is completed
-     *
-     * @return completed value
-     */
-    suspend fun await(): T {
-        val result = suspendCancellableCoroutine { continuation ->
-            synchronized(lock) {
-                if (_completed) continuation.resume(value!!)
-                val observer: (T) -> Unit = {
-                    continuation.resume(it)
-                }
-                observers += observer
-            }
-        }
-        return result
-    }
-}
-
 fun lifeCycleErrorInfo(
     errorMessage: String,
     errorCode: ErrorCode,
@@ -253,3 +196,7 @@ private fun createAblyException(
     cause: Throwable?,
 ) = cause?.let { AblyException.fromErrorInfo(it, errorInfo) }
     ?: AblyException.fromErrorInfo(errorInfo)
+
+fun clientError(errorMessage: String) = ablyException(errorMessage, ErrorCode.BadRequest, HttpStatusCode.BadRequest)
+
+fun serverError(errorMessage: String) = ablyException(errorMessage, ErrorCode.InternalError, HttpStatusCode.InternalServerError)
