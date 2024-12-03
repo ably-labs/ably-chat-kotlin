@@ -25,6 +25,7 @@ import org.junit.Test
 /**
  * Spec: CHA-RL9
  * Common spec: CHA-PR3d, CHA-PR3h, CHA-PR10d, CHA-PR10h, CHA-PR6c, CHA-PR6h, CHA-PR6c, CHA-T2g
+ * All of the remaining spec items are specified at Room#ensureAttached method
  */
 class RoomEnsureAttachedTest {
 

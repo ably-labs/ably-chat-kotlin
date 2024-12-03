@@ -237,10 +237,11 @@ internal class DefaultRoom(
      * Spec: CHA-RL9
      */
     internal suspend fun ensureAttached() {
-        // CHA-PR3d, CHA-PR10d, CHA-PR6c, CHA-PR6c
+        // CHA-PR3e, CHA-PR10e, CHA-PR4d, CHA-PR6d, CHA-T2d, CHA-T4a1, CHA-T5e
         if (statusLifecycle.status == RoomStatus.Attached) {
             return
         }
+        // CHA-PR3d, CHA-PR10d, CHA-PR4b, CHA-PR6c, CHA-T2c, CHA-T4a3, CHA-T5c
         if (statusLifecycle.status == RoomStatus.Attaching) { // CHA-RL9
             val attachDeferred = CompletableDeferred<Unit>()
             roomScope.launch {
@@ -263,7 +264,7 @@ internal class DefaultRoom(
             attachDeferred.await()
             return
         }
-        // CHA-PR3h, CHA-PR10h, CHA-PR6h, CHA-T2g
+        // CHA-PR3h, CHA-PR10h, CHA-PR4c, CHA-PR6h, CHA-T2g, CHA-T4a4, CHA-T5d
         throw roomInvalidStateException(roomId, statusLifecycle.status, HttpStatusCode.BadRequest)
     }
 }

@@ -153,7 +153,7 @@ internal class DefaultTyping(
 
     override suspend fun get(): Set<String> {
         logger.trace("DefaultTyping.get()")
-        room.ensureAttached() // CHA-T2c, CHA-T2g
+        room.ensureAttached() // CHA-T2d, CHA-T2c, CHA-T2g
         return channel.presence.getCoroutine().map { it.clientId }.toSet()
     }
 
@@ -168,7 +168,7 @@ internal class DefaultTyping(
                 startTypingTimer()
             } else {
                 startTypingTimer()
-                room.ensureAttached()
+                room.ensureAttached() // CHA-T4a1, CHA-T4a3, CHA-T4a4
                 channel.presence.enterClientCoroutine(room.clientId)
             }
         }.join()
@@ -178,7 +178,7 @@ internal class DefaultTyping(
         logger.trace("DefaultTyping.stop()")
         typingScope.launch {
             typingJob?.cancel()
-            room.ensureAttached()
+            room.ensureAttached() // CHA-T5e, CHA-T5c, CHA-T5d
             channel.presence.leaveClientCoroutine(room.clientId)
         }.join()
     }
