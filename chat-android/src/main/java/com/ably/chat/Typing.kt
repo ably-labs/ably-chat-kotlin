@@ -110,7 +110,7 @@ internal class DefaultTyping(
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 
-    override val channel: Channel = room.realtimeClient.channels.get(typingIndicatorsChannelName, ChatChannelOptions())
+    override val channel: Channel = room.realtimeClient.channels.get(typingIndicatorsChannelName, ChatChannelOptions()) // CHA-RC2f
 
     private var typingJob: Job? = null
 

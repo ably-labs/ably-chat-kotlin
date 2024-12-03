@@ -11,12 +11,12 @@ import org.junit.Test
 
 /**
  * Test to check shared channel for room features.
- * Spec: CHA-RC3
+ * Spec: CHA-RC3, CHA-RC2f
  */
 class RoomFeatureSharedChannelTest {
 
     @Test
-    fun `(CHA-RC3a) Features with shared channel should call channels#get only once with combined modes+options`() = runTest {
+    fun `(CHA-RC3a, CHA-RC2f) Features with shared channel should call channels#get only once with combined modes+options`() = runTest {
         val mockRealtimeClient = createMockRealtimeClient()
         val capturedChannelOptions = mutableListOf<ChannelOptions>()
 

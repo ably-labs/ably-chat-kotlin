@@ -110,7 +110,7 @@ internal class DefaultRoomReactions(
 
     private val roomReactionsChannelName = "${room.roomId}::\$chat::\$reactions"
 
-    override val channel: AblyRealtimeChannel = room.realtimeClient.channels.get(roomReactionsChannelName, ChatChannelOptions())
+    override val channel: AblyRealtimeChannel = room.realtimeClient.channels.get(roomReactionsChannelName, ChatChannelOptions()) // CHA-RC2f
 
     override val attachmentErrorCode: ErrorCode = ErrorCode.ReactionsAttachmentFailed
 
