@@ -87,6 +87,47 @@ class SandboxTest {
         )
     }
 
+    @Test
+    fun `should observe room reactions`() = runTest {
+        val chatClient = sandbox.createSandboxChatClient()
+        val roomId = UUID.randomUUID().toString()
+        val roomOptions = RoomOptions(reactions = RoomReactionsOptions)
+
+        val room = chatClient.rooms.get(roomId, roomOptions)
+        room.attach()
+
+        val reactionEvent = CompletableDeferred<Reaction>()
+
+        room.reactions.subscribe { reactionEvent.complete(it) }
+
+        room.reactions.send("heart")
+
+        assertEquals(
+            "heart",
+            reactionEvent.await().type,
+        )
+    }
+
+    @Test
+    fun `should be able to send and retrieve messages`() = runTest {
+        val chatClient = sandbox.createSandboxChatClient()
+        val roomId = UUID.randomUUID().toString()
+
+        val room = chatClient.rooms.get(roomId)
+
+        room.attach()
+
+        val messageEvent = CompletableDeferred<MessageEvent>()
+
+        room.messages.subscribe { messageEvent.complete(it) }
+        room.messages.send("hello")
+
+        assertEquals(
+            "hello",
+            messageEvent.await().message.text,
+        )
+    }
+
     companion object {
 
         private lateinit var sandbox: Sandbox
