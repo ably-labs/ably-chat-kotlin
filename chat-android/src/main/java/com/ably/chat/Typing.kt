@@ -9,6 +9,7 @@ import io.ably.lib.types.ErrorInfo
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.math.min
 import kotlin.math.pow
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -92,6 +93,7 @@ data class TypingEvent(val currentlyTyping: Set<String>)
 
 internal class DefaultTyping(
     private val room: DefaultRoom,
+    dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : Typing, ContributesToRoomLifecycleImpl(room.roomLogger) {
     private val typingIndicatorsChannelName = "${room.roomId}::\$chat::\$typingIndicators"
 
@@ -103,7 +105,7 @@ internal class DefaultTyping(
 
     private val logger = room.roomLogger.withContext(tag = "Typing")
 
-    private val typingScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1) + SupervisorJob())
+    private val typingScope = CoroutineScope(dispatcher.limitedParallelism(1) + SupervisorJob())
 
     private val eventBus = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,

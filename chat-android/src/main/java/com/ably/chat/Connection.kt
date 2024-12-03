@@ -4,6 +4,7 @@ import io.ably.lib.realtime.ConnectionState
 import io.ably.lib.types.ErrorInfo
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -114,9 +115,10 @@ interface Connection {
 internal class DefaultConnection(
     pubSubConnection: PubSubConnection,
     private val logger: Logger,
+    dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : Connection {
 
-    private val connectionScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1) + SupervisorJob())
+    private val connectionScope = CoroutineScope(dispatcher.limitedParallelism(1) + SupervisorJob())
 
     private val listeners: MutableList<Connection.Listener> = CopyOnWriteArrayList()
 
