@@ -39,8 +39,8 @@ data class RoomOptions(
         val default = RoomOptions(
             typing = TypingOptions(),
             presence = PresenceOptions(),
-            reactions = RoomReactionsOptions,
-            occupancy = OccupancyOptions,
+            reactions = RoomReactionsOptions(),
+            occupancy = OccupancyOptions(),
         )
     }
 }
@@ -80,13 +80,25 @@ data class TypingOptions(
 
 /**
  * Represents the reactions options for a chat room.
+ *
+ * Note: This class is currently empty but allows for future extensions
+ * while maintaining backward compatibility.
  */
-object RoomReactionsOptions
+class RoomReactionsOptions {
+    override fun equals(other: Any?) = other is RoomReactionsOptions
+    override fun hashCode() = javaClass.hashCode()
+}
 
 /**
  * Represents the occupancy options for a chat room.
+ *
+ * Note: This class is currently empty but allows for future extensions
+ * while maintaining backward compatibility.
  */
-object OccupancyOptions
+class OccupancyOptions {
+    override fun equals(other: Any?) = other is OccupancyOptions
+    override fun hashCode() = javaClass.hashCode()
+}
 
 /**
  * Throws AblyException for invalid room configuration.

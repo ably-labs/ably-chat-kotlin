@@ -33,7 +33,6 @@ android {
     }
 
     compileOptions {
-        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
@@ -53,7 +52,6 @@ dependencies {
     api(libs.ably.android)
     implementation(libs.gson)
     implementation(libs.coroutine.core)
-    coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
@@ -67,6 +65,10 @@ dependencies {
 tasks.withType<Test>().configureEach {
     testLogging {
         exceptionFormat = TestExceptionFormat.FULL
+    }
+    // Skip tests for the "release" build type so we don't run tests twice
+    if (name.lowercase().contains("release")) {
+        enabled = false
     }
 }
 

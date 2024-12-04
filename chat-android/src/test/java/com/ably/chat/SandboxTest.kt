@@ -56,7 +56,7 @@ class SandboxTest {
     fun `should return occupancy for the client`() = runTest {
         val chatClient = sandbox.createSandboxChatClient("client1")
         val roomId = UUID.randomUUID().toString()
-        val roomOptions = RoomOptions(occupancy = OccupancyOptions)
+        val roomOptions = RoomOptions(occupancy = OccupancyOptions())
 
         val chatClientRoom = chatClient.rooms.get(roomId, roomOptions)
 
@@ -91,7 +91,7 @@ class SandboxTest {
     fun `should observe room reactions`() = runTest {
         val chatClient = sandbox.createSandboxChatClient()
         val roomId = UUID.randomUUID().toString()
-        val roomOptions = RoomOptions(reactions = RoomReactionsOptions)
+        val roomOptions = RoomOptions(reactions = RoomReactionsOptions())
 
         val room = chatClient.rooms.get(roomId, roomOptions)
         room.attach()

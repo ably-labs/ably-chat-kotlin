@@ -9,6 +9,14 @@ Ensure you have the following installed:
 - Java 17 or higher
 - Android SDK with API Level 34 or higher
 
+Add your Ably key to the `local.properties` file:
+
+```properties
+sdk.dir=/path/to/android/sdk
+
+ABLY_KEY=xxxx:yyyyyy
+```
+
 ## Steps to Run the App
 
 1. Open in Android Studio
