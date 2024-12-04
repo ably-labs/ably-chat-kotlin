@@ -3,11 +3,9 @@
 
 [versions]
 ably = "1.2.46"
-desugar-jdk-libs = "2.1.2"
 junit = "4.13.2"
 agp = "8.5.2"
 detekt = "1.23.6"
-konfetti-compose = "2.0.4"
 kotlin = "2.0.10"
 androidx-test = "1.6.1"
 androidx-junit = "1.2.1"
@@ -23,7 +21,6 @@ build-config = "5.5.1"
 ktor = "3.0.1"
 
 [libraries]
-desugar-jdk-libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar-jdk-libs" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
 ably-android = { module = "io.ably:ably-android", version.ref = "ably" }

@@ -1,7 +1,9 @@
 package com.ably.chat
 
 import android.util.Log
-import java.time.LocalDateTime
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 fun interface LogHandler {
     fun log(message: String, level: LogLevel, throwable: Throwable?, context: LogContext)
@@ -90,13 +92,14 @@ internal class AndroidLogger(
     }
 
     override fun log(message: String, level: LogLevel, throwable: Throwable?, newTag: String?, newStaticContext: Map<String, String>) {
-        if (level.logLevelValue <= minimalVisibleLogLevel.logLevelValue) return
+        if (level.logLevelValue < minimalVisibleLogLevel.logLevelValue) return
         val finalContext = context.mergeWith(newTag, newStaticContext)
         val tag = finalContext.tag
         val completeContext = finalContext.staticContext + finalContext.dynamicContext.mapValues { it.value() }
 
         val contextString = ", context: $completeContext"
-        val formattedMessage = "[${LocalDateTime.now()}] $tag ${level.name} ably-chat: ${message}$contextString"
+        val currentTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.S", Locale.US).format(Date())
+        val formattedMessage = "$currentTime [$tag] (${level.name.uppercase()}) ably-chat: ${message}$contextString"
         when (level) {
             // We use Logcat's info level for Trace and Debug
             LogLevel.Trace -> Log.i(tag, formattedMessage, throwable)
@@ -124,7 +127,7 @@ internal class CustomLogger(
     }
 
     override fun log(message: String, level: LogLevel, throwable: Throwable?, newTag: String?, newStaticContext: Map<String, String>) {
-        if (level.logLevelValue <= minimalVisibleLogLevel.logLevelValue) return
+        if (level.logLevelValue < minimalVisibleLogLevel.logLevelValue) return
         val finalContext = context.mergeWith(newTag, newStaticContext)
         logHandler.log(
             message = message,
