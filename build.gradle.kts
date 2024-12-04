@@ -18,7 +18,6 @@ dependencies {
 allprojects {
     repositories {
         google()
-        mavenLocal()
         mavenCentral()
     }
 }
