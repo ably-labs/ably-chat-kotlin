@@ -120,8 +120,9 @@ class ReleaseTest {
         }
     }
 
+    @Suppress("MaximumLineLength")
     @Test
-    fun `(CHA-RL3d) Release op should detach each contributor channel sequentially and room should be considered RELEASED`() = runTest {
+    fun `(CHA-RL3d, CHA-RC2e) Release op should detach each contributor channel sequentially and room should be considered RELEASED`() = runTest {
         val statusLifecycle = spyk(DefaultRoomLifecycle(logger)).apply {
             setStatus(RoomStatus.Attached)
         }
@@ -146,15 +147,15 @@ class ReleaseTest {
         }
         Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[0].name)
         Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[1].name)
-        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[2].name)
-        Assert.assertEquals("1234::\$chat::\$typingIndicators", capturedChannels[3].name)
-        Assert.assertEquals("1234::\$chat::\$reactions", capturedChannels[4].name)
+        Assert.assertEquals("1234::\$chat::\$typingIndicators", capturedChannels[2].name)
+        Assert.assertEquals("1234::\$chat::\$reactions", capturedChannels[3].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[4].name)
 
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
     }
 
     @Test
-    fun `(CHA-RL3e) If a one of the contributors is in failed state, release op continues for other contributors`() = runTest {
+    fun `(CHA-RL3e, CHA-RC2e) If a one of the contributors is in failed state, release op continues for other contributors`() = runTest {
         val statusLifecycle = spyk(DefaultRoomLifecycle(logger)).apply {
             setStatus(RoomStatus.Attached)
         }
@@ -183,8 +184,8 @@ class ReleaseTest {
         Assert.assertEquals(4, capturedChannels.size)
         Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[0].name)
         Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[1].name)
-        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[2].name)
-        Assert.assertEquals("1234::\$chat::\$reactions", capturedChannels[3].name)
+        Assert.assertEquals("1234::\$chat::\$reactions", capturedChannels[2].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[3].name)
     }
 
     @Test
@@ -228,7 +229,7 @@ class ReleaseTest {
     }
 
     @Test
-    fun `(CHA-RL3g) Release op continues till all contributors enters either DETACHED or FAILED state`() = runTest {
+    fun `(CHA-RL3g, CHA-RC2e) Release op continues till all contributors enters either DETACHED or FAILED state`() = runTest {
         val statusLifecycle = spyk(DefaultRoomLifecycle(logger)).apply {
             setStatus(RoomStatus.Attached)
         }
@@ -261,9 +262,9 @@ class ReleaseTest {
         }
         Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[0].name)
         Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[1].name)
-        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[2].name)
-        Assert.assertEquals("1234::\$chat::\$typingIndicators", capturedChannels[3].name)
-        Assert.assertEquals("1234::\$chat::\$reactions", capturedChannels[4].name)
+        Assert.assertEquals("1234::\$chat::\$typingIndicators", capturedChannels[2].name)
+        Assert.assertEquals("1234::\$chat::\$reactions", capturedChannels[3].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[4].name)
 
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
 
@@ -273,8 +274,9 @@ class ReleaseTest {
         }
     }
 
+    @Suppress("MaximumLineLength")
     @Test
-    fun `(CHA-RL3h) Upon channel release, underlying Realtime Channels are released from the core SDK prevent leakage`() = runTest {
+    fun `(CHA-RL3h, CHA-RC2e) Upon channel release, underlying Realtime Channels are released from the core SDK prevent leakage`() = runTest {
         val statusLifecycle = spyk(DefaultRoomLifecycle(logger)).apply {
             setStatus(RoomStatus.Attached)
         }
@@ -306,9 +308,9 @@ class ReleaseTest {
         }
         Assert.assertEquals("1234::\$chat::\$chatMessages", releasedChannels[0].name)
         Assert.assertEquals("1234::\$chat::\$chatMessages", releasedChannels[1].name)
-        Assert.assertEquals("1234::\$chat::\$chatMessages", releasedChannels[2].name)
-        Assert.assertEquals("1234::\$chat::\$typingIndicators", releasedChannels[3].name)
-        Assert.assertEquals("1234::\$chat::\$reactions", releasedChannels[4].name)
+        Assert.assertEquals("1234::\$chat::\$typingIndicators", releasedChannels[2].name)
+        Assert.assertEquals("1234::\$chat::\$reactions", releasedChannels[3].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", releasedChannels[4].name)
 
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
 

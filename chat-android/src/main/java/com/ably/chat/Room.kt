@@ -178,6 +178,7 @@ internal class DefaultRoom(
     init {
         options.validateRoomOptions() // CHA-RC2a
 
+        // CHA-RC2e - Add contributors/features as per the order of precedence
         val roomFeatures = mutableListOf<ContributesToRoomLifecycle>(messages)
 
         options.presence?.let {
@@ -236,33 +237,35 @@ internal class DefaultRoom(
      * Spec: CHA-RL9
      */
     internal suspend fun ensureAttached() {
-        // CHA-PR3d, CHA-PR10d, CHA-PR6c, CHA-PR6c
-        if (statusLifecycle.status == RoomStatus.Attached) {
-            return
-        }
-        if (statusLifecycle.status == RoomStatus.Attaching) { // CHA-RL9
-            val attachDeferred = CompletableDeferred<Unit>()
-            roomScope.launch {
-                when (statusLifecycle.status) {
-                    RoomStatus.Attached -> attachDeferred.complete(Unit)
-                    RoomStatus.Attaching -> statusLifecycle.onChangeOnce {
-                        if (it.current == RoomStatus.Attached) {
-                            attachDeferred.complete(Unit)
-                        } else {
+        // CHA-PR3e, CHA-PR10e, CHA-PR4d, CHA-PR6d, CHA-T2d, CHA-T4a1, CHA-T5e
+        when (val currentRoomStatus = statusLifecycle.status) {
+            RoomStatus.Attached -> return
+            // CHA-PR3d, CHA-PR10d, CHA-PR4b, CHA-PR6c, CHA-T2c, CHA-T4a3, CHA-T5c
+            RoomStatus.Attaching -> { // CHA-RL9
+                val attachDeferred = CompletableDeferred<Unit>()
+                roomScope.launch {
+                    when (statusLifecycle.status) {
+                        RoomStatus.Attached -> attachDeferred.complete(Unit)
+                        RoomStatus.Attaching -> statusLifecycle.onChangeOnce {
+                            if (it.current == RoomStatus.Attached) {
+                                attachDeferred.complete(Unit)
+                            } else {
+                                val exception =
+                                    roomInvalidStateException(roomId, statusLifecycle.status, HttpStatusCode.InternalServerError)
+                                attachDeferred.completeExceptionally(exception)
+                            }
+                        }
+                        else -> {
                             val exception = roomInvalidStateException(roomId, statusLifecycle.status, HttpStatusCode.InternalServerError)
                             attachDeferred.completeExceptionally(exception)
                         }
                     }
-                    else -> {
-                        val exception = roomInvalidStateException(roomId, statusLifecycle.status, HttpStatusCode.InternalServerError)
-                        attachDeferred.completeExceptionally(exception)
-                    }
                 }
+                attachDeferred.await()
+                return
             }
-            attachDeferred.await()
-            return
+            // CHA-PR3h, CHA-PR10h, CHA-PR4c, CHA-PR6h, CHA-T2g, CHA-T4a4, CHA-T5d
+            else -> throw roomInvalidStateException(roomId, currentRoomStatus, HttpStatusCode.BadRequest)
         }
-        // CHA-PR3h, CHA-PR10h, CHA-PR6h, CHA-T2g
-        throw roomInvalidStateException(roomId, statusLifecycle.status, HttpStatusCode.BadRequest)
     }
 }

@@ -167,7 +167,7 @@ class AttachTest {
     }
 
     @Test
-    fun `(CHA-RL1f) Attach op should attach each contributor channel sequentially`() = runTest {
+    fun `(CHA-RL1f, CHA-RC2e) Attach op should attach each contributor channel sequentially`() = runTest {
         val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
 
         mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
@@ -190,9 +190,9 @@ class AttachTest {
         }
         Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[0].name)
         Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[1].name)
-        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[2].name)
-        Assert.assertEquals("1234::\$chat::\$typingIndicators", capturedChannels[3].name)
-        Assert.assertEquals("1234::\$chat::\$reactions", capturedChannels[4].name)
+        Assert.assertEquals("1234::\$chat::\$typingIndicators", capturedChannels[2].name)
+        Assert.assertEquals("1234::\$chat::\$reactions", capturedChannels[3].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedChannels[4].name)
     }
 
     @Test
@@ -346,7 +346,7 @@ class AttachTest {
     }
 
     @Test
-    fun `(CHA-RL1h5) When room enters failed state (CHA-RL1h4), room detach all channels not in failed state`() = runTest {
+    fun `(CHA-RL1h5, CHA-RC2e) When room enters failed state (CHA-RL1h4), room detach all channels not in failed state`() = runTest {
         val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
 
         mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
@@ -387,13 +387,13 @@ class AttachTest {
 
         Assert.assertEquals("1234::\$chat::\$chatMessages", detachedChannels[0].name)
         Assert.assertEquals("1234::\$chat::\$chatMessages", detachedChannels[1].name)
-        Assert.assertEquals("1234::\$chat::\$chatMessages", detachedChannels[2].name)
-        Assert.assertEquals("1234::\$chat::\$reactions", detachedChannels[3].name)
+        Assert.assertEquals("1234::\$chat::\$reactions", detachedChannels[2].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", detachedChannels[3].name)
     }
 
     @Suppress("MaximumLineLength")
     @Test
-    fun `(CHA-RL1h6) When room enters failed state, when CHA-RL1h5 fails to detach, op will be repeated till all channels are detached`() = runTest {
+    fun `(CHA-RL1h6, CHA-RC2e) When room enters failed state, when CHA-RL1h5 fails to detach, op will be repeated till all channels are detached`() = runTest {
         val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
 
         mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
@@ -439,7 +439,7 @@ class AttachTest {
 
         Assert.assertEquals("1234::\$chat::\$chatMessages", detachedChannels[0].name)
         Assert.assertEquals("1234::\$chat::\$chatMessages", detachedChannels[1].name)
-        Assert.assertEquals("1234::\$chat::\$chatMessages", detachedChannels[2].name)
-        Assert.assertEquals("1234::\$chat::\$reactions", detachedChannels[3].name)
+        Assert.assertEquals("1234::\$chat::\$reactions", detachedChannels[2].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", detachedChannels[3].name)
     }
 }

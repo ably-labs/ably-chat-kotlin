@@ -244,7 +244,7 @@ internal class DefaultMessages(
      */
     private val messagesChannelName = "${room.roomId}::\$chat::\$chatMessages"
 
-    override val channel: Channel = realtimeChannels.get(messagesChannelName, room.options.messagesChannelOptions())
+    override val channel: Channel = realtimeChannels.get(messagesChannelName, room.options.messagesChannelOptions()) // CHA-RC2f
 
     override val attachmentErrorCode: ErrorCode = ErrorCode.MessagesAttachmentFailed
 

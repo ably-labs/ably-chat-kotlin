@@ -203,7 +203,7 @@ class RetryTest {
 
     @Suppress("MaximumLineLength")
     @Test
-    fun `(CHA-RL5f) If, during the CHA-RL5d wait, the contributor channel becomes ATTACHED, then attach operation continues for other contributors as per CHA-RL1e`() = runTest {
+    fun `(CHA-RL5f, CHA-RC2e) If, during the CHA-RL5d wait, the contributor channel becomes ATTACHED, then attach operation continues for other contributors as per CHA-RL1e`() = runTest {
         val statusLifecycle = spyk(DefaultRoomLifecycle(logger))
 
         mockkStatic(io.ably.lib.realtime.Channel::attachCoroutine)
@@ -237,9 +237,9 @@ class RetryTest {
 
         Assert.assertEquals("1234::\$chat::\$chatMessages", capturedAttachedChannels[0].name)
         Assert.assertEquals("1234::\$chat::\$chatMessages", capturedAttachedChannels[1].name)
-        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedAttachedChannels[2].name)
-        Assert.assertEquals("1234::\$chat::\$typingIndicators", capturedAttachedChannels[3].name)
-        Assert.assertEquals("1234::\$chat::\$reactions", capturedAttachedChannels[4].name)
+        Assert.assertEquals("1234::\$chat::\$typingIndicators", capturedAttachedChannels[2].name)
+        Assert.assertEquals("1234::\$chat::\$reactions", capturedAttachedChannels[3].name)
+        Assert.assertEquals("1234::\$chat::\$chatMessages", capturedAttachedChannels[4].name)
 
         assertWaiter { roomLifecycle.atomicCoroutineScope().finishedProcessing }
     }
