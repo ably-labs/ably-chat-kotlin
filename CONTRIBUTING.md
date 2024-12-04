@@ -30,6 +30,8 @@ To build the library’s AAR package, execute:
 ./gradlew chat-android:assemble
 ```
 
+The built AAR package will be located in the `chat-android/build/outputs/aar/` directory.
+
 ### Code Standard
 
 #### Detekt
