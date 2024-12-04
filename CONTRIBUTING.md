@@ -11,7 +11,7 @@
 
 ### Building
 
-A gradle wrapper is included so these tasks can run without any prior installation of gradle. The Linux/OSX form of the commands, given
+A gradle wrapper is included, so these tasks can run without any prior installation of gradle. The Linux/OSX form of the commands, given
 below, is:
 
 ```bash
