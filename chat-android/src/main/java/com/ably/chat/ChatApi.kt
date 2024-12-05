@@ -35,7 +35,7 @@ internal class ChatApi(
             method = "GET",
             params = params,
         ) {
-            val latestActionName = it.requireJsonObject().get("latestAction")?.asString
+            val latestActionName = it.requireJsonObject().get("action")?.asString
             val latestAction = latestActionName?.let { name -> messageActionNameToAction[name] }
 
             latestAction?.let { action ->
@@ -47,7 +47,7 @@ internal class ChatApi(
                     createdAt = it.requireLong("createdAt"),
                     metadata = it.asJsonObject.get("metadata"),
                     headers = it.asJsonObject.get("headers")?.toMap() ?: mapOf(),
-                    latestAction = action,
+                    action = action,
                 )
             }
         }
@@ -87,7 +87,7 @@ internal class ChatApi(
                 createdAt = it.requireLong("createdAt"),
                 metadata = params.metadata,
                 headers = params.headers ?: mapOf(),
-                latestAction = MessageAction.MESSAGE_CREATE,
+                action = MessageAction.MESSAGE_CREATE,
             )
         } ?: throw AblyException.fromErrorInfo(ErrorInfo("Send message endpoint returned empty value", HttpStatusCode.InternalServerError))
     }

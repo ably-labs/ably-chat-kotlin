@@ -69,7 +69,7 @@ fun Occupancy.subscribeOnce(listener: Occupancy.Listener) {
     }
 }
 
-suspend fun assertWaiter(timeoutInMs: Long = 10_000, block: () -> Boolean) {
+suspend fun assertWaiter(timeoutInMs: Long = 10_000, block: suspend () -> Boolean) {
     withContext(Dispatchers.Default) {
         withTimeout(timeoutInMs) {
             do {

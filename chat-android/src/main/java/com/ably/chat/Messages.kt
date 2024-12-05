@@ -290,7 +290,7 @@ internal class DefaultMessages(
                 text = data.text,
                 metadata = data.metadata,
                 headers = pubSubMessage.extras.asJsonObject().get("headers")?.toMap() ?: mapOf(),
-                latestAction = MessageAction.MESSAGE_CREATE,
+                action = MessageAction.MESSAGE_CREATE,
             )
             listener.onEvent(MessageEvent(type = MessageEventType.Created, message = chatMessage))
         }
