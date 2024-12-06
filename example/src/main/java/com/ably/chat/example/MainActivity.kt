@@ -320,7 +320,7 @@ fun MessageBubblePreview() {
                 createdAt = System.currentTimeMillis(),
                 metadata = null,
                 headers = mapOf(),
-                latestAction = MessageAction.MESSAGE_CREATE,
+                action = MessageAction.MESSAGE_CREATE,
             ),
         )
     }

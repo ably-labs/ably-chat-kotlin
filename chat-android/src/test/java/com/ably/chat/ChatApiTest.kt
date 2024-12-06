@@ -32,7 +32,7 @@ class ChatApiTest {
                     addProperty("clientId", "clientId")
                     addProperty("text", "hello")
                     addProperty("createdAt", 1_000_000)
-                    addProperty("latestAction", "message.create")
+                    addProperty("action", "message.create")
                 },
             ),
         )
@@ -49,7 +49,7 @@ class ChatApiTest {
                     createdAt = 1_000_000L,
                     metadata = null,
                     headers = mapOf(),
-                    latestAction = MessageAction.MESSAGE_CREATE,
+                    action = MessageAction.MESSAGE_CREATE,
                 ),
             ),
             messages.items,
@@ -66,7 +66,7 @@ class ChatApiTest {
             listOf(
                 JsonObject().apply {
                     addProperty("foo", "bar")
-                    addProperty("latestAction", "message.create")
+                    addProperty("action", "message.create")
                 },
             ),
         )
@@ -103,7 +103,7 @@ class ChatApiTest {
                 createdAt = 1_000_000L,
                 headers = mapOf(),
                 metadata = null,
-                latestAction = MessageAction.MESSAGE_CREATE,
+                action = MessageAction.MESSAGE_CREATE,
             ),
             message,
         )

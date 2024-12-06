@@ -73,5 +73,5 @@ data class Message(
     /**
      * The latest action of the message. This can be used to determine if the message was created, updated, or deleted.
      */
-    val latestAction: MessageAction,
+    val action: MessageAction,
 )

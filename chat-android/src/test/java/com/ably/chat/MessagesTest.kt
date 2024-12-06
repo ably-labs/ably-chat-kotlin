@@ -75,7 +75,7 @@ class MessagesTest {
                 createdAt = 1_000_000,
                 metadata = JsonObject().apply { addProperty("meta", "data") },
                 headers = mapOf("foo" to "bar"),
-                latestAction = MessageAction.MESSAGE_CREATE,
+                action = MessageAction.MESSAGE_CREATE,
             ),
             sentMessage,
         )
@@ -135,7 +135,7 @@ class MessagesTest {
                 text = "some text",
                 metadata = null,
                 headers = mapOf("foo" to "bar"),
-                latestAction = MessageAction.MESSAGE_CREATE,
+                action = MessageAction.MESSAGE_CREATE,
             ),
             messageEvent.message,
         )

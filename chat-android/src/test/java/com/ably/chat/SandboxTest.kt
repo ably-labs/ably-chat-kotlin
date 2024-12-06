@@ -128,6 +128,29 @@ class SandboxTest {
         )
     }
 
+    @Test
+    fun `should be able to send and retrieve messages from history`() = runTest {
+        val chatClient = sandbox.createSandboxChatClient()
+        val roomId = UUID.randomUUID().toString()
+
+        val room = chatClient.rooms.get(roomId)
+
+        room.attach()
+
+        room.messages.send("hello")
+
+        lateinit var messages: List<Message>
+
+        assertWaiter {
+            messages = room.messages.get().items
+            messages.isNotEmpty()
+        }
+
+        assertEquals(1, messages.size)
+        assertEquals("hello", messages.first().text)
+        assertEquals("sandbox-client", messages.first().clientId)
+    }
+
     companion object {
 
         private lateinit var sandbox: Sandbox
