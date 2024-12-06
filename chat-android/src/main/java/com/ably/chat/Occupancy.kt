@@ -73,7 +73,7 @@ data class OccupancyEvent(
 
 internal class DefaultOccupancy(
     private val room: DefaultRoom,
-) : Occupancy, ContributesToRoomLifecycleImpl(room.roomLogger) {
+) : Occupancy, ContributesToRoomLifecycleImpl(room.logger) {
 
     override val featureName: String = "occupancy"
 
@@ -81,7 +81,7 @@ internal class DefaultOccupancy(
 
     override val detachmentErrorCode: ErrorCode = ErrorCode.OccupancyDetachmentFailed
 
-    private val logger = room.roomLogger.withContext(tag = "Occupancy")
+    private val logger = room.logger.withContext(tag = "Occupancy")
 
     override val channel: Channel = room.messages.channel
 

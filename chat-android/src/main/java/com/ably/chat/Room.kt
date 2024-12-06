@@ -117,7 +117,7 @@ internal class DefaultRoom(
     internal val clientId: String,
     logger: Logger,
 ) : Room {
-    internal val roomLogger = logger.withContext("Room", mapOf("roomId" to roomId))
+    internal val logger = logger.withContext("Room", mapOf("roomId" to roomId))
 
     /**
      * RoomScope is a crucial part of the Room lifecycle. It manages sequential and atomic operations.
@@ -133,7 +133,8 @@ internal class DefaultRoom(
     override val presence: Presence
         get() {
             if (_presence == null) { // CHA-RC2b
-                throw ablyException("Presence is not enabled for this room", ErrorCode.BadRequest)
+                logger.error("Presence access failed, not enabled in provided RoomOptions: $options")
+                throw clientError("Presence is not enabled for this room")
             }
             return _presence as Presence
         }
@@ -142,7 +143,8 @@ internal class DefaultRoom(
     override val reactions: RoomReactions
         get() {
             if (_reactions == null) { // CHA-RC2b
-                throw ablyException("Reactions are not enabled for this room", ErrorCode.BadRequest)
+                logger.error("Reactions access failed, not enabled in provided RoomOptions: $options")
+                throw clientError("Reactions are not enabled for this room")
             }
             return _reactions as RoomReactions
         }
@@ -151,7 +153,8 @@ internal class DefaultRoom(
     override val typing: Typing
         get() {
             if (_typing == null) { // CHA-RC2b
-                throw ablyException("Typing is not enabled for this room", ErrorCode.BadRequest)
+                logger.error("Typing access failed, not enabled in provided RoomOptions: $options")
+                throw clientError("Typing is not enabled for this room")
             }
             return _typing as Typing
         }
@@ -160,12 +163,13 @@ internal class DefaultRoom(
     override val occupancy: Occupancy
         get() {
             if (_occupancy == null) { // CHA-RC2b
-                throw ablyException("Occupancy is not enabled for this room", ErrorCode.BadRequest)
+                logger.error("Occupancy access failed, not enabled in provided RoomOptions: $options")
+                throw clientError("Occupancy is not enabled for this room")
             }
             return _occupancy as Occupancy
         }
 
-    private val statusLifecycle = DefaultRoomLifecycle(roomLogger)
+    private val statusLifecycle = DefaultRoomLifecycle(this.logger)
 
     override val status: RoomStatus
         get() = statusLifecycle.status
@@ -176,7 +180,9 @@ internal class DefaultRoom(
     private var lifecycleManager: RoomLifecycleManager
 
     init {
-        options.validateRoomOptions() // CHA-RC2a
+        this.logger.debug("Initializing based on provided RoomOptions: $options")
+
+        options.validateRoomOptions(this.logger) // CHA-RC2a
 
         // CHA-RC2e - Add contributors/features as per the order of precedence
         val roomFeatures = mutableListOf<ContributesToRoomLifecycle>(messages)
@@ -205,7 +211,9 @@ internal class DefaultRoom(
             _occupancy = occupancyContributor
         }
 
-        lifecycleManager = RoomLifecycleManager(roomScope, statusLifecycle, roomFeatures, roomLogger)
+        lifecycleManager = RoomLifecycleManager(roomScope, statusLifecycle, roomFeatures, this.logger)
+
+        this.logger.debug("Initialized with features: ${roomFeatures.joinToString { it.featureName }}")
     }
 
     override fun onStatusChange(listener: RoomLifecycle.Listener): Subscription =
@@ -216,10 +224,12 @@ internal class DefaultRoom(
     }
 
     override suspend fun attach() {
+        logger.trace("attach();")
         lifecycleManager.attach()
     }
 
     override suspend fun detach() {
+        logger.trace("detach();")
         lifecycleManager.detach()
     }
 
@@ -228,34 +238,49 @@ internal class DefaultRoom(
      * This is an internal method and only called from Rooms interface implementation.
      */
     internal suspend fun release() {
+        logger.trace("release();")
         lifecycleManager.release()
     }
 
     /**
      * Ensures that the room is attached before performing any realtime room operation.
+     * Accepts featureLogger as a param, to log respective operation.
      * @throws roomInvalidStateException if room is not in ATTACHING/ATTACHED state.
      * Spec: CHA-RL9
      */
-    internal suspend fun ensureAttached() {
+    internal suspend fun ensureAttached(featureLogger: Logger) {
+        featureLogger.trace("ensureAttached();")
         // CHA-PR3e, CHA-PR10e, CHA-PR4d, CHA-PR6d, CHA-T2d, CHA-T4a1, CHA-T5e
         when (val currentRoomStatus = statusLifecycle.status) {
-            RoomStatus.Attached -> return
+            RoomStatus.Attached -> {
+                featureLogger.debug("ensureAttached(); Room is already attached")
+                return
+            }
             // CHA-PR3d, CHA-PR10d, CHA-PR4b, CHA-PR6c, CHA-T2c, CHA-T4a3, CHA-T5c
             RoomStatus.Attaching -> { // CHA-RL9
+                featureLogger.debug("ensureAttached(); Room is in attaching state, waiting for attach to complete")
                 val attachDeferred = CompletableDeferred<Unit>()
                 roomScope.launch {
                     when (statusLifecycle.status) {
-                        RoomStatus.Attached -> attachDeferred.complete(Unit)
+                        RoomStatus.Attached -> {
+                            featureLogger.debug("ensureAttached(); waiting complete, room is now ATTACHED")
+                            attachDeferred.complete(Unit)
+                        }
                         RoomStatus.Attaching -> statusLifecycle.onChangeOnce {
                             if (it.current == RoomStatus.Attached) {
+                                featureLogger.debug("ensureAttached(); waiting complete, room is now ATTACHED")
                                 attachDeferred.complete(Unit)
                             } else {
+                                featureLogger.error("ensureAttached(); waiting complete, room ATTACHING failed with error: ${it.error}")
                                 val exception =
                                     roomInvalidStateException(roomId, statusLifecycle.status, HttpStatusCode.InternalServerError)
                                 attachDeferred.completeExceptionally(exception)
                             }
                         }
                         else -> {
+                            featureLogger.error(
+                                "ensureAttached(); waiting complete, room ATTACHING failed with error: ${statusLifecycle.error}",
+                            )
                             val exception = roomInvalidStateException(roomId, statusLifecycle.status, HttpStatusCode.InternalServerError)
                             attachDeferred.completeExceptionally(exception)
                         }
@@ -265,7 +290,10 @@ internal class DefaultRoom(
                 return
             }
             // CHA-PR3h, CHA-PR10h, CHA-PR4c, CHA-PR6h, CHA-T2g, CHA-T4a4, CHA-T5d
-            else -> throw roomInvalidStateException(roomId, currentRoomStatus, HttpStatusCode.BadRequest)
+            else -> {
+                featureLogger.error("ensureAttached(); Room is in invalid state: $currentRoomStatus, error: ${statusLifecycle.error}")
+                throw roomInvalidStateException(roomId, currentRoomStatus, HttpStatusCode.BadRequest)
+            }
         }
     }
 }
