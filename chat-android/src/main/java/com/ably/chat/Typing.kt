@@ -94,7 +94,7 @@ data class TypingEvent(val currentlyTyping: Set<String>)
 internal class DefaultTyping(
     private val room: DefaultRoom,
     dispatcher: CoroutineDispatcher = Dispatchers.Default,
-) : Typing, ContributesToRoomLifecycleImpl(room.roomLogger) {
+) : Typing, ContributesToRoomLifecycleImpl(room.logger) {
     private val typingIndicatorsChannelName = "${room.roomId}::\$chat::\$typingIndicators"
 
     override val featureName = "typing"
@@ -103,7 +103,7 @@ internal class DefaultTyping(
 
     override val detachmentErrorCode: ErrorCode = ErrorCode.TypingDetachmentFailed
 
-    private val logger = room.roomLogger.withContext(tag = "Typing")
+    private val logger = room.logger.withContext(tag = "Typing")
 
     private val typingScope = CoroutineScope(dispatcher.limitedParallelism(1) + SupervisorJob())
 
