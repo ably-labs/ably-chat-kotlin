@@ -104,9 +104,10 @@ class OccupancyOptions {
  * Throws AblyException for invalid room configuration.
  * Spec: CHA-RC2a
  */
-internal fun RoomOptions.validateRoomOptions() {
+internal fun RoomOptions.validateRoomOptions(logger: Logger) {
     typing?.let {
         if (typing.timeoutMs <= 0) {
+            logger.error("Typing timeout must be greater than 0, found ${typing.timeoutMs}")
             throw ablyException("Typing timeout must be greater than 0", ErrorCode.InvalidRequestBody)
         }
     }

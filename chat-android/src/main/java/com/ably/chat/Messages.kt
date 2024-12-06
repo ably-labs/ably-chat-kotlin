@@ -220,13 +220,13 @@ internal class DefaultMessagesSubscription(
 
 internal class DefaultMessages(
     val room: DefaultRoom,
-) : Messages, ContributesToRoomLifecycleImpl(room.roomLogger) {
+) : Messages, ContributesToRoomLifecycleImpl(room.logger) {
 
     override val featureName: String = "messages"
 
     private var channelStateListener: ChannelStateListener
 
-    private val logger = room.roomLogger.withContext(tag = "Messages")
+    private val logger = room.logger.withContext(tag = "Messages")
 
     private val roomId = room.roomId
 

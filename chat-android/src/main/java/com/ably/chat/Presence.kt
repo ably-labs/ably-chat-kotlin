@@ -136,7 +136,7 @@ data class PresenceEvent(
 
 internal class DefaultPresence(
     private val room: DefaultRoom,
-) : Presence, ContributesToRoomLifecycleImpl(room.roomLogger) {
+) : Presence, ContributesToRoomLifecycleImpl(room.logger) {
 
     override val featureName = "presence"
 
@@ -146,7 +146,7 @@ internal class DefaultPresence(
 
     override val channel: Channel = room.messages.channel
 
-    private val logger = room.roomLogger.withContext(tag = "Presence")
+    private val logger = room.logger.withContext(tag = "Presence")
 
     private val presence = channel.presence
 

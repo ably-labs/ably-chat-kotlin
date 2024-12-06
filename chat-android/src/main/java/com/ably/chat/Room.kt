@@ -117,7 +117,7 @@ internal class DefaultRoom(
     internal val clientId: String,
     logger: Logger,
 ) : Room {
-    internal val roomLogger = logger.withContext("Room", mapOf("roomId" to roomId))
+    internal val logger = logger.withContext("Room", mapOf("roomId" to roomId))
 
     /**
      * RoomScope is a crucial part of the Room lifecycle. It manages sequential and atomic operations.
@@ -133,6 +133,7 @@ internal class DefaultRoom(
     override val presence: Presence
         get() {
             if (_presence == null) { // CHA-RC2b
+                logger.error("Presence access failed, it is not enabled")
                 throw ablyException("Presence is not enabled for this room", ErrorCode.BadRequest)
             }
             return _presence as Presence
@@ -142,6 +143,7 @@ internal class DefaultRoom(
     override val reactions: RoomReactions
         get() {
             if (_reactions == null) { // CHA-RC2b
+                logger.error("Reactions access failed, it is not enabled")
                 throw ablyException("Reactions are not enabled for this room", ErrorCode.BadRequest)
             }
             return _reactions as RoomReactions
@@ -151,6 +153,7 @@ internal class DefaultRoom(
     override val typing: Typing
         get() {
             if (_typing == null) { // CHA-RC2b
+                logger.error("Typing access failed, it is not enabled")
                 throw ablyException("Typing is not enabled for this room", ErrorCode.BadRequest)
             }
             return _typing as Typing
@@ -160,12 +163,13 @@ internal class DefaultRoom(
     override val occupancy: Occupancy
         get() {
             if (_occupancy == null) { // CHA-RC2b
+                logger.error("Occupancy access failed, it is not enabled")
                 throw ablyException("Occupancy is not enabled for this room", ErrorCode.BadRequest)
             }
             return _occupancy as Occupancy
         }
 
-    private val statusLifecycle = DefaultRoomLifecycle(roomLogger)
+    private val statusLifecycle = DefaultRoomLifecycle(this.logger)
 
     override val status: RoomStatus
         get() = statusLifecycle.status
@@ -176,7 +180,9 @@ internal class DefaultRoom(
     private var lifecycleManager: RoomLifecycleManager
 
     init {
-        options.validateRoomOptions() // CHA-RC2a
+        this.logger.debug("Initializing based on options: $options")
+
+        options.validateRoomOptions(this.logger) // CHA-RC2a
 
         // CHA-RC2e - Add contributors/features as per the order of precedence
         val roomFeatures = mutableListOf<ContributesToRoomLifecycle>(messages)
@@ -205,7 +211,9 @@ internal class DefaultRoom(
             _occupancy = occupancyContributor
         }
 
-        lifecycleManager = RoomLifecycleManager(roomScope, statusLifecycle, roomFeatures, roomLogger)
+        lifecycleManager = RoomLifecycleManager(roomScope, statusLifecycle, roomFeatures, this.logger)
+
+        this.logger.debug("Initialized with features: ${roomFeatures.joinToString { it.featureName }}")
     }
 
     override fun onStatusChange(listener: RoomLifecycle.Listener): Subscription =
@@ -216,10 +224,12 @@ internal class DefaultRoom(
     }
 
     override suspend fun attach() {
+        logger.trace("attach;")
         lifecycleManager.attach()
     }
 
     override suspend fun detach() {
+        logger.trace("detach;")
         lifecycleManager.detach()
     }
 
@@ -228,6 +238,7 @@ internal class DefaultRoom(
      * This is an internal method and only called from Rooms interface implementation.
      */
     internal suspend fun release() {
+        logger.trace("release;")
         lifecycleManager.release()
     }
 

@@ -62,8 +62,9 @@ internal class DefaultRooms(
     private val chatApi: ChatApi,
     override val clientOptions: ClientOptions,
     private val clientId: String,
-    private val logger: Logger,
+    logger: Logger,
 ) : Rooms {
+    private val logger = logger.withContext(tag = "Rooms")
 
     /**
      * All operations for DefaultRooms should be executed under sequentialScope to avoid concurrency issues.
@@ -72,49 +73,59 @@ internal class DefaultRooms(
     private val sequentialScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1) + SupervisorJob())
 
     private val roomIdToRoom: MutableMap<String, DefaultRoom> = mutableMapOf()
-    private val roomGetDeferred: MutableMap<String, CompletableDeferred<Unit>> = mutableMapOf()
-    private val roomReleaseDeferred: MutableMap<String, CompletableDeferred<Unit>> = mutableMapOf()
+    private val roomGetDeferredMap: MutableMap<String, CompletableDeferred<Unit>> = mutableMapOf()
+    private val roomReleaseDeferredMap: MutableMap<String, CompletableDeferred<Unit>> = mutableMapOf()
 
     override suspend fun get(roomId: String, options: RoomOptions): Room {
+        logger.trace("get(); $roomId; $options")
         return sequentialScope.async {
             val existingRoom = getReleasedOrExistingRoom(roomId)
             existingRoom?.let {
                 if (options != existingRoom.options) { // CHA-RC1f1
                     throw ablyException("room already exists with different options", ErrorCode.BadRequest)
                 }
+                logger.debug("get(); returning existing room with roomId: $roomId")
                 return@async existingRoom // CHA-RC1f2
             }
             // CHA-RC1f3
             val newRoom = makeRoom(roomId, options)
             roomIdToRoom[roomId] = newRoom
+            logger.debug("get(); returning new room with roomId: $roomId")
             return@async newRoom
         }.await()
     }
 
     override suspend fun release(roomId: String) {
+        logger.trace("release(); $roomId")
         sequentialScope.launch {
             // CHA-RC1g4 - Previous Room Get in progress, cancel all of them
-            roomGetDeferred[roomId]?.let {
+            roomGetDeferredMap[roomId]?.let {
+                logger.debug("release(); cancelling existing rooms.get() for roomId: $roomId")
                 val exception = ablyException(
                     "room released before get operation could complete",
                     ErrorCode.RoomReleasedBeforeOperationCompleted,
                 )
                 it.completeExceptionally(exception)
+                it.join() // Doesn't throw exception, only waits till job is complete.
+                roomGetDeferredMap.remove(roomId)
+                logger.warn("release(); cancelled existing rooms.get() for roomId: $roomId")
             }
 
             // CHA-RC1g2, CHA-RC1g3
             val existingRoom = roomIdToRoom[roomId]
             existingRoom?.let {
-                if (roomReleaseDeferred.containsKey(roomId)) {
-                    roomReleaseDeferred[roomId]?.await()
+                logger.debug("release(); releasing roomId: $roomId")
+                if (roomReleaseDeferredMap.containsKey(roomId)) {
+                    roomReleaseDeferredMap[roomId]?.await()
                 } else {
                     val roomReleaseDeferred = CompletableDeferred<Unit>()
-                    this@DefaultRooms.roomReleaseDeferred[roomId] = roomReleaseDeferred
+                    roomReleaseDeferredMap[roomId] = roomReleaseDeferred
                     existingRoom.release() // CHA-RC1g5
                     roomReleaseDeferred.complete(Unit)
                 }
+                logger.debug("release(); released roomId: $roomId")
             }
-            roomReleaseDeferred.remove(roomId)
+            roomReleaseDeferredMap.remove(roomId)
             roomIdToRoom.remove(roomId)
         }.join()
     }
@@ -127,33 +138,33 @@ internal class DefaultRooms(
     private suspend fun getReleasedOrExistingRoom(roomId: String): Room? {
         // Previous Room Get in progress, because room release in progress
         // So await on same deferred and return null
-        roomGetDeferred[roomId]?.let {
+        roomGetDeferredMap[roomId]?.let {
+            logger.debug("getReleasedOrExistingRoom(); awaiting on previous rooms.get() for roomId: $roomId")
             it.await()
             return null
         }
 
         val existingRoom = roomIdToRoom[roomId]
         existingRoom?.let {
-            val roomReleaseInProgress = roomReleaseDeferred[roomId]
+            logger.debug("getReleasedOrExistingRoom(); existing room found, roomId: $roomId")
+            val roomReleaseInProgress = roomReleaseDeferredMap[roomId]
             roomReleaseInProgress?.let {
+                logger.debug("getReleasedOrExistingRoom(); waiting for roomId: $roomId to be released")
                 val roomGetDeferred = CompletableDeferred<Unit>()
-                this.roomGetDeferred[roomId] = roomGetDeferred
-                roomGetDeferred.invokeOnCompletion { throwable ->
-                    throwable?.let {
-                        this.roomGetDeferred.remove(roomId)
-                    }
-                }
+                roomGetDeferredMap[roomId] = roomGetDeferred
                 roomReleaseInProgress.await()
                 if (roomGetDeferred.isActive) {
                     roomGetDeferred.complete(Unit)
                 } else {
                     roomGetDeferred.await()
                 }
-                this.roomGetDeferred.remove(roomId)
+                roomGetDeferredMap.remove(roomId)
+                logger.debug("getReleasedOrExistingRoom(); waiting complete, roomId: $roomId is released")
                 return null
             }
             return existingRoom
         }
+        logger.debug("getReleasedOrExistingRoom(); no existing room found, roomId: $roomId")
         return null
     }
 
