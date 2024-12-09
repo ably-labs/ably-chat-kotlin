@@ -136,7 +136,7 @@ data class PresenceEvent(
 
 internal class DefaultPresence(
     private val room: DefaultRoom,
-) : Presence, ContributesToRoomLifecycleImpl(room.roomLogger) {
+) : Presence, ContributesToRoomLifecycleImpl(room.logger) {
 
     override val featureName = "presence"
 
@@ -146,12 +146,12 @@ internal class DefaultPresence(
 
     override val channel: Channel = room.messages.channel
 
-    private val logger = room.roomLogger.withContext(tag = "Presence")
+    private val logger = room.logger.withContext(tag = "Presence")
 
     private val presence = channel.presence
 
     override suspend fun get(waitForSync: Boolean, clientId: String?, connectionId: String?): List<PresenceMember> {
-        room.ensureAttached() // CHA-PR6d, CHA-PR6c, CHA-PR6h
+        room.ensureAttached(logger) // CHA-PR6d, CHA-PR6c, CHA-PR6h
         return presence.getCoroutine(waitForSync, clientId, connectionId).map { user ->
             PresenceMember(
                 clientId = user.clientId,
@@ -165,17 +165,17 @@ internal class DefaultPresence(
     override suspend fun isUserPresent(clientId: String): Boolean = presence.getCoroutine(clientId = clientId).isNotEmpty()
 
     override suspend fun enter(data: PresenceData?) {
-        room.ensureAttached() // CHA-PR3e, CHA-PR3d, CHA-PR3h
+        room.ensureAttached(logger) // CHA-PR3e, CHA-PR3d, CHA-PR3h
         presence.enterClientCoroutine(room.clientId, wrapInUserCustomData(data))
     }
 
     override suspend fun update(data: PresenceData?) {
-        room.ensureAttached() // CHA-PR10e, CHA-PR10d, CHA-PR10h
+        room.ensureAttached(logger) // CHA-PR10e, CHA-PR10d, CHA-PR10h
         presence.updateClientCoroutine(room.clientId, wrapInUserCustomData(data))
     }
 
     override suspend fun leave(data: PresenceData?) {
-        room.ensureAttached() // CHA-PR4d, CHA-PR4b, CHA-PR4c
+        room.ensureAttached(logger) // CHA-PR4d, CHA-PR4b, CHA-PR4c
         presence.leaveClientCoroutine(room.clientId, wrapInUserCustomData(data))
     }
 

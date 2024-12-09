@@ -44,7 +44,7 @@ class RoomEnsureAttachedTest {
         room.StatusLifecycle.setStatus(RoomStatus.Attached)
         Assert.assertEquals(RoomStatus.Attached, room.status)
 
-        val result = kotlin.runCatching { room.ensureAttached() }
+        val result = kotlin.runCatching { room.ensureAttached(logger) }
         Assert.assertTrue(result.isSuccess)
     }
 
@@ -70,7 +70,7 @@ class RoomEnsureAttachedTest {
             Assert.assertEquals(invalidStatus, room.status)
 
             // Check for exception when ensuring room ATTACHED
-            val result = kotlin.runCatching { room.ensureAttached() }
+            val result = kotlin.runCatching { room.ensureAttached(logger) }
             Assert.assertTrue(result.isFailure)
             val exception = result.exceptionOrNull() as AblyException
             Assert.assertEquals(ErrorCode.RoomInInvalidState.code, exception.errorInfo.code)
@@ -98,7 +98,7 @@ class RoomEnsureAttachedTest {
         room.StatusLifecycle.setStatus(RoomStatus.Attaching)
         Assert.assertEquals(RoomStatus.Attaching, room.status)
 
-        room.ensureAttached()
+        room.ensureAttached(logger)
 
         verify(exactly = 1) {
             roomLifecycleMock.onChangeOnce(any<RoomLifecycle.Listener>())
@@ -114,7 +114,7 @@ class RoomEnsureAttachedTest {
         room.StatusLifecycle.setStatus(RoomStatus.Attaching)
         Assert.assertEquals(RoomStatus.Attaching, room.status)
 
-        val ensureAttachJob = async { room.ensureAttached() }
+        val ensureAttachJob = async { room.ensureAttached(logger) }
 
         // Wait for listener to be registered
         assertWaiter { room.StatusLifecycle.InternalEmitter.Filters.size == 1 }
@@ -150,7 +150,7 @@ class RoomEnsureAttachedTest {
             room.StatusLifecycle.setStatus(RoomStatus.Attaching)
             Assert.assertEquals(RoomStatus.Attaching, room.status)
 
-            val ensureAttachJob = async(SupervisorJob()) { room.ensureAttached() }
+            val ensureAttachJob = async(SupervisorJob()) { room.ensureAttached(logger) }
 
             // Wait for listener to be registered
             assertWaiter { room.StatusLifecycle.InternalEmitter.Filters.size == 1 }

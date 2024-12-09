@@ -42,7 +42,7 @@ class TypingTest {
         val mockChatApi = createMockChatApi(realtimeClient)
         room = spyk(createMockRoom("room1", realtimeClient = realtimeClient, chatApi = mockChatApi))
 
-        coEvery { room.ensureAttached() } returns Unit
+        coEvery { room.ensureAttached(any<Logger>()) } returns Unit
     }
 
     /**

@@ -117,8 +117,12 @@ internal class RoomLifecycleManager(
     private val roomScope: CoroutineScope,
     private val statusLifecycle: DefaultRoomLifecycle,
     private val contributors: List<ContributesToRoomLifecycle>,
-    private val logger: Logger,
+    roomLogger: Logger,
 ) {
+    private val logger = roomLogger.withContext(
+        "RoomLifecycleManager",
+        dynamicContext = mapOf("scope" to { Thread.currentThread().name }),
+    )
 
     /**
      * AtomicCoroutineScope makes sure all operations are atomic and run with given priority.
@@ -292,6 +296,7 @@ internal class RoomLifecycleManager(
      */
     @Suppress("ThrowsCount")
     internal suspend fun attach() {
+        logger.trace("attach();")
         val deferredAttach = atomicCoroutineScope.async(LifecycleOperationPrecedence.AttachOrDetach.priority) { // CHA-RL1d
             if (statusLifecycle.status == RoomStatus.Attached) { // CHA-RL1a
                 return@async
@@ -482,6 +487,7 @@ internal class RoomLifecycleManager(
      */
     @Suppress("ThrowsCount")
     internal suspend fun detach() {
+        logger.trace("detach();")
         val deferredDetach = atomicCoroutineScope.async(LifecycleOperationPrecedence.AttachOrDetach.priority) { // CHA-RL2i
             // CHA-RL2a - If we're already detached, this is a no-op
             if (statusLifecycle.status === RoomStatus.Detached) {
@@ -564,6 +570,7 @@ internal class RoomLifecycleManager(
      * Spec: CHA-RL3
      */
     internal suspend fun release() {
+        logger.trace("release();")
         val deferredRelease = atomicCoroutineScope.async(LifecycleOperationPrecedence.Release.priority) { // CHA-RL3k
             // CHA-RL3a - If we're already released, this is a no-op
             if (statusLifecycle.status === RoomStatus.Released) {
