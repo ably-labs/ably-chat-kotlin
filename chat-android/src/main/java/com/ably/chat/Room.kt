@@ -213,7 +213,7 @@ internal class DefaultRoom(
 
         lifecycleManager = RoomLifecycleManager(roomScope, statusLifecycle, roomFeatures, this.logger)
 
-        this.logger.debug("Initialized with features: ${roomFeatures.joinToString { it.featureName }}")
+        this.logger.debug("Initialized with features: ${roomFeatures.map { it.featureName }.joinWithBrackets}")
     }
 
     override fun onStatusChange(listener: RoomLifecycle.Listener): Subscription =
