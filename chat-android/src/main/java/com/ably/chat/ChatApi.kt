@@ -204,8 +204,8 @@ private fun QueryOptions.toParams() = buildList {
         Param(
             "direction",
             when (orderBy) {
-                QueryOptions.ResultOrder.NewestFirst -> "backwards"
-                QueryOptions.ResultOrder.OldestFirst -> "forwards"
+                OrderBy.NewestFirst -> "backwards"
+                OrderBy.OldestFirst -> "forwards"
             },
         ),
     )
