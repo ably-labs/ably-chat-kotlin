@@ -4,7 +4,7 @@
     <img src="https://img.shields.io/badge/development_status-Private_Beta-ab7df8" alt="Development status"   />
     <img src="https://badgen.net/github/license/3scale/saas-operator" alt="License" />
     <img src="https://img.shields.io/badge/version-0.1.0--SNAPSHOT-2ea44f" alt="version: 0.1.0-SNAPSHOT" />
-    <a href="https://github.com/ably/ably-chat-kotlin/actions/workflows/coverage.yml"><img src="https://img.shields.io/static/v1?label=coverage&message=80%2B%25&color=2ea44f" alt="coverage - 80+%"></a>
+    <a href="https://github.com/ably/ably-chat-kotlin/actions/workflows/coverage.yml"><img src="https://img.shields.io/endpoint?url=https://sdk.ably.com/builds/ably/ably-chat-kotlin/main/badges/code-coverage-badge.json" alt="coverage - 80+%"></a>
 </p>
 
 Ably Chat is a set of purpose-built APIs for a host of chat features enabling you to create 1:1, 1:Many, Many:1 and Many:Many chat rooms for
