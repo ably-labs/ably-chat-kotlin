@@ -92,7 +92,10 @@ internal suspend fun RoomLifecycleManager.atomicRetry(exceptContributor: Contrib
     }.await()
 }
 
-fun createRoomFeatureMocks(roomId: String = DEFAULT_ROOM_ID, clientId: String = DEFAULT_CLIENT_ID): List<ContributesToRoomLifecycle> {
+internal fun createRoomFeatureMocks(
+    roomId: String = DEFAULT_ROOM_ID,
+    clientId: String = DEFAULT_CLIENT_ID,
+): List<ContributesToRoomLifecycle> {
     val realtimeClient = createMockRealtimeClient()
     val chatApi = createMockChatApi()
     val logger = createMockLogger()

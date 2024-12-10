@@ -16,7 +16,7 @@ import io.ably.lib.realtime.Connection as PubSubConnection
 /**
  * Default timeout for transient states before we attempt handle them as a state change.
  */
-const val TRANSIENT_TIMEOUT = 5000
+internal const val TRANSIENT_TIMEOUT = 5000
 
 /**
  * (CHA-CS1) The different states that the connection can be in through its lifecycle.

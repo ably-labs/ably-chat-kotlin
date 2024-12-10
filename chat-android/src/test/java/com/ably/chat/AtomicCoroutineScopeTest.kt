@@ -16,6 +16,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import org.hamcrest.CoreMatchers.containsString
+import org.hamcrest.MatcherAssert.assertThat
 import org.junit.Assert
 import org.junit.Test
 
@@ -156,7 +157,7 @@ class AtomicCoroutineScopeTest {
         repeat(10) {
             Assert.assertEquals(it, results[it])
             Assert.assertEquals("roomId", contextNames[it])
-            Assert.assertThat(contexts[it], containsString("Dispatchers.Default.limitedParallelism(1)"))
+            assertThat(contexts[it], containsString("Dispatchers.Default.limitedParallelism(1)"))
         }
         assertWaiter { atomicCoroutineScope.finishedProcessing }
     }
@@ -198,7 +199,7 @@ class AtomicCoroutineScopeTest {
         val expectedResults = listOf(99, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
         repeat(10) {
             Assert.assertEquals(expectedResults[it], results[it])
-            Assert.assertThat(contexts[it], containsString("Dispatchers.Default"))
+            assertThat(contexts[it], containsString("Dispatchers.Default"))
         }
         assertWaiter { atomicCoroutineScope.finishedProcessing }
     }

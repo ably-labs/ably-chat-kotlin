@@ -31,7 +31,7 @@ interface PaginatedResult<T> {
     fun hasNext(): Boolean
 }
 
-fun <T> AsyncHttpPaginatedResponse?.toPaginatedResult(transform: (JsonElement) -> T?): PaginatedResult<T> =
+internal fun <T> AsyncHttpPaginatedResponse?.toPaginatedResult(transform: (JsonElement) -> T?): PaginatedResult<T> =
     this?.let { AsyncPaginatedResultWrapper(it, transform) } ?: EmptyPaginatedResult()
 
 private class EmptyPaginatedResult<T> : PaginatedResult<T> {

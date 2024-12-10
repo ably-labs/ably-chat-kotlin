@@ -19,6 +19,7 @@ import io.mockk.mockk
 import io.mockk.spyk
 import io.mockk.verify
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
@@ -180,6 +181,7 @@ class RoomReleaseTest {
         }
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
     @Suppress("MaximumLineLength", "LongMethod")
     @Test
     fun `(CHA-RC1g4, CHA-RC1f6) Pending room get operation waiting for room release should be cancelled and deferred associated with previous release operation will be resolved`() = runTest {
