@@ -109,11 +109,31 @@ class SandboxTest {
     }
 
     @Test
-    fun `should be able to send and retrieve messages`() = runTest {
+    fun `should be able to send and retrieve messages without room features`() = runTest {
         val chatClient = sandbox.createSandboxChatClient()
         val roomId = UUID.randomUUID().toString()
 
         val room = chatClient.rooms.get(roomId)
+
+        room.attach()
+
+        val messageEvent = CompletableDeferred<MessageEvent>()
+
+        room.messages.subscribe { messageEvent.complete(it) }
+        room.messages.send("hello")
+
+        assertEquals(
+            "hello",
+            messageEvent.await().message.text,
+        )
+    }
+
+    @Test
+    fun `should be able to send and retrieve messages with all room features enabled`() = runTest {
+        val chatClient = sandbox.createSandboxChatClient()
+        val roomId = UUID.randomUUID().toString()
+
+        val room = chatClient.rooms.get(roomId, RoomOptions.default)
 
         room.attach()
 

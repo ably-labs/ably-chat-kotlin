@@ -41,9 +41,11 @@ class RoomFeatureSharedChannelTest {
 
         Assert.assertEquals(1, capturedChannelOptions.size)
         // Check for set presence modes
-        Assert.assertEquals(2, capturedChannelOptions[0].modes.size)
-        Assert.assertEquals(ChannelMode.presence, capturedChannelOptions[0].modes[0])
-        Assert.assertEquals(ChannelMode.presence_subscribe, capturedChannelOptions[0].modes[1])
+        Assert.assertEquals(4, capturedChannelOptions[0].modes.size)
+        Assert.assertEquals(ChannelMode.publish, capturedChannelOptions[0].modes[0])
+        Assert.assertEquals(ChannelMode.subscribe, capturedChannelOptions[0].modes[1])
+        Assert.assertEquals(ChannelMode.presence, capturedChannelOptions[0].modes[2])
+        Assert.assertEquals(ChannelMode.presence_subscribe, capturedChannelOptions[0].modes[3])
         // Check if occupancy matrix is set
         Assert.assertEquals("metrics", capturedChannelOptions[0].params["occupancy"])
 
