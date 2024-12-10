@@ -12,8 +12,8 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CompletableDeferred
 import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 
-typealias PubSubMessageListener = AblyRealtimeChannel.MessageListener
-typealias PubSubMessage = io.ably.lib.types.Message
+internal typealias PubSubMessageListener = AblyRealtimeChannel.MessageListener
+internal typealias PubSubMessage = io.ably.lib.types.Message
 
 /**
  * This interface is used to interact with messages in a chat room: subscribing
@@ -131,7 +131,7 @@ data class MessageEvent(
 /**
  * Params for sending a text message. Only `text` is mandatory.
  */
-data class SendMessageParams(
+internal data class SendMessageParams(
     /**
      * The text of the message.
      */

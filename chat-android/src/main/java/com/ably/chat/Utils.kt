@@ -20,9 +20,9 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import io.ably.lib.realtime.Presence as PubSubPresence
 
-const val AGENT_PARAMETER_NAME = "agent"
+internal const val AGENT_PARAMETER_NAME = "agent"
 
-suspend fun Channel.attachCoroutine() = suspendCancellableCoroutine { continuation ->
+internal suspend fun Channel.attachCoroutine() = suspendCancellableCoroutine { continuation ->
     attach(object : CompletionListener {
         override fun onSuccess() {
             continuation.resume(Unit)
@@ -34,7 +34,7 @@ suspend fun Channel.attachCoroutine() = suspendCancellableCoroutine { continuati
     })
 }
 
-suspend fun Channel.detachCoroutine() = suspendCancellableCoroutine { continuation ->
+internal suspend fun Channel.detachCoroutine() = suspendCancellableCoroutine { continuation ->
     detach(object : CompletionListener {
         override fun onSuccess() {
             continuation.resume(Unit)
@@ -46,7 +46,7 @@ suspend fun Channel.detachCoroutine() = suspendCancellableCoroutine { continuati
     })
 }
 
-suspend fun Channel.publishCoroutine(message: PubSubMessage) = suspendCancellableCoroutine { continuation ->
+internal suspend fun Channel.publishCoroutine(message: PubSubMessage) = suspendCancellableCoroutine { continuation ->
     publish(
         message,
         object : CompletionListener {
@@ -62,7 +62,7 @@ suspend fun Channel.publishCoroutine(message: PubSubMessage) = suspendCancellabl
 }
 
 @Suppress("SpreadOperator")
-suspend fun PubSubPresence.getCoroutine(
+internal suspend fun PubSubPresence.getCoroutine(
     waitForSync: Boolean = true,
     clientId: String? = null,
     connectionId: String? = null,
@@ -75,7 +75,7 @@ suspend fun PubSubPresence.getCoroutine(
     get(*params.toTypedArray()).asList()
 }
 
-suspend fun PubSubPresence.enterClientCoroutine(clientId: String, data: JsonElement? = JsonNull.INSTANCE) =
+internal suspend fun PubSubPresence.enterClientCoroutine(clientId: String, data: JsonElement? = JsonNull.INSTANCE) =
     suspendCancellableCoroutine { continuation ->
         enterClient(
             clientId,
@@ -92,7 +92,7 @@ suspend fun PubSubPresence.enterClientCoroutine(clientId: String, data: JsonElem
         )
     }
 
-suspend fun PubSubPresence.updateClientCoroutine(clientId: String, data: JsonElement? = JsonNull.INSTANCE) =
+internal suspend fun PubSubPresence.updateClientCoroutine(clientId: String, data: JsonElement? = JsonNull.INSTANCE) =
     suspendCancellableCoroutine { continuation ->
         updateClient(
             clientId,
@@ -109,7 +109,7 @@ suspend fun PubSubPresence.updateClientCoroutine(clientId: String, data: JsonEle
         )
     }
 
-suspend fun PubSubPresence.leaveClientCoroutine(clientId: String, data: JsonElement? = JsonNull.INSTANCE) =
+internal suspend fun PubSubPresence.leaveClientCoroutine(clientId: String, data: JsonElement? = JsonNull.INSTANCE) =
     suspendCancellableCoroutine { continuation ->
         leaveClient(
             clientId,
@@ -126,7 +126,7 @@ suspend fun PubSubPresence.leaveClientCoroutine(clientId: String, data: JsonElem
         )
     }
 
-val Channel.errorMessage: String
+internal val Channel.errorMessage: String
     get() = if (reason == null) {
         ""
     } else {
@@ -134,7 +134,7 @@ val Channel.errorMessage: String
     }
 
 @Suppress("FunctionName")
-fun ChatChannelOptions(init: (ChannelOptions.() -> Unit)? = null): ChannelOptions {
+internal fun ChatChannelOptions(init: (ChannelOptions.() -> Unit)? = null): ChannelOptions {
     val options = ChannelOptions()
     init?.let { options.it() }
     options.params = (options.params ?: mapOf()) + mapOf(
@@ -145,32 +145,32 @@ fun ChatChannelOptions(init: (ChannelOptions.() -> Unit)? = null): ChannelOption
     return options
 }
 
-fun generateUUID() = UUID.randomUUID().toString()
+internal fun generateUUID() = UUID.randomUUID().toString()
 
-fun lifeCycleErrorInfo(
+internal fun lifeCycleErrorInfo(
     errorMessage: String,
     errorCode: ErrorCode,
 ) = createErrorInfo(errorMessage, errorCode, HttpStatusCode.InternalServerError)
 
-fun lifeCycleException(
+internal fun lifeCycleException(
     errorMessage: String,
     errorCode: ErrorCode,
     cause: Throwable? = null,
 ): AblyException = createAblyException(lifeCycleErrorInfo(errorMessage, errorCode), cause)
 
-fun lifeCycleException(
+internal fun lifeCycleException(
     errorInfo: ErrorInfo,
     cause: Throwable? = null,
 ): AblyException = createAblyException(errorInfo, cause)
 
-fun roomInvalidStateException(roomId: String, roomStatus: RoomStatus, statusCode: Int) =
+internal fun roomInvalidStateException(roomId: String, roomStatus: RoomStatus, statusCode: Int) =
     ablyException(
         "Can't perform operation; the room '$roomId' is in an invalid state: $roomStatus",
         ErrorCode.RoomInInvalidState,
         statusCode,
     )
 
-fun ablyException(
+internal fun ablyException(
     errorMessage: String,
     errorCode: ErrorCode,
     statusCode: Int = HttpStatusCode.BadRequest,
@@ -180,7 +180,7 @@ fun ablyException(
     return createAblyException(errorInfo, cause)
 }
 
-fun ablyException(
+internal fun ablyException(
     errorInfo: ErrorInfo,
     cause: Throwable? = null,
 ): AblyException = createAblyException(errorInfo, cause)
@@ -197,6 +197,6 @@ private fun createAblyException(
 ) = cause?.let { AblyException.fromErrorInfo(it, errorInfo) }
     ?: AblyException.fromErrorInfo(errorInfo)
 
-fun clientError(errorMessage: String) = ablyException(errorMessage, ErrorCode.BadRequest, HttpStatusCode.BadRequest)
+internal fun clientError(errorMessage: String) = ablyException(errorMessage, ErrorCode.BadRequest, HttpStatusCode.BadRequest)
 
-fun serverError(errorMessage: String) = ablyException(errorMessage, ErrorCode.InternalError, HttpStatusCode.InternalServerError)
+internal fun serverError(errorMessage: String) = ablyException(errorMessage, ErrorCode.InternalError, HttpStatusCode.InternalServerError)

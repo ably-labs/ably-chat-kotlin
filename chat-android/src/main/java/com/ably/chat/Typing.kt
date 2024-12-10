@@ -23,17 +23,17 @@ import kotlinx.coroutines.launch
 /**
  * base retry interval, we double it each time
  */
-const val PRESENCE_GET_RETRY_INTERVAL_MS: Long = 1500
+internal const val PRESENCE_GET_RETRY_INTERVAL_MS: Long = 1500
 
 /**
  * max retry interval
  */
-const val PRESENCE_GET_RETRY_MAX_INTERVAL_MS: Long = 30_000
+internal const val PRESENCE_GET_RETRY_MAX_INTERVAL_MS: Long = 30_000
 
 /**
  *  max num of retries
  */
-const val PRESENCE_GET_MAX_RETRIES = 5
+internal const val PRESENCE_GET_MAX_RETRIES = 5
 
 /**
  * This interface is used to interact with typing in a chat room including subscribing to typing events and

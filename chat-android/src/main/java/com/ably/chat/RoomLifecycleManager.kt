@@ -16,7 +16,7 @@ import io.ably.lib.realtime.Channel as AblyRealtimeChannel
 /**
  * An interface for features that contribute to the room status.
  */
-interface ContributesToRoomLifecycle : EmitsDiscontinuities, HandlesDiscontinuity {
+internal interface ContributesToRoomLifecycle : EmitsDiscontinuities, HandlesDiscontinuity {
 
     /**
      * Name of the feature
@@ -67,7 +67,7 @@ internal abstract class ContributesToRoomLifecycleImpl(logger: Logger) : Contrib
  * The order of precedence for lifecycle operations, passed to PriorityQueueExecutor which allows
  * us to ensure that internal operations take precedence over user-driven operations.
  */
-enum class LifecycleOperationPrecedence(val priority: Int) {
+internal enum class LifecycleOperationPrecedence(val priority: Int) {
     Internal(1),
     Release(2),
     AttachOrDetach(3),
@@ -76,17 +76,17 @@ enum class LifecycleOperationPrecedence(val priority: Int) {
 /**
  * A map of contributors to pending discontinuity events.
  */
-typealias DiscontinuityEventMap = MutableMap<ContributesToRoomLifecycle, ErrorInfo?>
+internal typealias DiscontinuityEventMap = MutableMap<ContributesToRoomLifecycle, ErrorInfo?>
 
 /**
  * An internal interface that represents the result of a room attachment operation.
  */
-interface RoomAttachmentResult : NewRoomStatus {
+internal interface RoomAttachmentResult : NewRoomStatus {
     val failedFeature: ContributesToRoomLifecycle?
     val exception: AblyException
 }
 
-class DefaultRoomAttachmentResult : RoomAttachmentResult {
+internal class DefaultRoomAttachmentResult : RoomAttachmentResult {
     internal var statusField: RoomStatus = RoomStatus.Attached
     override val status: RoomStatus
         get() = statusField

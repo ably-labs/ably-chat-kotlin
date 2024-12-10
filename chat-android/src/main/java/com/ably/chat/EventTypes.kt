@@ -24,7 +24,7 @@ object PubSubMessageNames {
     const val ChatMessage = "chat.message"
 }
 
-val messageActionNameToAction = mapOf(
+internal val messageActionNameToAction = mapOf(
     /** Represents a message with no action set. */
     "message.unset" to MessageAction.MESSAGE_UNSET,
 

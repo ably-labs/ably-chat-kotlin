@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
  * Accepts scope as a constructor parameter to run operations under the given scope.
  * See [Kotlin Dispatchers](https://kt.academy/article/cc-dispatchers) for more information.
  */
-class AtomicCoroutineScope(private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default)) {
+internal class AtomicCoroutineScope(private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default)) {
 
     private val sequentialScope: CoroutineScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1))
 

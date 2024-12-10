@@ -128,7 +128,7 @@ interface RoomLifecycle {
 /**
  * A new room status that can be set.
  */
-interface NewRoomStatus {
+internal interface NewRoomStatus {
     /**
      * The new status of the room.
      */
@@ -146,7 +146,7 @@ interface NewRoomStatus {
  * internal functionality from user listeners.
  * @internal
  */
-interface InternalRoomLifecycle : RoomLifecycle {
+internal interface InternalRoomLifecycle : RoomLifecycle {
     /**
      * Registers a listener that will be called once when the room status changes.
      * @param listener The function to call when the status changes.

@@ -15,6 +15,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
 import io.mockk.verify
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
@@ -132,6 +133,7 @@ class RoomGetTest {
         Assert.assertEquals(room, rooms.RoomIdToRoom[roomId])
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
     @Suppress("MaximumLineLength", "LongMethod")
     @Test
     fun `(CHA-RC1f4, CHA-RC1f5) If CHA-RC1g release operation is in progress, new instance should not be returned until release operation completes`() = runTest {

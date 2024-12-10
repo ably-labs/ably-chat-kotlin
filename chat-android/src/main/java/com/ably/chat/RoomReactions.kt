@@ -61,7 +61,7 @@ interface RoomReactions : EmitsDiscontinuities {
 /**
  * Params for sending a room-level reactions. Only `type` is mandatory.
  */
-data class SendReactionParams(
+internal data class SendReactionParams(
     /**
      * The type of the reaction, for example an emoji or a short string such as
      * "like".
