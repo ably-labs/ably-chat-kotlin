@@ -121,14 +121,20 @@ internal fun RoomOptions.validateRoomOptions() {
 internal fun RoomOptions.messagesChannelOptions(): ChannelOptions {
     return ChatChannelOptions {
         presence?.let {
-            val presenceModes = mutableListOf<ChannelMode>()
-            if (presence.enter) {
-                presenceModes.add(ChannelMode.presence)
+            val channelModes = buildList {
+                // We should have this modes for regular messages
+                add(ChannelMode.publish)
+                add(ChannelMode.subscribe)
+
+                if (presence.enter) {
+                    add(ChannelMode.presence)
+                }
+                if (presence.subscribe) {
+                    add(ChannelMode.presence_subscribe)
+                }
             }
-            if (presence.subscribe) {
-                presenceModes.add(ChannelMode.presence_subscribe)
-            }
-            modes = presenceModes.toTypedArray()
+
+            modes = channelModes.toTypedArray()
         }
         occupancy?.let {
             params = mapOf(
