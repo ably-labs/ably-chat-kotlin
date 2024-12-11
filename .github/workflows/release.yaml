@@ -6,19 +6,32 @@ on:
 jobs:
   run-on-release:
     runs-on: ubuntu-latest
-
+    if: github.repository == 'ably/ably-chat-kotlin'
     steps:
-      # Ensure the workflow is being run for a published release
-      - name: Validate Release
-        run: |
-          if [ -z "${{ github.event.release.tag_name }}" ]; then
-            echo "This workflow must be run in the context of a published release.";
-            exit 1;
-          fi
-          echo "Running workflow for release: ${{ github.event.release.tag_name }}";
-
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Extract tag
+        id: tag
+        run: |
+          TAG=${GITHUB_REF#refs/tags/v}
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Read VERSION_NAME from gradle.properties
+        id: version
+        run: |
+          VERSION_NAME=$(grep '^VERSION_NAME' gradle.properties | cut -d'=' -f2 | tr -d '[:space:]')
+          echo "version=$VERSION_NAME" >> $GITHUB_OUTPUT
+
+      - name: Compare version with tag
+        run: |
+          if [ "$VERSION" != "$TAG" ]; then
+            echo "VERSION ($VERSION) does not match tag ($TAG)."
+            exit 1
+          fi
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.tag.outputs.tag }}
 
       - name: Set up JDK
         uses: actions/setup-java@v4
