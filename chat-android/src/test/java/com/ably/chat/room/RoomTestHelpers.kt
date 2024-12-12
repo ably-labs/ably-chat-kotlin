@@ -66,8 +66,8 @@ internal fun createMockRoom(
 
 // Rooms mocks
 val Rooms.RoomIdToRoom get() = getPrivateField<MutableMap<String, Room>>("roomIdToRoom")
-val Rooms.RoomGetDeferred get() = getPrivateField<MutableMap<String, CompletableDeferred<Unit>>>("roomGetDeferred")
-val Rooms.RoomReleaseDeferred get() = getPrivateField<MutableMap<String, CompletableDeferred<Unit>>>("roomReleaseDeferred")
+val Rooms.RoomGetDeferredMap get() = getPrivateField<MutableMap<String, CompletableDeferred<Unit>>>("roomGetDeferredMap")
+val Rooms.RoomReleaseDeferredMap get() = getPrivateField<MutableMap<String, CompletableDeferred<Unit>>>("roomReleaseDeferredMap")
 
 // Room mocks
 internal val Room.StatusLifecycle get() = getPrivateField<DefaultRoomLifecycle>("statusLifecycle")

@@ -94,7 +94,7 @@ data class TypingEvent(val currentlyTyping: Set<String>)
 internal class DefaultTyping(
     private val room: DefaultRoom,
     dispatcher: CoroutineDispatcher = Dispatchers.Default,
-) : Typing, ContributesToRoomLifecycleImpl(room.roomLogger) {
+) : Typing, ContributesToRoomLifecycleImpl(room.logger) {
     private val typingIndicatorsChannelName = "${room.roomId}::\$chat::\$typingIndicators"
 
     override val featureName = "typing"
@@ -103,7 +103,7 @@ internal class DefaultTyping(
 
     override val detachmentErrorCode: ErrorCode = ErrorCode.TypingDetachmentFailed
 
-    private val logger = room.roomLogger.withContext(tag = "Typing")
+    private val logger = room.logger.withContext(tag = "Typing")
 
     private val typingScope = CoroutineScope(dispatcher.limitedParallelism(1) + SupervisorJob())
 
@@ -155,7 +155,7 @@ internal class DefaultTyping(
 
     override suspend fun get(): Set<String> {
         logger.trace("DefaultTyping.get()")
-        room.ensureAttached() // CHA-T2d, CHA-T2c, CHA-T2g
+        room.ensureAttached(logger) // CHA-T2d, CHA-T2c, CHA-T2g
         return channel.presence.getCoroutine().map { it.clientId }.toSet()
     }
 
@@ -170,7 +170,7 @@ internal class DefaultTyping(
                 startTypingTimer()
             } else {
                 startTypingTimer()
-                room.ensureAttached() // CHA-T4a1, CHA-T4a3, CHA-T4a4
+                room.ensureAttached(logger) // CHA-T4a1, CHA-T4a3, CHA-T4a4
                 channel.presence.enterClientCoroutine(room.clientId)
             }
         }.join()
@@ -180,7 +180,7 @@ internal class DefaultTyping(
         logger.trace("DefaultTyping.stop()")
         typingScope.launch {
             typingJob?.cancel()
-            room.ensureAttached() // CHA-T5e, CHA-T5c, CHA-T5d
+            room.ensureAttached(logger) // CHA-T5e, CHA-T5c, CHA-T5d
             channel.presence.leaveClientCoroutine(room.clientId)
         }.join()
     }

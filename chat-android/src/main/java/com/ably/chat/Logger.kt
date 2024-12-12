@@ -94,12 +94,12 @@ internal class AndroidLogger(
     override fun log(message: String, level: LogLevel, throwable: Throwable?, newTag: String?, newStaticContext: Map<String, String>) {
         if (level.logLevelValue < minimalVisibleLogLevel.logLevelValue) return
         val finalContext = context.mergeWith(newTag, newStaticContext)
-        val tag = finalContext.tag
+        val tag = "ably-chat:${finalContext.tag}"
         val completeContext = finalContext.staticContext + finalContext.dynamicContext.mapValues { it.value() }
 
         val contextString = ", context: $completeContext"
         val currentTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.S", Locale.US).format(Date())
-        val formattedMessage = "$currentTime [$tag] (${level.name.uppercase()}) ably-chat: ${message}$contextString"
+        val formattedMessage = "$currentTime (${level.name.uppercase()}) ${finalContext.tag}:${message}$contextString"
         when (level) {
             // We use Logcat's info level for Trace and Debug
             LogLevel.Trace -> Log.i(tag, formattedMessage, throwable)

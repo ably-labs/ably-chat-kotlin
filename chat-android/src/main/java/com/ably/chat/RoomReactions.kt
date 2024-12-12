@@ -106,7 +106,7 @@ internal data class SendReactionParams(
 
 internal class DefaultRoomReactions(
     private val room: DefaultRoom,
-) : RoomReactions, ContributesToRoomLifecycleImpl(room.roomLogger) {
+) : RoomReactions, ContributesToRoomLifecycleImpl(room.logger) {
 
     override val featureName = "reactions"
 
@@ -118,7 +118,7 @@ internal class DefaultRoomReactions(
 
     override val detachmentErrorCode: ErrorCode = ErrorCode.ReactionsDetachmentFailed
 
-    private val logger = room.roomLogger.withContext(tag = "Reactions")
+    private val logger = room.logger.withContext(tag = "Reactions")
 
     // (CHA-ER3) Ephemeral room reactions are sent to Ably via the Realtime connection via a send method.
     // (CHA-ER3a) Reactions are sent on the channel using a message in a particular format - see spec for format.
@@ -137,7 +137,7 @@ internal class DefaultRoomReactions(
                 )
             }
         }
-        room.ensureAttached() // TODO - This check might be removed in the future due to core spec change
+        room.ensureAttached(logger) // TODO - This check might be removed in the future due to core spec change
         channel.publishCoroutine(pubSubMessage)
     }
 

@@ -133,6 +133,8 @@ internal val Channel.errorMessage: String
         ", ${reason.message}"
     }
 
+val List<String>.joinWithBrackets: String get() = joinToString(prefix = "[", postfix = "]") { it }
+
 @Suppress("FunctionName")
 internal fun ChatChannelOptions(init: (ChannelOptions.() -> Unit)? = null): ChannelOptions {
     val options = ChannelOptions()

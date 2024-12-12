@@ -115,15 +115,15 @@ class RoomReleaseTest {
 
         // No room exists
         Assert.assertEquals(0, rooms.RoomIdToRoom.size)
-        Assert.assertEquals(0, rooms.RoomReleaseDeferred.size)
-        Assert.assertEquals(0, rooms.RoomGetDeferred.size)
+        Assert.assertEquals(0, rooms.RoomReleaseDeferredMap.size)
+        Assert.assertEquals(0, rooms.RoomGetDeferredMap.size)
 
         // Release the room
         rooms.release(roomId)
 
         Assert.assertEquals(0, rooms.RoomIdToRoom.size)
-        Assert.assertEquals(0, rooms.RoomReleaseDeferred.size)
-        Assert.assertEquals(0, rooms.RoomGetDeferred.size)
+        Assert.assertEquals(0, rooms.RoomReleaseDeferredMap.size)
+        Assert.assertEquals(0, rooms.RoomGetDeferredMap.size)
     }
 
     @Test
@@ -165,15 +165,15 @@ class RoomReleaseTest {
 
         // Wait for room to get into releasing state
         assertWaiter { room.status == RoomStatus.Releasing }
-        Assert.assertEquals(1, rooms.RoomReleaseDeferred.size)
-        Assert.assertNotNull(rooms.RoomReleaseDeferred[roomId])
+        Assert.assertEquals(1, rooms.RoomReleaseDeferredMap.size)
+        Assert.assertNotNull(rooms.RoomReleaseDeferredMap[roomId])
 
         // Release the room, room release deferred gets empty
         roomReleased.send(Unit)
         releasedDeferredList.awaitAll()
         Assert.assertEquals(RoomStatus.Released, room.status)
 
-        Assert.assertTrue(rooms.RoomReleaseDeferred.isEmpty())
+        Assert.assertTrue(rooms.RoomReleaseDeferredMap.isEmpty())
         Assert.assertTrue(rooms.RoomIdToRoom.isEmpty())
 
         coVerify(exactly = 1) {
@@ -225,8 +225,8 @@ class RoomReleaseTest {
 
         // Room is in releasing state, hence RoomReleaseDeferred contain deferred for given roomId
         assertWaiter { originalRoom.status == RoomStatus.Releasing }
-        Assert.assertEquals(1, rooms.RoomReleaseDeferred.size)
-        Assert.assertNotNull(rooms.RoomReleaseDeferred[roomId])
+        Assert.assertEquals(1, rooms.RoomReleaseDeferredMap.size)
+        Assert.assertNotNull(rooms.RoomReleaseDeferredMap[roomId])
 
         // Call roomGet Dispatchers.IO scope, it should wait for release op
         val roomGetDeferredList = mutableListOf<Deferred<Room>>()
@@ -237,32 +237,32 @@ class RoomReleaseTest {
             roomGetDeferredList.add(roomGetDeferred)
         }
         // CHA-RC1f5 - Room Get is in waiting state, for room to get released
-        assertWaiter { rooms.RoomGetDeferred.size == 1 }
-        Assert.assertNotNull(rooms.RoomGetDeferred[roomId])
+        assertWaiter { rooms.RoomGetDeferredMap.size == 1 }
+        Assert.assertNotNull(rooms.RoomGetDeferredMap[roomId])
 
         // Call the release again, so that all pending roomGet gets cancelled
         val roomReleaseDeferred = launch { rooms.release(roomId) }
 
         // All RoomGetDeferred got cancelled due to room release.
-        assertWaiter { rooms.RoomGetDeferred.isEmpty() }
+        assertWaiter { rooms.RoomGetDeferredMap.isEmpty() }
 
         // Call RoomGet after release, so this should return a new room when room is released
         val roomGetDeferred = async { rooms.get(roomId) }
 
         // CHA-RC1f5 - Room Get is in waiting state, for room to get released
-        assertWaiter { rooms.RoomGetDeferred.size == 1 }
-        Assert.assertNotNull(rooms.RoomGetDeferred[roomId])
+        assertWaiter { rooms.RoomGetDeferredMap.size == 1 }
+        Assert.assertNotNull(rooms.RoomGetDeferredMap[roomId])
 
         // Release the room, room release deferred gets empty
         roomReleased.send(Unit)
         assertWaiter { originalRoom.status == RoomStatus.Released }
-        assertWaiter { rooms.RoomReleaseDeferred.isEmpty() }
-        Assert.assertNull(rooms.RoomReleaseDeferred[roomId])
+        assertWaiter { rooms.RoomReleaseDeferredMap.isEmpty() }
+        Assert.assertNull(rooms.RoomReleaseDeferredMap[roomId])
 
         // Room Get in waiting state gets cleared, so it's map for the same is cleared
-        assertWaiter { rooms.RoomGetDeferred.isEmpty() }
-        Assert.assertEquals(0, rooms.RoomGetDeferred.size)
-        Assert.assertNull(rooms.RoomGetDeferred[roomId])
+        assertWaiter { rooms.RoomGetDeferredMap.isEmpty() }
+        Assert.assertEquals(0, rooms.RoomGetDeferredMap.size)
+        Assert.assertNull(rooms.RoomGetDeferredMap[roomId])
 
         roomReleaseDeferred.join()
 
