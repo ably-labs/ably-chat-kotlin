@@ -8,7 +8,13 @@ on:
 
 jobs:
   coverage:
+    if: github.actor != 'dependabot[bot]' || github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+      id-token: write
+      pull-requests: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -35,3 +41,22 @@ jobs:
           update-comment: true
           min-coverage-overall: 80
           coverage-counter-type: LINE
+
+      - name: Create coverage stats
+        run: |
+          mkdir ${{ github.workspace }}/chat-android/build/badges
+          echo '{"schemaVersion":1,"label":"coverage","message":"${{ steps.kover.outputs.coverage-overall }}%","color":"hsl(109, 100%, 40%)"}' > ${{ github.workspace }}/chat-android/build/badges/code-coverage-badge.json
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: eu-west-2
+          role-to-assume: arn:aws:iam::${{ secrets.ABLY_AWS_ACCOUNT_ID_SDK }}:role/ably-sdk-builds-ably-chat-kotlin
+          role-session-name: "${{ github.run_id }}-${{ github.run_number }}"
+
+      - name: Upload Coverage Badge
+        uses: ably/sdk-upload-action@v2
+        with:
+          sourcePath: ${{ github.workspace }}/chat-android/build/badges
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          artifactName: badges
