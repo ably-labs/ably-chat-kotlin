@@ -2,7 +2,7 @@
 # https://docs.gradle.org/current/userguide/platforms.html#sub::toml-dependencies-format
 
 [versions]
-ably = "1.2.46"
+ably = "1.2.47"
 junit = "4.13.2"
 agp = "8.5.2"
 detekt = "1.23.6"

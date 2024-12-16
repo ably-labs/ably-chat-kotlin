@@ -3,7 +3,7 @@
 <p style="text-align: left">
     <img src="https://img.shields.io/badge/development_status-Private_Beta-ab7df8" alt="Development status"   />
     <img src="https://badgen.net/github/license/3scale/saas-operator" alt="License" />
-    <img src="https://img.shields.io/badge/version-0.1.0--SNAPSHOT-2ea44f" alt="version: 0.1.0-SNAPSHOT" />
+    <img src="https://img.shields.io/badge/version-0.1.0-2ea44f" alt="version: 0.1.0" />
     <a href="https://github.com/ably/ably-chat-kotlin/actions/workflows/coverage.yml"><img src="https://img.shields.io/static/v1?label=coverage&message=80%2B%25&color=2ea44f" alt="coverage - 80+%"></a>
 </p>
 
@@ -52,38 +52,26 @@ You will need the following prerequisites:
       following [capabilities](https://ably.com/docs/auth/capabilities): `publish`, `subscribe`, `presence`, `history` and
       `channel-metadata`.
 
-[//]: # (## Installation)
+## Installation
 
-[//]: # ()
-[//]: # (The Ably Chat SDK is available on the Maven Central Repository. To include the dependency in your project, add the following to your `build.gradle` file:)
+The Ably Chat SDK is available on the Maven Central Repository. To include the dependency in your project, add the following to your `build.gradle` file:
 
-[//]: # ()
-[//]: # (For Groovy:)
+For Groovy:
 
-[//]: # ()
-[//]: # (```groovy)
+```groovy
+implementation 'com.ably.chat:chat-android:0.1.0'
+```
 
-[//]: # (implementation 'com.ably.chat:chat-android')
+For Kotlin Script (`build.gradle.kts`):
 
-[//]: # (```)
+```kotlin
+implementation("com.ably.chat:chat-android:0.1.0")
+```
 
-[//]: # ()
-[//]: # (For Kotlin Script &#40;`build.gradle.kts`&#41;:)
+### Dependency on ably-android
 
-[//]: # ()
-[//]: # (```kotlin)
-
-[//]: # (implementation&#40;"com.ably.chat:chat-android"&#41;)
-
-[//]: # (```)
-
-[//]: # ()
-[//]: # (### Dependency on ably-android)
-
-[//]: # ()
-[//]: # (Certain functionalities are powered by the [ably-android]&#40;https://github.com/ably/ably-java&#41; library. )
-
-[//]: # (The `ably-android` library is included as an api dependency within the Chat SDK, so there is no need to manually add it to your project.)
+Certain functionalities are powered by the [ably-android](https://github.com/ably/ably-java) library.
+The `ably-android` library is included as an api dependency within the Chat SDK, so there is no need to manually add it to your project.
 
 ## Versioning
 
